@@ -1,0 +1,317 @@
+"use client";
+
+import { useEffect, useState, useRef } from "react";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
+import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
+
+interface TmdbItem {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path: string | null;
+  media_type: "movie" | "tv";
+  vote_average?: number;
+  release_date?: string;
+  first_air_date?: string;
+}
+
+export default function DiscoverPage() {
+  const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
+  const router = useRouter();
+
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<TmdbItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const platformsRef = useRef<HTMLDivElement>(null);
+
+  const scrollLeft = () => {
+    if (platformsRef.current) {
+      platformsRef.current.scrollBy({ left: -300, behavior: "smooth" });
+    }
+  };
+
+  const scrollRight = () => {
+    if (platformsRef.current) {
+      platformsRef.current.scrollBy({ left: 300, behavior: "smooth" });
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthLoading && !user) {
+      router.push("/");
+    }
+  }, [user, isAuthLoading, router]);
+
+  const fetchTrending = async () => {
+    try {
+      setIsLoading(true);
+      const res = await api.get("/tmdb/trending");
+      // Filter out people, only keep movies and tv
+      const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+      setResults(filtered);
+    } catch (error) {
+      console.error("Failed to fetch trending:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchSearch = async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      fetchTrending();
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const res = await api.get(`/tmdb/search?q=${encodeURIComponent(searchQuery)}`);
+      const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+      setResults(filtered);
+    } catch (error) {
+      console.error("Failed to search:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (query.trim()) {
+        fetchSearch(query);
+      } else {
+        fetchTrending();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Initial load
+  useEffect(() => {
+    fetchTrending();
+  }, []);
+
+  const renderItemCard = (item: TmdbItem) => (
+    <div key={item.id} className="group cursor-pointer flex flex-col gap-2">
+      {/* Poster */}
+      <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
+        <img 
+          src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} 
+          alt={item.title || item.name} 
+          className="w-full h-full object-cover"
+        />
+        
+        {/* Rating Badge */}
+        {item.vote_average ? (
+          <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+            </svg>
+            <span className="text-[10px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
+          </div>
+        ) : null}
+
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <button className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Title */}
+      <div>
+        <h3 className="text-xs sm:text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">
+          {item.title || item.name}
+        </h3>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] text-zinc-500 uppercase font-semibold">
+            {item.media_type === "tv" ? "TV Show" : "Movie"}
+          </span>
+          <span className="text-[10px] text-zinc-600 font-medium">
+            {item.release_date ? item.release_date.split('-')[0] : (item.first_air_date ? item.first_air_date.split('-')[0] : '')}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (isAuthLoading || !user) {
+    return (
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
+        <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white pb-24 font-sans">
+      
+      {/* Search Header */}
+      <div className="sticky top-0 z-40 bg-gradient-to-b from-[#050505] via-[#050505]/90 to-transparent pt-8 pb-6 px-4">
+        <div className="max-w-3xl mx-auto relative">
+          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Search TV shows and movies..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full bg-zinc-900/80 border border-zinc-800 text-white rounded-2xl py-4 pl-14 pr-4 focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all text-lg placeholder:text-zinc-500 shadow-xl backdrop-blur-md"
+          />
+        </div>
+      </div>
+
+      {/* Content Grid */}
+      <div className="w-full max-w-5xl mx-auto px-4 mt-2">
+        
+        {/* Platforms Section */}
+        {!query.trim() && (
+          <div className="mb-10">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                Browse by Platform
+              </h3>
+              
+              {/* Scroll Controls Pill */}
+              <div className="flex bg-[#1a1a1a] rounded-full overflow-hidden border border-zinc-800 shadow-md">
+                <button onClick={scrollLeft} className="px-4 py-2 hover:bg-zinc-800 transition-colors border-r border-zinc-800 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button onClick={scrollRight} className="px-4 py-2 hover:bg-zinc-800 transition-colors flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div 
+              ref={platformsRef} 
+              className="flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            >
+              {[
+                { id: 213, name: "Netflix", logoPath: "/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg" },
+                { id: 1024, name: "Prime Video", logoPath: "/pvske1MyAoymrs5bguRfVqYiM9a.jpg" },
+                { id: 2552, name: "Apple TV+", logoPath: "/mcbz1LgtErU9p4UdbZ0rG6RTWHX.jpg" },
+                { id: 2739, name: "Disney+", logoPath: "/97yvRBw1GzX7fXprcF80er19ot.jpg" },
+                { id: 453, name: "Hulu", logoPath: "/bxBlRPEPpMVDc4jMhSrTf2339DW.jpg" },
+                { id: 49, name: "Max", logoPath: "/jbe4gVSfRlbPTdESXhEKpornsfu.jpg" },
+                { id: 3353, name: "Peacock", logoPath: "/2aGrp1xw3qhwCYvNGAJZPdjfeeX.jpg" },
+                { id: 4330, name: "Paramount+", logoPath: "/h5DcR0J2EESLitnhR8xLG1QymTE.jpg" },
+                { id: 1112, name: "Crunchyroll", logoPath: "/fzN5Jok5Ig1eJ7gyNGoMhnLSCfh.jpg" },
+                { id: 3919, name: "Hotstar", logoPath: "/kVqjgpcwvDJOhCupjcLzwwtOp52.jpg" }, 
+              ].map(platform => (
+                <button 
+                  key={platform.id}
+                  onClick={() => router.push(`/discover/network/${platform.id}?name=${encodeURIComponent(platform.name)}`)}
+                  className="flex-shrink-0 relative w-24 h-24 rounded-full overflow-hidden group hover:scale-105 transition-transform duration-300 border border-zinc-800/80 shadow-lg cursor-pointer bg-zinc-900"
+                >
+                  {/* Ambient Blurred Background (using the logo itself) */}
+                  <img 
+                    src={`https://image.tmdb.org/t/p/w200${platform.logoPath}`}
+                    className="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-60 group-hover:opacity-90 transition-opacity duration-300 scale-150 bg-black" 
+                    alt="" 
+                  />
+                  
+                  {/* Dark Overlay for contrast */}
+                  <div className="absolute inset-0 bg-black/30 group-hover:bg-transparent transition-colors duration-300 rounded-full" />
+                  
+                  {/* Foreground Circular Logo */}
+                  <div className="absolute inset-0 flex items-center justify-center z-10">
+                    <img 
+                      src={`https://image.tmdb.org/t/p/w200${platform.logoPath}`}
+                      className="w-14 h-14 rounded-full shadow-2xl border border-white/10 group-hover:scale-110 transition-transform duration-300 object-cover bg-black" 
+                      alt={platform.name} 
+                    />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold tracking-tight text-white">
+            {query.trim() ? "Search Results" : "Trending Now"}
+          </h2>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+             <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
+          </div>
+        ) : results.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-zinc-700 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="text-xl font-bold text-white mb-2">No results found</h3>
+            <p className="text-zinc-500">We couldn't find anything matching "{query}".</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-10">
+            {/* TV Shows Section */}
+            {results.filter(item => item.media_type === "tv").length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-zinc-300 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                    TV Shows
+                  </h3>
+                  {!query.trim() && (
+                    <button onClick={() => router.push('/discover/tv')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                      See All <span aria-hidden="true">&rarr;</span>
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+                  {results.filter(item => item.media_type === "tv").map(renderItemCard)}
+                </div>
+              </div>
+            )}
+
+            {/* Movies Section */}
+            {results.filter(item => item.media_type === "movie").length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-zinc-300 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                    </svg>
+                    Movies
+                  </h3>
+                  {!query.trim() && (
+                    <button onClick={() => router.push('/discover/movies')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                      See All <span aria-hidden="true">&rarr;</span>
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+                  {results.filter(item => item.media_type === "movie").map(renderItemCard)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+    </main>
+  );
+}
