@@ -17,6 +17,44 @@ interface TmdbItem {
   first_air_date?: string;
 }
 
+function Carousel({ title, children }: { title: React.ReactNode, children: React.ReactNode }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const scroll = (dir: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const { scrollLeft, clientWidth } = scrollRef.current;
+      const amount = clientWidth * 0.75;
+      scrollRef.current.scrollTo({
+        left: scrollLeft + (dir === 'left' ? -amount : amount),
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  return (
+    <div className="group relative">
+      <div className="flex items-center justify-between mb-4">
+        {title}
+        <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
+          <button onClick={() => scroll('left')} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <div className="w-px h-4 bg-zinc-700/50" />
+          <button onClick={() => scroll('right')} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+          </button>
+        </div>
+      </div>
+      <div 
+        ref={scrollRef}
+        className="flex items-center gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-4"
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function DiscoverPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
@@ -24,6 +62,7 @@ export default function DiscoverPage() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TmdbItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [genreImages, setGenreImages] = useState<Record<string, string>>({});
 
   const platformsRef = useRef<HTMLDivElement>(null);
 
@@ -95,8 +134,32 @@ export default function DiscoverPage() {
     fetchTrending();
   }, []);
 
+  // Fetch backdrop images for both genres and studios
+  const genreNames = ["Action", "Comedy", "Sci-Fi", "Horror", "Romance", "Drama", "Animation", "Documentary"];
+  const studioNames = ["Marvel", "DC", "Disney", "Pixar", "A24", "HBO", "Universal", "WB", "Star Wars", "James Bond"];
+  const allCategories = [...genreNames, ...studioNames];
+  
+  useEffect(() => {
+    const fetchImages = async () => {
+      const images: Record<string, string> = {};
+      await Promise.all(
+        allCategories.map(async (name) => {
+          try {
+            const res = await api.get(`/tmdb/discover/genre/${encodeURIComponent(name)}?type=movie`);
+            const firstWithBackdrop = res.data.results?.find((item: any) => item.backdrop_path);
+            if (firstWithBackdrop) {
+              images[name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
+            }
+          } catch {}
+        })
+      );
+      setGenreImages(images);
+    };
+    fetchImages();
+  }, []);
+
   const renderItemCard = (item: TmdbItem) => (
-    <div key={item.id} className="group cursor-pointer flex flex-col gap-2">
+    <div key={item.id} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
       {/* Poster */}
       <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
         <img 
@@ -107,7 +170,7 @@ export default function DiscoverPage() {
         
         {/* Rating Badge */}
         {item.vote_average ? (
-          <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
+          <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
@@ -116,8 +179,13 @@ export default function DiscoverPage() {
         ) : null}
 
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <button className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300">
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300 z-20 shadow-lg"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
@@ -131,10 +199,7 @@ export default function DiscoverPage() {
           {item.title || item.name}
         </h3>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-zinc-500 uppercase font-semibold">
-            {item.media_type === "tv" ? "TV Show" : "Movie"}
-          </span>
-          <span className="text-[10px] text-zinc-600 font-medium">
+          <span className="text-[10px] text-zinc-500 font-medium">
             {item.release_date ? item.release_date.split('-')[0] : (item.first_air_date ? item.first_air_date.split('-')[0] : '')}
           </span>
         </div>
@@ -186,14 +251,15 @@ export default function DiscoverPage() {
               </h3>
               
               {/* Scroll Controls Pill */}
-              <div className="flex bg-[#1a1a1a] rounded-full overflow-hidden border border-zinc-800 shadow-md">
-                <button onClick={scrollLeft} className="px-4 py-2 hover:bg-zinc-800 transition-colors border-r border-zinc-800 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
+                <button onClick={scrollLeft} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <button onClick={scrollRight} className="px-4 py-2 hover:bg-zinc-800 transition-colors flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-px h-4 bg-zinc-700/50" />
+                <button onClick={scrollRight} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -205,16 +271,25 @@ export default function DiscoverPage() {
               className="flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {[
-                { id: 213, name: "Netflix", logoPath: "/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg" },
-                { id: 1024, name: "Prime Video", logoPath: "/pvske1MyAoymrs5bguRfVqYiM9a.jpg" },
-                { id: 2552, name: "Apple TV+", logoPath: "/mcbz1LgtErU9p4UdbZ0rG6RTWHX.jpg" },
-                { id: 2739, name: "Disney+", logoPath: "/97yvRBw1GzX7fXprcF80er19ot.jpg" },
-                { id: 453, name: "Hulu", logoPath: "/bxBlRPEPpMVDc4jMhSrTf2339DW.jpg" },
-                { id: 49, name: "Max", logoPath: "/jbe4gVSfRlbPTdESXhEKpornsfu.jpg" },
-                { id: 3353, name: "Peacock", logoPath: "/2aGrp1xw3qhwCYvNGAJZPdjfeeX.jpg" },
-                { id: 4330, name: "Paramount+", logoPath: "/h5DcR0J2EESLitnhR8xLG1QymTE.jpg" },
-                { id: 1112, name: "Crunchyroll", logoPath: "/fzN5Jok5Ig1eJ7gyNGoMhnLSCfh.jpg" },
-                { id: 3919, name: "Hotstar", logoPath: "/kVqjgpcwvDJOhCupjcLzwwtOp52.jpg" }, 
+                { id: 8, name: "Netflix", logoPath: "/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg" },
+                { id: 9, name: "Prime Video", logoPath: "/pvske1MyAoymrs5bguRfVqYiM9a.jpg" },
+                { id: 350, name: "Apple TV+", logoPath: "/mcbz1LgtErU9p4UdbZ0rG6RTWHX.jpg" },
+                { id: 337, name: "Disney+", logoPath: "/97yvRBw1GzX7fXprcF80er19ot.jpg" },
+                { id: 15, name: "Hulu", logoPath: "/bxBlRPEPpMVDc4jMhSrTf2339DW.jpg" },
+                { id: 526, name: "AMC+", logoPath: "/ovmu6uot1XVvsemM2dDySXLiX57.jpg" },
+                { id: 34, name: "MGM+", logoPath: "/ctiRpS16dlaTXQBSsiFncMrgWmh.jpg" },
+                { id: 1773, name: "Showtime", logoPath: "/h0ZYcYHicKQ4Ixm5nOjqvwni5NG.jpg" },
+                { id: 1899, name: "Max", logoPath: "/jbe4gVSfRlbPTdESXhEKpornsfu.jpg" },
+                { id: 386, name: "Peacock", logoPath: "/2aGrp1xw3qhwCYvNGAJZPdjfeeX.jpg" },
+                { id: 531, name: "Paramount+", logoPath: "/h5DcR0J2EESLitnhR8xLG1QymTE.jpg" },
+                { id: 283, name: "Crunchyroll", logoPath: "/fzN5Jok5Ig1eJ7gyNGoMhnLSCfh.jpg" },
+                { id: 122, name: "Hotstar", logoPath: "/kVqjgpcwvDJOhCupjcLzwwtOp52.jpg" }, 
+                { id: 43, name: "Starz", logoPath: "/yIKwylTLP1u8gl84Is7FItpYLGL.jpg" },
+                { id: 510, name: "Discovery+", logoPath: "/eMTnWwNVtThkjvQA6zwxaoJG9NE.jpg" },
+                { id: 99, name: "Shudder", logoPath: "/vEtdiYRPRbDCp1Tcn3BEPF1Ni76.jpg" },
+                { id: 11, name: "MUBI", logoPath: "/x570VpH2C9EKDf1riP83rYc5dnL.jpg" },
+                { id: 300, name: "Pluto TV", logoPath: "/dB8G41Q6tSL5NBisrIeqByfepBc.jpg" },
+                { id: 344, name: "Rakuten Viki", logoPath: "/73uV3YooOA8gD9YQTXFj2XakZWA.jpg" },
               ].map(platform => (
                 <button 
                   key={platform.id}
@@ -281,8 +356,8 @@ export default function DiscoverPage() {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
-                  {results.filter(item => item.media_type === "tv").map(renderItemCard)}
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                  {results.filter(item => item.media_type === "tv").slice(0, 6).map(renderItemCard)}
                 </div>
               </div>
             )}
@@ -303,9 +378,80 @@ export default function DiscoverPage() {
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
-                  {results.filter(item => item.media_type === "movie").map(renderItemCard)}
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                  {results.filter(item => item.media_type === "movie").slice(0, 6).map(renderItemCard)}
                 </div>
+              </div>
+            )}
+
+            {/* Explore by Genre Section */}
+            {!query.trim() && (
+              <div className="mt-10 mb-10 space-y-10">
+                
+                {/* Genres */}
+                <Carousel 
+                  title={
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                      </svg>
+                      Explore by Genre
+                    </h3>
+                  }
+                >
+                  {genreNames.map(name => (
+                    <button 
+                      key={name}
+                      onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
+                      className="flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow hover:shadow-xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-500"
+                    >
+                      {genreImages[name] && (
+                        <img 
+                          src={genreImages[name]} 
+                          alt={name}
+                          className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-500"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
+                      <span className="relative z-10 font-bold text-[13px] sm:text-sm tracking-wide text-zinc-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] group-hover:-translate-y-0.5 transition-transform duration-300">
+                        {name}
+                      </span>
+                    </button>
+                  ))}
+                </Carousel>
+
+                {/* Studios / Universes */}
+                <Carousel
+                  title={
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                      </svg>
+                      Explore by Universe & Studio
+                    </h3>
+                  }
+                >
+                  {studioNames.map(name => (
+                    <button 
+                      key={name}
+                      onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
+                      className="flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-400"
+                    >
+                      {genreImages[name] && (
+                        <img 
+                          src={genreImages[name]} 
+                          alt={name}
+                          className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-105 transition-all duration-700"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-300" />
+                      <span className="relative z-10 font-black text-[13px] sm:text-[15px] tracking-wide uppercase text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform duration-300">
+                        {name}
+                      </span>
+                    </button>
+                  ))}
+                </Carousel>
+
               </div>
             )}
           </div>
