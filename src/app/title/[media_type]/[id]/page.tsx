@@ -3,9 +3,24 @@
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+
+const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
+  const name = providerName.toLowerCase();
+  const query = encodeURIComponent(title);
+  
+  if (name.includes('netflix')) return `https://www.netflix.com/search?q=${query}`;
+  if (name.includes('amazon') || name.includes('prime')) return `https://www.amazon.com/s?k=${query}&i=movies-tv`;
+  if (name.includes('disney')) return `https://www.disneyplus.com/search?q=${query}`;
+  if (name.includes('hulu')) return `https://www.hulu.com/search?q=${query}`;
+  if (name.includes('apple')) return `https://tv.apple.com/search?term=${query}`;
+  if (name.includes('youtube')) return `https://www.youtube.com/results?search_query=${query}`;
+  if (name.includes('max') || name.includes('hbo')) return `https://play.max.com/search?q=${query}`;
+  
+  return fallbackLink;
+};
 
 function SeasonItem({ 
   tvId, 
@@ -29,6 +44,7 @@ function SeasonItem({
   const [expanded, setExpanded] = useState(false);
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isTogglingSeason, setIsTogglingSeason] = useState(false);
   const [togglingEpisodes, setTogglingEpisodes] = useState<Record<number, boolean>>({});
   
@@ -41,17 +57,34 @@ function SeasonItem({
     if (!expanded) {
       if (episodes.length === 0) {
         setLoading(true);
+        setError(null);
         try {
           const res = await api.get(`/tmdb/tv/${tvId}/season/${season.season_number}`);
           setEpisodes(res.data.episodes || []);
-        } catch (error) {
-          console.error("Failed to load episodes", error);
+        } catch (err: any) {
+          console.error("Failed to load episodes", err);
+          setError("Failed to load episodes. Please try again.");
         } finally {
           setLoading(false);
         }
       }
     }
     setExpanded(!expanded);
+  };
+
+  const handleRetry = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.get(`/tmdb/tv/${tvId}/season/${season.season_number}`);
+      setEpisodes(res.data.episodes || []);
+    } catch (err: any) {
+      console.error("Failed to load episodes", err);
+      setError("Failed to load episodes. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleToggleEpisode = async (e: React.MouseEvent, episodeNumber: number) => {
@@ -304,8 +337,19 @@ function SeasonItem({
                 </div>
               )})}
 
-              {episodes.length === 0 && !loading && (
+              {episodes.length === 0 && !loading && !error && (
                 <p className="text-sm text-zinc-500 italic">No episodes available.</p>
+              )}
+              {error && !loading && (
+                <div className="flex flex-col items-center justify-center p-4">
+                  <p className="text-sm text-red-400 mb-2">{error}</p>
+                  <button 
+                    onClick={handleRetry}
+                    className="px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-md text-xs font-bold transition-colors"
+                  >
+                    Retry
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -313,14 +357,22 @@ function SeasonItem({
       )}
 
       {showPromptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200" onClick={(e) => { e.stopPropagation(); setShowPromptModal(false); setPendingToggleEp(null); }}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => { setShowPromptModal(false); setPendingToggleEp(null); }}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
             <h3 className="text-xl font-bold text-white mb-2">Mark previous episodes?</h3>
-            <p className="text-zinc-400 mb-6 text-sm">Do you want to mark all previous episodes as watched?</p>
-            <div className="flex justify-end gap-3 font-semibold text-xs tracking-wider">
-              <button onClick={() => handlePromptAction('yes')} className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors">YES</button>
-              <button onClick={() => handlePromptAction('no')} className="px-4 py-2 text-zinc-300 hover:bg-white/10 rounded-lg transition-colors">NO</button>
-              <button onClick={() => handlePromptAction('never')} className="px-4 py-2 text-zinc-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">NEVER FOR THIS SHOW</button>
+            <p className="text-zinc-400 mb-8 text-sm leading-relaxed">It looks like you haven't watched all previous episodes in this season. Would you like to mark them as watched?</p>
+            <div className="flex justify-end items-center gap-2 font-bold text-[11px] tracking-widest mt-2">
+              <button onClick={() => handlePromptAction('never')} className="px-3 py-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors uppercase">Never</button>
+              <button onClick={() => handlePromptAction('no')} className="px-4 py-2 text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors uppercase">No</button>
+              <button onClick={() => handlePromptAction('yes')} className="px-4 py-2 text-black bg-white hover:bg-zinc-200 rounded transition-colors uppercase shadow-sm">Mark All</button>
             </div>
           </div>
         </div>
@@ -333,18 +385,45 @@ export default function TitleDetailsPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   
   const mediaType = params.media_type as string;
   const id = params.id as string;
 
   const [details, setDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'about' | 'episodes' | 'cast' | 'trailers'>('about');
+  
+  const initialTab = (searchParams.get('tab') as any) || 'about';
+  const [activeTab, setActiveTab] = useState<'about' | 'episodes' | 'cast' | 'trailers'>(initialTab);
+
+  const handleTabChange = (tab: 'about' | 'episodes' | 'cast' | 'trailers') => {
+    setActiveTab(tab);
+    router.replace(`/title/${mediaType}/${id}?tab=${tab}`, { scroll: false });
+  };
   const [isScrolled, setIsScrolled] = useState(false);
   const [isWatched, setIsWatched] = useState(false);
   const [watchedEpisodes, setWatchedEpisodes] = useState<{season: number, episode: number}[]>([]);
   const [ignorePrompt, setIgnorePrompt] = useState(false);
   const [isTogglingWatched, setIsTogglingWatched] = useState(false);
+  const [userCountry, setUserCountry] = useState("US");
+  const [pendingRedirectLink, setPendingRedirectLink] = useState<string | null>(null);
+  const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('https://ipapi.co/country/')
+      .then(res => res.text())
+      .then(country => {
+        if (country && country.length === 2) {
+          setUserCountry(country.toUpperCase());
+        }
+      })
+      .catch(() => {
+        const lang = navigator.language;
+        if (lang && lang.includes('-')) {
+          setUserCountry(lang.split('-')[1].toUpperCase());
+        }
+      });
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -431,7 +510,7 @@ export default function TitleDetailsPage() {
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white pb-24 font-sans">
       
       {/* Sticky App Bar */}
-      <div className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 ${isScrolled ? 'bg-[#050505]/95 backdrop-blur-md border-b border-white/10 shadow-lg' : 'bg-transparent pt-4'}`}>
+      <div className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 border-b ${isScrolled ? 'bg-[#050505]/95 backdrop-blur-md border-white/10 shadow-lg' : 'bg-transparent border-transparent pt-4'}`}>
         <button onClick={() => router.back()} className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -527,28 +606,28 @@ export default function TitleDetailsPage() {
           <div className="sticky top-16 z-40 bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-center border-b border-zinc-800 mb-8 w-full overflow-x-auto [&::-webkit-scrollbar]:hidden">
             <button 
               className={`py-3 px-6 font-bold text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              onClick={() => setActiveTab('about')}
+              onClick={() => handleTabChange('about')}
             >
               About
             </button>
             {mediaType === 'tv' && (
               <button 
                 className={`py-3 px-6 font-bold text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'episodes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-                onClick={() => setActiveTab('episodes')}
+                onClick={() => handleTabChange('episodes')}
               >
                 Episodes
               </button>
             )}
             <button 
               className={`py-3 px-6 font-bold text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'cast' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              onClick={() => setActiveTab('cast')}
+              onClick={() => handleTabChange('cast')}
             >
               Cast
             </button>
             {details.videos?.results?.some((v: any) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")) && (
               <button 
                 className={`py-3 px-6 font-bold text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'trailers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-                onClick={() => setActiveTab('trailers')}
+                onClick={() => handleTabChange('trailers')}
               >
                 Trailers
               </button>
@@ -589,8 +668,8 @@ export default function TitleDetailsPage() {
                         {details.production_companies.slice(0, 4).map((company: any) => (
                           <div key={company.id} className="flex items-center">
                             {company.logo_path ? (
-                              <div className="h-6 w-auto flex items-center justify-center bg-white/90 p-1.5 rounded-md">
-                                <img src={`https://image.tmdb.org/t/p/w92${company.logo_path}`} alt={company.name} className="h-full object-contain mix-blend-multiply" />
+                              <div className="h-8 min-w-[3rem] flex items-center justify-center bg-white px-2 py-1 rounded-md" title={company.name}>
+                                <img src={`https://image.tmdb.org/t/p/w200${company.logo_path}`} alt={company.name} className="h-full w-auto object-contain mix-blend-multiply" />
                               </div>
                             ) : (
                               <span className="text-zinc-400 font-bold">{company.name}</span>
@@ -600,14 +679,23 @@ export default function TitleDetailsPage() {
                       </div>
                     </div>
                   )}
-                  {details['watch/providers']?.results?.US?.flatrate && (
+                  {details['watch/providers']?.results?.[userCountry]?.flatrate && (
                     <div className="flex flex-col items-center">
-                      <span className="block text-zinc-500 font-bold mb-3 uppercase tracking-wider text-[10px]">Stream On</span>
+                      <span className="block text-zinc-500 font-bold mb-3 uppercase tracking-wider text-[10px]">Where to Watch</span>
                       <div className="flex flex-wrap justify-center items-center gap-4">
-                        {details['watch/providers'].results.US.flatrate.map((provider: any) => (
-                          <div key={provider.provider_id} className="w-8 h-8 rounded-lg overflow-hidden shadow-sm border border-zinc-800">
+                        {details['watch/providers'].results[userCountry].flatrate.map((provider: any) => (
+                          <button 
+                            key={provider.provider_id} 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPendingRedirectLink(getProviderLink(provider.provider_name, title, details['watch/providers'].results[userCountry].link));
+                              setPendingProviderName(provider.provider_name);
+                            }}
+                            className="w-8 h-8 rounded-lg overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block"
+                            title={`Watch on ${provider.provider_name}`}
+                          >
                             <img src={`https://image.tmdb.org/t/p/original${provider.logo_path}`} alt={provider.provider_name} className="w-full h-full object-cover" />
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -713,6 +801,30 @@ export default function TitleDetailsPage() {
 
         </div>
       </div>
+      {/* Redirect Confirmation Modal */}
+      {pendingRedirectLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { e.stopPropagation(); setPendingRedirectLink(null); }}>
+          <div className="bg-[#0f0f0f] border border-zinc-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-white">Leaving TVTrac</h3>
+            </div>
+            <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
+              You are about to be redirected to search on <span className="text-white font-bold">{pendingProviderName}</span>.
+            </p>
+            <div className="flex justify-end items-center gap-2 font-bold text-[11px] tracking-widest mt-2">
+              <button onClick={() => setPendingRedirectLink(null)} className="px-4 py-2 text-zinc-400 hover:text-white transition-colors uppercase">Cancel</button>
+              <a href={pendingRedirectLink} target="_blank" rel="noopener noreferrer" onClick={() => setPendingRedirectLink(null)} className="px-4 py-2 text-black bg-white hover:bg-zinc-200 rounded-md transition-colors uppercase">Continue</a>
+            </div>
+          </div>
+        </div>
+      )}
+
     </main>
   );
 }

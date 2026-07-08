@@ -7,23 +7,60 @@ import { RootState } from "@/store";
 import { api } from "@/lib/api";
 import Link from "next/link";
 
+const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
+  const name = providerName.toLowerCase();
+  const query = encodeURIComponent(title);
+  
+  if (name.includes('netflix')) return `https://www.netflix.com/search?q=${query}`;
+  if (name.includes('amazon') || name.includes('prime')) return `https://www.amazon.com/s?k=${query}&i=movies-tv`;
+  if (name.includes('disney')) return `https://www.disneyplus.com/search?q=${query}`;
+  if (name.includes('hulu')) return `https://www.hulu.com/search?q=${query}`;
+  if (name.includes('apple')) return `https://tv.apple.com/search?term=${query}`;
+  if (name.includes('youtube')) return `https://www.youtube.com/results?search_query=${query}`;
+  if (name.includes('max') || name.includes('hbo')) return `https://play.max.com/search?q=${query}`;
+  
+  return fallbackLink;
+};
+
 export default function EpisodeDetailsPage() {
   const { id, season_number, episode_number } = useParams();
   const { user } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
 
   const [details, setDetails] = useState<any>(null);
+  const [seasonDetails, setSeasonDetails] = useState<any>(null);
+  const [showDetails, setShowDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWatched, setIsWatched] = useState(false);
   const [isTogglingWatched, setIsTogglingWatched] = useState(false);
-  const [seasonDetails, setSeasonDetails] = useState<any>(null);
   const [isDescriptionRevealed, setIsDescriptionRevealed] = useState(false);
+  const [watchedAt, setWatchedAt] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   
   // Prompt State
   const [watchedEpisodes, setWatchedEpisodes] = useState<{season: number, episode: number}[]>([]);
   const [ignorePrompt, setIgnorePrompt] = useState(false);
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [missingPreviousEps, setMissingPreviousEps] = useState<number[]>([]);
+  const [userCountry, setUserCountry] = useState("US");
+  const [pendingRedirectLink, setPendingRedirectLink] = useState<string | null>(null);
+  const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('https://ipapi.co/country/')
+      .then(res => res.text())
+      .then(country => {
+        if (country && country.length === 2) {
+          setUserCountry(country.toUpperCase());
+        }
+      })
+      .catch(() => {
+        const lang = navigator.language;
+        if (lang && lang.includes('-')) {
+          setUserCountry(lang.split('-')[1].toUpperCase());
+        }
+      });
+  }, []);
 
   useEffect(() => {
     // Only redirect if we have confirmed auth failed (we could check token)
@@ -36,29 +73,38 @@ export default function EpisodeDetailsPage() {
     const fetchDetails = async () => {
       try {
         setIsLoading(true);
-        // We fetch the episode details, season details, and the tracking status for the entire series
-        const [detailsRes, seasonRes, watchedRes] = await Promise.all([
+        // We fetch the episode details, season details, the tracking status for the entire series, and show details
+        const [detailsRes, seasonRes, watchedRes, showRes] = await Promise.all([
           api.get(`/tmdb/tv/${id}/season/${season_number}/episode/${episode_number}`),
           api.get(`/tmdb/tv/${id}/season/${season_number}`),
-          user ? api.get(`/tracking/watched/status/tv/${id}`).catch(() => ({ data: { watchedEpisodes: [] } })) : Promise.resolve({ data: { watchedEpisodes: [] } })
+          user ? api.get(`/tracking/watched/status/tv/${id}`).catch(() => ({ data: { watchedEpisodes: [] } })) : Promise.resolve({ data: { watchedEpisodes: [] } }),
+          api.get(`/tmdb/title/tv/${id}`).catch(() => ({ data: null }))
         ]);
         
         setDetails(detailsRes.data);
         setSeasonDetails(seasonRes.data);
+        setShowDetails(showRes.data);
         
         // Check if this specific episode is watched
         if (watchedRes.data.watchedEpisodes) {
           setWatchedEpisodes(watchedRes.data.watchedEpisodes);
-          const isEpWatched = watchedRes.data.watchedEpisodes.some(
+          const matchedEp = watchedRes.data.watchedEpisodes.find(
             (ep: any) => ep.season === Number(season_number) && ep.episode === Number(episode_number)
           );
-          setIsWatched(isEpWatched);
+          if (matchedEp) {
+            setIsWatched(true);
+            setWatchedAt(matchedEp.watchedAt || null);
+          } else {
+            setIsWatched(false);
+            setWatchedAt(null);
+          }
         }
         if (watchedRes.data.ignorePreviousEpisodesPrompt !== undefined) {
           setIgnorePrompt(watchedRes.data.ignorePreviousEpisodesPrompt);
         }
-      } catch (error) {
-        console.error("Failed to fetch episode details:", error);
+      } catch (err) {
+        console.error("Failed to fetch episode details:", err);
+        setError("Failed to load episode details. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -98,7 +144,12 @@ export default function EpisodeDetailsPage() {
       setIsTogglingWatched(true);
       // Optimistic update
       setIsWatched(!isWatched);
-      if (!isWatched) setIsDescriptionRevealed(true); // Reveal description if marked watched
+      if (!isWatched) {
+        setIsDescriptionRevealed(true); // Reveal description if marked watched
+        setWatchedAt(new Date().toISOString());
+      } else {
+        setWatchedAt(null);
+      }
       await api.post("/tracking/watched/episode/toggle", { 
         tmdbId: id, 
         season: Number(season_number), 
@@ -154,6 +205,23 @@ export default function EpisodeDetailsPage() {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
         <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white">
+        <h1 className="text-2xl font-bold mb-4 text-red-500">Network Error</h1>
+        <p className="text-zinc-400 mb-6">{error}</p>
+        <div className="flex gap-4">
+          <button onClick={() => window.location.reload()} className="px-6 py-2 bg-zinc-800 text-white font-bold rounded hover:bg-zinc-700 transition-colors">
+            Retry
+          </button>
+          <Link href={`/title/tv/${id}`} className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-zinc-200 transition-colors">
+            Back to Series
+          </Link>
+        </div>
       </div>
     );
   }
@@ -266,7 +334,21 @@ export default function EpisodeDetailsPage() {
                 {details.vote_average.toFixed(1)}
               </div>
             )}
-            <span>{airDate}</span>
+            <div className="flex items-center gap-1.5" title="Original Air Date">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              {airDate}
+            </div>
+            {isWatched && watchedAt && (
+              <div className="flex items-center gap-1.5 text-green-400 font-bold" title="Watched On">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                {new Date(watchedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+              </div>
+            )}
             {runtime > 0 && <span>{runtime} min</span>}
           </div>
 
@@ -286,7 +368,7 @@ export default function EpisodeDetailsPage() {
             )}
           </div>
           
-          {(directors.length > 0 || writers.length > 0) && (
+          {(directors.length > 0 || writers.length > 0 || showDetails?.['watch/providers']?.results?.US?.flatrate) && (
             <div className="mt-8 flex flex-wrap gap-8">
               {directors.length > 0 && (
                 <div>
@@ -301,6 +383,31 @@ export default function EpisodeDetailsPage() {
                   <h3 className="text-zinc-500 text-sm font-bold uppercase mb-1">Written By</h3>
                   <div className="text-zinc-200">
                     {writers.map((w: any) => w.name).join(", ")}
+                  </div>
+                </div>
+              )}
+              {showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate && (
+                <div>
+                  <h3 className="text-zinc-500 text-sm font-bold uppercase mb-1">Where to Watch</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {showDetails['watch/providers'].results[userCountry].flatrate.slice(0, 4).map((provider: any) => (
+                      <button 
+                        key={provider.provider_id} 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setPendingRedirectLink(getProviderLink(provider.provider_name, title, showDetails['watch/providers'].results[userCountry].link));
+                          setPendingProviderName(provider.provider_name);
+                        }}
+                        title={`Watch on ${provider.provider_name}`} 
+                        className="w-8 h-8 rounded-lg overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block"
+                      >
+                        <img 
+                          src={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} 
+                          alt={provider.provider_name} 
+                          className="w-full h-full object-cover" 
+                        />
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -386,18 +493,50 @@ export default function EpisodeDetailsPage() {
       </div>
 
       {showPromptModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200" onClick={(e) => { e.stopPropagation(); setShowPromptModal(false); }}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setShowPromptModal(false)}
+              className="absolute top-4 right-4 text-zinc-500 hover:text-white transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
             <h3 className="text-xl font-bold text-white mb-2">Mark previous episodes?</h3>
-            <p className="text-zinc-400 mb-6 text-sm">Do you want to mark all previous episodes as watched?</p>
-            <div className="flex justify-end gap-3 font-semibold text-xs tracking-wider">
-              <button onClick={() => handlePromptAction('yes')} className="px-4 py-2 text-white hover:bg-white/10 rounded-lg transition-colors">YES</button>
-              <button onClick={() => handlePromptAction('no')} className="px-4 py-2 text-zinc-300 hover:bg-white/10 rounded-lg transition-colors">NO</button>
-              <button onClick={() => handlePromptAction('never')} className="px-4 py-2 text-zinc-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors">NEVER FOR THIS SHOW</button>
+            <p className="text-zinc-400 mb-8 text-sm leading-relaxed">It looks like you haven't watched all previous episodes in this season. Would you like to mark them as watched?</p>
+            <div className="flex justify-end items-center gap-2 font-bold text-[11px] tracking-widest mt-2">
+              <button onClick={() => handlePromptAction('never')} className="px-3 py-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors uppercase">Never</button>
+              <button onClick={() => handlePromptAction('no')} className="px-4 py-2 text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition-colors uppercase">No</button>
+              <button onClick={() => handlePromptAction('yes')} className="px-4 py-2 text-black bg-white hover:bg-zinc-200 rounded transition-colors uppercase shadow-sm">Mark All</button>
             </div>
           </div>
         </div>
       )}
+      {/* Redirect Confirmation Modal */}
+      {pendingRedirectLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={(e) => { e.stopPropagation(); setPendingRedirectLink(null); }}>
+          <div className="bg-[#0f0f0f] border border-zinc-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl relative" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-zinc-800/50 flex items-center justify-center text-zinc-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+                  <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-bold text-white">Leaving TVTrac</h3>
+            </div>
+            <p className="text-zinc-400 text-sm mb-6 leading-relaxed">
+              You are about to be redirected to search on <span className="text-white font-bold">{pendingProviderName}</span>.
+            </p>
+            <div className="flex justify-end items-center gap-2 font-bold text-[11px] tracking-widest mt-2">
+              <button onClick={() => setPendingRedirectLink(null)} className="px-4 py-2 text-zinc-400 hover:text-white transition-colors uppercase">Cancel</button>
+              <a href={pendingRedirectLink} target="_blank" rel="noopener noreferrer" onClick={() => setPendingRedirectLink(null)} className="px-4 py-2 text-black bg-white hover:bg-zinc-200 rounded-md transition-colors uppercase">Continue</a>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
