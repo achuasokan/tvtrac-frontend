@@ -31,6 +31,8 @@ export default function DiscoverNetworkPage() {
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [filter, setFilter] = useState<"tv" | "movies" | "animation" | "anime">("tv");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthLoading && !user) {
@@ -38,49 +40,75 @@ export default function DiscoverNetworkPage() {
     }
   }, [user, isAuthLoading, router]);
 
-  const fetchNetworkShows = async (pageNumber: number, isInitial = false) => {
+  const fetchNetworkShows = async (pageNumber: number, currentFilter: string, isInitial = false, retryCount = 0) => {
     if (!networkId) return;
 
     try {
-      if (isInitial) setIsLoading(true);
-      else setLoadingMore(true);
+      if (isInitial && retryCount === 0) {
+        setIsLoading(true);
+        setErrorMsg(null);
+      } else if (!isInitial && retryCount === 0) {
+        setLoadingMore(true);
+      }
 
-      const res = await api.get(`/tmdb/network/${networkId}?page=${pageNumber}`);
+      // Auto-detect Indian providers (Hotstar, JioCinema, SonyLIV, Zee5, Prime IN)
+      const indianProviders = ["122", "220", "237", "232", "119"];
+      const region = indianProviders.includes(networkId) ? "IN" : "US";
+
+      const res = await api.get(`/tmdb/network/${networkId}?page=${pageNumber}&filter=${currentFilter}&region=${region}`);
       const newResults = res.data.results?.filter((item: any) => item.poster_path) || [];
       
-      const formattedResults = newResults.map((item: any) => ({ ...item, media_type: "tv" }));
+      const formattedResults = newResults.map((item: any) => ({ 
+        ...item, 
+        media_type: currentFilter === "movies" ? "movie" : "tv" 
+      }));
 
       if (isInitial) {
         setResults(formattedResults);
       } else {
-        setResults(prev => [...prev, ...formattedResults]);
+        setResults(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const uniqueNew = formattedResults.filter((item: any) => !existingIds.has(item.id));
+          return [...prev, ...uniqueNew];
+        });
       }
 
       setHasMore(res.data.page < res.data.total_pages && pageNumber < 100);
+      
+      if (isInitial) setIsLoading(false);
+      else setLoadingMore(false);
+      
     } catch (error) {
-      console.error("Failed to fetch network shows:", error);
-    } finally {
-      setIsLoading(false);
-      setLoadingMore(false);
+      console.error(`Failed to fetch network shows (Attempt ${retryCount + 1}):`, error);
+      if (retryCount < 2) {
+        setTimeout(() => fetchNetworkShows(pageNumber, currentFilter, isInitial, retryCount + 1), 1500);
+      } else {
+        if (isInitial) {
+          setErrorMsg("Connection Failed. Please try again.");
+          setIsLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
+      }
     }
   };
 
   useEffect(() => {
     if (networkId) {
-      fetchNetworkShows(1, true);
+      fetchNetworkShows(1, filter, true);
     }
-  }, [networkId]);
+  }, [networkId, filter]);
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {
       const nextPage = page + 1;
       setPage(nextPage);
-      fetchNetworkShows(nextPage);
+      fetchNetworkShows(nextPage, filter);
     }
   };
 
   const renderItemCard = (item: TmdbItem) => (
-    <div key={item.id} className="group cursor-pointer flex flex-col gap-2">
+    <div key={item.id} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
       <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
         <img 
           src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} 
@@ -88,15 +116,20 @@ export default function DiscoverNetworkPage() {
           className="w-full h-full object-cover"
         />
         {item.vote_average ? (
-          <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
+          <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
             </svg>
             <span className="text-[10px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
           </div>
         ) : null}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <button className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300">
+        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300 z-20 shadow-lg"
+          >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
             </svg>
@@ -108,9 +141,11 @@ export default function DiscoverNetworkPage() {
           {item.title || item.name}
         </h3>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-[10px] text-zinc-500 uppercase font-semibold">TV Show</span>
+          <span className="text-[10px] text-zinc-500 uppercase font-semibold">
+            {item.media_type === "movie" ? "Movie" : "TV Show"}
+          </span>
           <span className="text-[10px] text-zinc-600 font-medium">
-            {item.first_air_date ? item.first_air_date.split('-')[0] : ''}
+            {(item.first_air_date || item.release_date) ? (item.first_air_date || item.release_date)!.split('-')[0] : ''}
           </span>
         </div>
       </div>
@@ -138,9 +173,39 @@ export default function DiscoverNetworkPage() {
           </button>
           <div>
             <h2 className="text-xl font-bold tracking-tight text-white">
-              {networkName} Originals
+              {networkName} Catalog
             </h2>
-            <p className="text-xs text-zinc-500 mt-1">Discover the most popular shows on {networkName}.</p>
+            <p className="text-xs text-zinc-500 mt-1">Discover the most popular content streaming on {networkName}.</p>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="w-full max-w-5xl mx-auto mt-4">
+          <div className="flex overflow-x-auto gap-2 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {[
+              { id: "tv", label: "TV Shows" },
+              { id: "movies", label: "Movies" },
+              { id: "animation", label: "Animation" },
+              { id: "anime", label: "Anime" },
+            ].map(f => (
+              <button
+                key={f.id}
+                onClick={() => {
+                  if (filter !== f.id) {
+                    setFilter(f.id as any);
+                    setPage(1);
+                    setResults([]);
+                  }
+                }}
+                className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
+                  filter === f.id 
+                    ? "bg-white text-black" 
+                    : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -151,13 +216,27 @@ export default function DiscoverNetworkPage() {
           <div className="flex justify-center py-20">
              <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
           </div>
+        ) : errorMsg ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="text-xl font-bold text-white mb-2">Connection Failed</h3>
+            <p className="text-zinc-500 mb-6">Failed to load content for {networkName}.</p>
+            <button 
+              onClick={() => fetchNetworkShows(1, filter, true)}
+              className="px-6 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white rounded-full font-semibold transition-colors"
+            >
+              Retry Connection
+            </button>
+          </div>
         ) : results.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-zinc-700 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <h3 className="text-xl font-bold text-white mb-2">No shows found</h3>
-            <p className="text-zinc-500">We couldn't find any shows for {networkName}.</p>
+            <h3 className="text-xl font-bold text-white mb-2">No content found</h3>
+            <p className="text-zinc-500">We couldn't find any content matching this filter for {networkName}.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-10">
