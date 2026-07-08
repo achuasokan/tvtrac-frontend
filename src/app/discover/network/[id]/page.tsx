@@ -32,6 +32,7 @@ export default function DiscoverNetworkPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<"tv" | "movies" | "animation" | "anime">("tv");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAuthLoading && !user) {
@@ -39,14 +40,22 @@ export default function DiscoverNetworkPage() {
     }
   }, [user, isAuthLoading, router]);
 
-  const fetchNetworkShows = async (pageNumber: number, currentFilter: string, isInitial = false) => {
+  const fetchNetworkShows = async (pageNumber: number, currentFilter: string, isInitial = false, retryCount = 0) => {
     if (!networkId) return;
 
     try {
-      if (isInitial) setIsLoading(true);
-      else setLoadingMore(true);
+      if (isInitial && retryCount === 0) {
+        setIsLoading(true);
+        setErrorMsg(null);
+      } else if (!isInitial && retryCount === 0) {
+        setLoadingMore(true);
+      }
 
-      const res = await api.get(`/tmdb/network/${networkId}?page=${pageNumber}&filter=${currentFilter}`);
+      // Auto-detect Indian providers (Hotstar, JioCinema, SonyLIV, Zee5, Prime IN)
+      const indianProviders = ["122", "220", "237", "232", "119"];
+      const region = indianProviders.includes(networkId) ? "IN" : "US";
+
+      const res = await api.get(`/tmdb/network/${networkId}?page=${pageNumber}&filter=${currentFilter}&region=${region}`);
       const newResults = res.data.results?.filter((item: any) => item.poster_path) || [];
       
       const formattedResults = newResults.map((item: any) => ({ 
@@ -57,15 +66,30 @@ export default function DiscoverNetworkPage() {
       if (isInitial) {
         setResults(formattedResults);
       } else {
-        setResults(prev => [...prev, ...formattedResults]);
+        setResults(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const uniqueNew = formattedResults.filter((item: any) => !existingIds.has(item.id));
+          return [...prev, ...uniqueNew];
+        });
       }
 
       setHasMore(res.data.page < res.data.total_pages && pageNumber < 100);
+      
+      if (isInitial) setIsLoading(false);
+      else setLoadingMore(false);
+      
     } catch (error) {
-      console.error("Failed to fetch network shows:", error);
-    } finally {
-      setIsLoading(false);
-      setLoadingMore(false);
+      console.error(`Failed to fetch network shows (Attempt ${retryCount + 1}):`, error);
+      if (retryCount < 2) {
+        setTimeout(() => fetchNetworkShows(pageNumber, currentFilter, isInitial, retryCount + 1), 1500);
+      } else {
+        if (isInitial) {
+          setErrorMsg("Connection Failed. Please try again.");
+          setIsLoading(false);
+        } else {
+          setLoadingMore(false);
+        }
+      }
     }
   };
 
@@ -191,6 +215,20 @@ export default function DiscoverNetworkPage() {
         {isLoading ? (
           <div className="flex justify-center py-20">
              <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
+          </div>
+        ) : errorMsg ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h3 className="text-xl font-bold text-white mb-2">Connection Failed</h3>
+            <p className="text-zinc-500 mb-6">Failed to load content for {networkName}.</p>
+            <button 
+              onClick={() => fetchNetworkShows(1, filter, true)}
+              className="px-6 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white rounded-full font-semibold transition-colors"
+            >
+              Retry Connection
+            </button>
           </div>
         ) : results.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">

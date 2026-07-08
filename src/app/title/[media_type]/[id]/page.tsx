@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
@@ -225,7 +225,7 @@ function SeasonItem({
   return (
     <div className="mb-3 bg-zinc-900/50 rounded-xl overflow-hidden border border-zinc-800">
       <div 
-        className="flex items-center p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors"
+        className="flex items-center p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors relative"
         onClick={handleToggle}
       >
         {season.poster_path ? (
@@ -237,11 +237,11 @@ function SeasonItem({
         ) : (
           <div className="w-10 h-14 sm:w-12 sm:h-16 bg-zinc-800 rounded-md mr-4 shadow-sm" />
         )}
-        <div className="flex-1 text-left pr-4">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+        <div className="flex-1 text-left pr-2 sm:pr-4">
+          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
             {season.name}
           </h3>
-          <p className="text-zinc-400 text-sm">
+          <p className="text-zinc-400 text-xs sm:text-sm">
             {user ? (
               <span className={watchedEpisodes.filter(e => e.season === season.season_number).length === season.episode_count && season.episode_count > 0 ? "text-green-400 font-medium" : "text-white font-medium"}>
                 {watchedEpisodes.filter(e => e.season === season.season_number).length} / {season.episode_count}
@@ -256,12 +256,16 @@ function SeasonItem({
           onClick={handleMarkSeasonWatched}
           disabled={isTogglingSeason}
           title={(watchedEpisodes.filter(e => e.season === season.season_number).length >= season.episode_count && season.episode_count > 0) ? "Unmark season as watched" : "Mark entire season as watched"}
-          className="mr-3 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-800 hover:bg-zinc-700 transition-colors z-10 group"
+          className={`mr-2 sm:mr-3 w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-colors z-10 group border ${
+            (watchedEpisodes.filter(e => e.season === season.season_number).length >= season.episode_count && season.episode_count > 0)
+              ? 'bg-green-500 text-white border-green-500 hover:bg-green-600'
+              : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'
+          }`}
         >
           {isTogglingSeason ? (
-            <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin text-zinc-400" />
+            <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin" />
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 hover:text-green-400 ${(watchedEpisodes.filter(e => e.season === season.season_number).length >= season.episode_count && season.episode_count > 0) ? 'text-green-500' : 'text-zinc-400'}`} viewBox="0 0 20 20" fill="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
             </svg>
           )}
@@ -272,6 +276,22 @@ function SeasonItem({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
+
+        {user && season.episode_count > 0 && (() => {
+          const seasonWatchedCount = watchedEpisodes.filter(e => e.season === season.season_number).length;
+          if (seasonWatchedCount === 0) return null;
+          
+          const progressPercentage = Math.min(Math.round((seasonWatchedCount / season.episode_count) * 100), 100);
+          const isComplete = progressPercentage === 100;
+          return (
+            <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white/5">
+              <div 
+                className={`absolute top-0 left-0 h-full transition-all duration-700 ease-out ${isComplete ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'}`} 
+                style={{ width: `${progressPercentage}%` }} 
+              />
+            </div>
+          );
+        })()}
       </div>
       
       {expanded && (
@@ -306,16 +326,16 @@ function SeasonItem({
                   <div className="flex-1 flex flex-col justify-center text-left">
                     <div className="flex justify-between items-start w-full">
                       <div>
-                        <h4 className="text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">{ep.episode_number}. {ep.name}</h4>
-                        {ep.runtime > 0 && <p className="text-xs font-medium text-zinc-500 mt-1">{ep.runtime} min</p>}
+                        <h4 className="text-[13px] sm:text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">{ep.episode_number}. {ep.name}</h4>
+                        {ep.runtime > 0 && <p className="text-[11px] sm:text-xs font-medium text-zinc-500 mt-0.5 sm:mt-1">{ep.runtime} min</p>}
                       </div>
                       
                       <button 
                         onClick={(e) => handleToggleEpisode(e, ep.episode_number)}
                         disabled={isToggling}
-                        className={`ml-3 w-8 h-8 shrink-0 flex items-center justify-center rounded-full transition-colors border ${
+                        className={`ml-2 sm:ml-3 w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-colors border ${
                           isEpWatched 
-                            ? 'bg-green-500/20 text-green-400 border-green-500/40 hover:bg-green-500/30' 
+                            ? 'bg-green-500 text-white border-green-500 hover:bg-green-600' 
                             : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/80 hover:bg-zinc-700 hover:text-white'
                         }`}
                       >
@@ -392,6 +412,7 @@ export default function TitleDetailsPage() {
 
   const [details, setDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   
   const initialTab = (searchParams.get('tab') as any) || 'about';
   const [activeTab, setActiveTab] = useState<'about' | 'episodes' | 'cast' | 'trailers'>(initialTab);
@@ -408,6 +429,53 @@ export default function TitleDetailsPage() {
   const [userCountry, setUserCountry] = useState("US");
   const [pendingRedirectLink, setPendingRedirectLink] = useState<string | null>(null);
   const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
+
+  const initialMount = useRef(true);
+  const prevWatchedCount = useRef(0);
+
+  useEffect(() => {
+    if (initialMount.current) {
+      if (details) {
+        initialMount.current = false;
+        prevWatchedCount.current = watchedEpisodes.length;
+      }
+      return;
+    }
+
+    if (mediaType === 'tv' && details?.number_of_episodes > 0) {
+      const isComplete = watchedEpisodes.length === details.number_of_episodes;
+      const wasComplete = prevWatchedCount.current === details.number_of_episodes;
+
+      if (isComplete && !wasComplete && watchedEpisodes.length > 0) {
+        if (typeof window !== 'undefined') {
+          if (!(window as any).confetti) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js';
+            script.onload = () => {
+              (window as any).confetti({
+                particleCount: 200,
+                spread: 120,
+                origin: { y: 0.4 },
+                colors: ['#22c55e', '#ffffff', '#eab308', '#3b82f6'],
+                zIndex: 99999
+              });
+            };
+            document.body.appendChild(script);
+          } else {
+            (window as any).confetti({
+              particleCount: 200,
+              spread: 120,
+              origin: { y: 0.4 },
+              colors: ['#22c55e', '#ffffff', '#eab308', '#3b82f6'],
+              zIndex: 99999
+            });
+          }
+        }
+      }
+      
+      prevWatchedCount.current = watchedEpisodes.length;
+    }
+  }, [watchedEpisodes.length, details?.number_of_episodes, mediaType, details]);
 
   useEffect(() => {
     fetch('https://ipapi.co/country/')
@@ -440,13 +508,18 @@ export default function TitleDetailsPage() {
   }, [user, isAuthLoading, router]);
 
   useEffect(() => {
-    const fetchDetails = async () => {
+    const fetchDetails = async (retryCount = 0) => {
       try {
-        setIsLoading(true);
+        if (retryCount === 0) {
+          setIsLoading(true);
+          setErrorStatus(null);
+        }
+        
         const [detailsRes, watchedRes] = await Promise.all([
           api.get(`/tmdb/title/${mediaType}/${id}`),
           user ? api.get(`/tracking/watched/status/${mediaType}/${id}`).catch(() => ({ data: { watched: false, watchedEpisodes: [] } })) : Promise.resolve({ data: { watched: false, watchedEpisodes: [] } })
         ]);
+        
         setDetails(detailsRes.data);
         setIsWatched(watchedRes.data.watched);
         if (watchedRes.data.watchedEpisodes) {
@@ -455,10 +528,22 @@ export default function TitleDetailsPage() {
         if (watchedRes.data.ignorePreviousEpisodesPrompt !== undefined) {
           setIgnorePrompt(watchedRes.data.ignorePreviousEpisodesPrompt);
         }
-      } catch (error) {
-        console.error("Failed to fetch details:", error);
-      } finally {
+        
         setIsLoading(false);
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          setErrorStatus(404);
+          setIsLoading(false);
+          return;
+        }
+        
+        console.error(`Failed to fetch details (Attempt ${retryCount + 1}):`, error);
+        if (retryCount < 2) {
+          setTimeout(() => fetchDetails(retryCount + 1), 1500);
+        } else {
+          setErrorStatus(500);
+          setIsLoading(false);
+        }
       }
     };
 
@@ -486,19 +571,77 @@ export default function TitleDetailsPage() {
 
   if (isAuthLoading || !user || isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
-        <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
+      <div className="flex-1 flex flex-col relative min-h-screen bg-[#050505] animate-pulse pb-24 font-sans">
+        {/* Skeleton Sticky App Bar */}
+        <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-16 px-4 sm:px-6 pt-4">
+          <div className="w-10 h-10 bg-zinc-900 rounded-full" />
+          <div className="w-10 h-10 bg-zinc-900 rounded-full" />
+        </div>
+
+        {/* Skeleton Hero Section */}
+        <div className="relative w-full h-[50vh] sm:h-[60vh] bg-zinc-900">
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent" />
+        </div>
+
+        {/* Skeleton Content */}
+        <div className="max-w-4xl mx-auto px-4 -mt-32 sm:-mt-48 relative z-10 w-full flex flex-col items-center gap-6 sm:gap-10">
+          <div className="flex flex-col items-center text-center pt-4 sm:pt-16 w-full px-2 sm:px-24">
+            <div className="w-3/4 sm:w-1/2 h-10 sm:h-14 bg-zinc-800/80 rounded-lg mb-4" />
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-5 bg-zinc-800/80 rounded" />
+              <div className="w-12 h-5 bg-zinc-800/80 rounded" />
+              <div className="w-16 h-5 bg-zinc-800/80 rounded" />
+            </div>
+          </div>
+          
+          <div className="w-full flex gap-4 px-2 sm:px-0">
+            <div className="w-20 h-10 bg-zinc-800/80 rounded" />
+            <div className="w-20 h-10 bg-zinc-800/80 rounded" />
+            <div className="w-20 h-10 bg-zinc-800/80 rounded" />
+          </div>
+
+          <div className="w-full flex flex-col gap-4 mt-8">
+            <div className="w-full h-4 bg-zinc-800/60 rounded" />
+            <div className="w-[90%] h-4 bg-zinc-800/60 rounded" />
+            <div className="w-[80%] h-4 bg-zinc-800/60 rounded" />
+            <div className="w-[85%] h-4 bg-zinc-800/60 rounded" />
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!details) {
+  if (errorStatus === 404) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505] text-white">
-        <p>Title not found.</p>
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-zinc-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h2 className="text-2xl font-bold mb-2">Title Not Found</h2>
+        <p className="text-zinc-500 mb-8">This movie or TV show doesn't seem to exist.</p>
+        <button onClick={() => router.push('/discover')} className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors shadow-lg">
+          Browse Library
+        </button>
       </div>
     );
   }
+
+  if (errorStatus === 500) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white px-4">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h2 className="text-2xl font-bold mb-2 text-center">Connection Failed</h2>
+        <p className="text-zinc-400 mb-8 max-w-sm text-center">TMDB servers are currently overloaded. Please try again in a moment.</p>
+        <button onClick={() => window.location.reload()} className="px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 transition-colors shadow-lg">
+          Retry Connection
+        </button>
+      </div>
+    );
+  }
+
+  if (!details) return null;
 
   const title = details.title || details.name;
   const releaseYear = details.release_date ? details.release_date.split('-')[0] : (details.first_air_date ? details.first_air_date.split('-')[0] : '');
@@ -548,28 +691,25 @@ export default function TitleDetailsPage() {
               <button 
               onClick={handleToggleWatched}
               disabled={isTogglingWatched}
-              className={`w-12 h-12 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md ${
+              className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md ${
                 isWatched 
                   ? 'bg-green-500/30 border border-green-500/50 hover:bg-green-500/40' 
-                  : 'bg-zinc-900/60 border border-zinc-500/50 hover:bg-zinc-800/80 hover:border-zinc-400'
+                  : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
               }`}
             >
               {isTogglingWatched ? (
-                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin text-zinc-300" />
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin text-white" />
               ) : isWatched ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-400 drop-shadow-md" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 drop-shadow-md" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-zinc-300 group-hover:text-white transition-colors drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white transition-colors drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
               )}
             </button>
-            <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] transition-colors drop-shadow-md ${isWatched ? 'text-green-400' : 'text-zinc-300'}`}>
-              Watched
-            </span>
             </div>
           </div>
         )}
@@ -579,7 +719,7 @@ export default function TitleDetailsPage() {
       <div className="max-w-4xl mx-auto px-4 -mt-32 sm:-mt-48 relative z-10 w-full flex flex-col items-center gap-6 sm:gap-10">
         
         {/* Info */}
-        <div className="flex flex-col items-center text-center pt-4 sm:pt-16 w-full">
+        <div className="flex flex-col items-center text-center pt-4 sm:pt-16 w-full px-2 sm:px-24">
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-2">{title}</h1>
           
           <div className="flex items-center justify-center flex-wrap gap-4 text-sm text-zinc-400 mb-6 font-medium">
@@ -603,35 +743,51 @@ export default function TitleDetailsPage() {
           {/* Action Buttons Removed */}
 
           {/* Tabs */}
-          <div className="sticky top-16 z-40 bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-center border-b border-zinc-800 mb-8 w-full overflow-x-auto [&::-webkit-scrollbar]:hidden">
-            <button 
-              className={`py-3 px-6 font-bold text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              onClick={() => handleTabChange('about')}
-            >
-              About
-            </button>
-            {mediaType === 'tv' && (
+          <div className="sticky top-16 z-40 w-[calc(100%+2rem)] -mx-4 sm:w-full sm:mx-0 mb-8">
+            {/* Series Progress Line */}
+            {mediaType === 'tv' && details.number_of_episodes > 0 && watchedEpisodes.length > 0 && (() => {
+              const progressPercentage = Math.min(Math.round((watchedEpisodes.length / details.number_of_episodes) * 100), 100);
+              const isComplete = progressPercentage === 100;
+              return (
+                <div className="absolute top-0 left-0 w-full h-[2px] bg-white/10 z-50">
+                  <div 
+                    className={`absolute top-0 left-0 h-full transition-all duration-1000 ease-out ${isComplete ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]'}`} 
+                    style={{ width: `${progressPercentage}%` }} 
+                  />
+                </div>
+              );
+            })()}
+            
+            <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-start sm:justify-center border-b border-zinc-800 w-full overflow-x-auto px-2 sm:px-0 [&::-webkit-scrollbar]:hidden">
               <button 
-                className={`py-3 px-6 font-bold text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'episodes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-                onClick={() => handleTabChange('episodes')}
+                className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                onClick={() => handleTabChange('about')}
               >
-                Episodes
+                About
               </button>
-            )}
-            <button 
-              className={`py-3 px-6 font-bold text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'cast' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              onClick={() => handleTabChange('cast')}
-            >
-              Cast
-            </button>
-            {details.videos?.results?.some((v: any) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")) && (
+              {mediaType === 'tv' && (
+                <button 
+                  className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'episodes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  onClick={() => handleTabChange('episodes')}
+                >
+                  Episodes
+                </button>
+              )}
               <button 
-                className={`py-3 px-6 font-bold text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'trailers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-                onClick={() => handleTabChange('trailers')}
+                className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'cast' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                onClick={() => handleTabChange('cast')}
               >
-                Trailers
+                Cast
               </button>
-            )}
+              {details.videos?.results?.some((v: any) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")) && (
+                <button 
+                  className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'trailers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  onClick={() => handleTabChange('trailers')}
+                >
+                  Trailers
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Tab Content */}
@@ -650,9 +806,9 @@ export default function TitleDetailsPage() {
                   ))}
                 </div>
 
-                <div className="flex flex-col sm:flex-row flex-wrap justify-center items-start gap-12 mb-10 text-sm">
+                <div className="flex flex-col sm:flex-row flex-wrap justify-center items-center sm:items-start gap-10 sm:gap-12 mb-2 sm:mb-4 text-sm w-full">
                   {(details.created_by?.length > 0 || details.credits?.crew?.find((c: any) => c.job === 'Director')) && (
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
                       <span className="block text-zinc-500 font-bold mb-3 uppercase tracking-wider text-[10px]">{mediaType === 'tv' ? 'Creator' : 'Director'}</span>
                       <span className="text-zinc-200">
                         {mediaType === 'tv' 
@@ -661,28 +817,10 @@ export default function TitleDetailsPage() {
                       </span>
                     </div>
                   )}
-                  {details.production_companies?.length > 0 && (
-                    <div className="flex flex-col items-center">
-                      <span className="block text-zinc-500 font-bold mb-3 uppercase tracking-wider text-[10px]">Studios</span>
-                      <div className="flex flex-wrap justify-center items-center gap-6">
-                        {details.production_companies.slice(0, 4).map((company: any) => (
-                          <div key={company.id} className="flex items-center">
-                            {company.logo_path ? (
-                              <div className="h-8 min-w-[3rem] flex items-center justify-center bg-white px-2 py-1 rounded-md" title={company.name}>
-                                <img src={`https://image.tmdb.org/t/p/w200${company.logo_path}`} alt={company.name} className="h-full w-auto object-contain mix-blend-multiply" />
-                              </div>
-                            ) : (
-                              <span className="text-zinc-400 font-bold">{company.name}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   {details['watch/providers']?.results?.[userCountry]?.flatrate && (
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center sm:items-start">
                       <span className="block text-zinc-500 font-bold mb-3 uppercase tracking-wider text-[10px]">Where to Watch</span>
-                      <div className="flex flex-wrap justify-center items-center gap-4">
+                      <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 sm:gap-4">
                         {details['watch/providers'].results[userCountry].flatrate.map((provider: any) => (
                           <button 
                             key={provider.provider_id} 
@@ -691,7 +829,7 @@ export default function TitleDetailsPage() {
                               setPendingRedirectLink(getProviderLink(provider.provider_name, title, details['watch/providers'].results[userCountry].link));
                               setPendingProviderName(provider.provider_name);
                             }}
-                            className="w-8 h-8 rounded-lg overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block"
+                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block"
                             title={`Watch on ${provider.provider_name}`}
                           >
                             <img src={`https://image.tmdb.org/t/p/original${provider.logo_path}`} alt={provider.provider_name} className="w-full h-full object-cover" />
@@ -703,7 +841,7 @@ export default function TitleDetailsPage() {
                 </div>
 
                 {details.similar?.results?.length > 0 && (
-                  <div className="mt-12 border-t border-zinc-800 pt-8 w-full text-center">
+                  <div className="mt-8 border-t border-zinc-800 pt-6 w-full text-center">
                     <h3 className="text-xl font-bold text-white mb-6">You Might Also Like</h3>
                     <div className="flex overflow-x-auto gap-4 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                       {details.similar.results.map((item: any) => (

@@ -98,35 +98,36 @@ export default function DiscoverPage() {
     }
   };
 
-  const fetchSearch = async (searchQuery: string) => {
-    if (!searchQuery.trim()) {
-      fetchTrending();
-      return;
-    }
-    
-    try {
-      setIsLoading(true);
-      const res = await api.get(`/tmdb/search?q=${encodeURIComponent(searchQuery)}`);
-      const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
-      setResults(filtered);
-    } catch (error) {
-      console.error("Failed to search:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   // Debounce search
   useEffect(() => {
+    const controller = new AbortController();
+    
     const timer = setTimeout(() => {
       if (query.trim()) {
-        fetchSearch(query);
+        const fetchSearch = async () => {
+          try {
+            setIsLoading(true);
+            const res = await api.get(`/tmdb/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
+            const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+            setResults(filtered);
+          } catch (error: any) {
+            if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+              console.error("Failed to search:", error);
+            }
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        fetchSearch();
       } else {
         fetchTrending();
       }
     }, 500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [query]);
 
   // Initial load
@@ -219,20 +220,47 @@ export default function DiscoverPage() {
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white pb-24 font-sans">
       
       {/* Search Header */}
-      <div className="sticky top-0 z-40 bg-gradient-to-b from-[#050505] via-[#050505]/90 to-transparent pt-8 pb-6 px-4">
-        <div className="max-w-3xl mx-auto relative">
-          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+      <div className="sticky top-0 z-40 bg-gradient-to-b from-[#050505] via-[#050505]/95 to-transparent pt-4 sm:pt-8 pb-4 sm:pb-6 px-3 sm:px-4">
+        <div className="max-w-3xl mx-auto relative flex items-center">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-3 sm:left-4 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              placeholder="Search TV shows and movies..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full bg-zinc-900/80 border border-zinc-800 text-white rounded-2xl py-3 sm:py-4 pl-11 sm:pl-14 pr-[80px] sm:pr-[100px] focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all text-sm sm:text-lg placeholder:text-zinc-500 shadow-xl backdrop-blur-md"
+            />
+            
+            <div className="absolute inset-y-0 right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1">
+              {query.length > 0 && (
+                <button 
+                  onClick={() => setQuery("")}
+                  className="p-1.5 sm:p-2 text-zinc-500 hover:text-white transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+              
+              <div className="w-px h-5 sm:h-6 bg-zinc-700/50 mx-0.5 sm:mx-1"></div>
+              
+              <button 
+                onClick={() => router.push("/discover/filter")}
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white transition-colors mr-0.5 sm:mr-1"
+                title="Advanced Filters"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+              </button>
+            </div>
           </div>
-          <input
-            type="text"
-            placeholder="Search TV shows and movies..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full bg-zinc-900/80 border border-zinc-800 text-white rounded-2xl py-4 pl-14 pr-4 focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all text-lg placeholder:text-zinc-500 shadow-xl backdrop-blur-md"
-          />
         </div>
       </div>
 
@@ -278,7 +306,7 @@ export default function DiscoverPage() {
                 { id: 15, name: "Hulu", logoPath: "/bxBlRPEPpMVDc4jMhSrTf2339DW.jpg" },
                 { id: 526, name: "AMC+", logoPath: "/ovmu6uot1XVvsemM2dDySXLiX57.jpg" },
                 { id: 34, name: "MGM+", logoPath: "/ctiRpS16dlaTXQBSsiFncMrgWmh.jpg" },
-                { id: 1773, name: "Showtime", logoPath: "/h0ZYcYHicKQ4Ixm5nOjqvwni5NG.jpg" },
+                { id: 37, name: "Showtime", logoPath: "/h0ZYcYHicKQ4Ixm5nOjqvwni5NG.jpg" },
                 { id: 1899, name: "Max", logoPath: "/jbe4gVSfRlbPTdESXhEKpornsfu.jpg" },
                 { id: 386, name: "Peacock", logoPath: "/2aGrp1xw3qhwCYvNGAJZPdjfeeX.jpg" },
                 { id: 531, name: "Paramount+", logoPath: "/h5DcR0J2EESLitnhR8xLG1QymTE.jpg" },
