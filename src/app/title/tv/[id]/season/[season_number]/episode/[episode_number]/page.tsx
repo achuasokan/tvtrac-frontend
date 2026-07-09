@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
@@ -36,6 +36,16 @@ export default function EpisodeDetailsPage() {
   const [isDescriptionRevealed, setIsDescriptionRevealed] = useState(false);
   const [watchedAt, setWatchedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  const guestStarsRef = useRef<HTMLDivElement>(null);
+  const crewRef = useRef<HTMLDivElement>(null);
+
+  const scrollContainer = (ref: React.RefObject<HTMLDivElement | null>, direction: 'left' | 'right') => {
+    if (ref.current) {
+      const scrollAmount = window.innerWidth > 768 ? 600 : 300;
+      ref.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
   
   // Prompt State
   const [watchedEpisodes, setWatchedEpisodes] = useState<{season: number, episode: number}[]>([]);
@@ -245,6 +255,23 @@ export default function EpisodeDetailsPage() {
   // Derived data
   const directors = details.crew?.filter((c: any) => c.job === "Director") || [];
   const writers = details.crew?.filter((c: any) => c.job === "Writer") || [];
+  const guestStars = details.guest_stars || [];
+  
+  // Deduplicate crew by ID to combine jobs for cleaner display
+  const uniqueCrewMap = new Map();
+  if (details.crew) {
+    details.crew.forEach((c: any) => {
+      if (uniqueCrewMap.has(c.id)) {
+        const existing = uniqueCrewMap.get(c.id);
+        if (!existing.job.includes(c.job)) {
+          existing.job += `, ${c.job}`;
+        }
+      } else {
+        uniqueCrewMap.set(c.id, { ...c });
+      }
+    });
+  }
+  const uniqueCrew = Array.from(uniqueCrewMap.values());
   
   const stills = details.images?.stills || [];
   const youtubeVideos = details.videos?.results?.filter((v: any) => v.site === "YouTube") || [];
@@ -261,12 +288,12 @@ export default function EpisodeDetailsPage() {
       
       <button 
         onClick={() => router.back()} 
-        className="absolute top-8 left-8 z-50 flex items-center gap-2 text-zinc-400 hover:text-white transition-colors bg-black/50 px-4 py-2 rounded-full backdrop-blur-md"
+        className="absolute top-6 left-4 sm:top-8 sm:left-8 z-50 flex items-center justify-center w-10 h-10 text-white transition-colors bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10 rounded-full shadow-lg cursor-pointer"
+        title="Back to Series"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-          <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
         </svg>
-        Back to Series
       </button>
 
       {/* Hero Section */}
@@ -289,7 +316,7 @@ export default function EpisodeDetailsPage() {
             <button
               onClick={handleToggleWatched}
               disabled={isTogglingWatched}
-              className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl ${
+              className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl ${
                 isWatched 
                   ? 'bg-green-500 text-white shadow-green-500/20' 
                   : 'bg-white/10 text-white hover:bg-white/20 backdrop-blur-md border border-white/10'
@@ -299,11 +326,11 @@ export default function EpisodeDetailsPage() {
               {isTogglingWatched ? (
                 <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
               ) : isWatched ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
@@ -320,12 +347,12 @@ export default function EpisodeDetailsPage() {
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 -mt-32 sm:-mt-48 relative z-10 w-full flex flex-col gap-6 sm:gap-10 pb-20">
         <div className="flex flex-col pt-4 sm:pt-16 w-full text-left">
-          <p className="text-zinc-400 font-bold uppercase tracking-widest text-sm mb-2">
+          <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs sm:text-sm mb-2">
             Season {season_number} • Episode {episode_number}
           </p>
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4">{title}</h1>
+          <h1 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight">{title}</h1>
           
-          <div className="flex items-center flex-wrap gap-4 text-sm text-zinc-400 mb-6 font-medium">
+          <div className="flex items-center flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm text-zinc-400 mb-6 font-medium">
             {details.vote_average > 0 && (
               <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded text-white">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
@@ -353,7 +380,7 @@ export default function EpisodeDetailsPage() {
           </div>
 
           <div className="relative mt-4 max-w-3xl">
-            <p className={`text-lg leading-relaxed transition-all duration-500 ${!isDescriptionRevealed ? 'text-zinc-500 blur-sm select-none' : 'text-zinc-300'}`}>
+            <p className={`text-sm sm:text-base md:text-lg leading-relaxed sm:leading-loose transition-all duration-500 ${!isDescriptionRevealed ? 'text-zinc-500 blur-sm select-none' : 'text-zinc-300'}`}>
               {overview || "No description available."}
             </p>
             {!isDescriptionRevealed && (
@@ -368,59 +395,141 @@ export default function EpisodeDetailsPage() {
             )}
           </div>
           
-          {(directors.length > 0 || writers.length > 0 || showDetails?.['watch/providers']?.results?.US?.flatrate) && (
-            <div className="mt-8 flex flex-wrap gap-8">
-              {directors.length > 0 && (
-                <div>
-                  <h3 className="text-zinc-500 text-sm font-bold uppercase mb-1">Directed By</h3>
-                  <div className="text-zinc-200">
-                    {directors.map((d: any) => d.name).join(", ")}
-                  </div>
-                </div>
-              )}
-              {writers.length > 0 && (
-                <div>
-                  <h3 className="text-zinc-500 text-sm font-bold uppercase mb-1">Written By</h3>
-                  <div className="text-zinc-200">
-                    {writers.map((w: any) => w.name).join(", ")}
-                  </div>
-                </div>
-              )}
-              {showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate && (
-                <div>
-                  <h3 className="text-zinc-500 text-sm font-bold uppercase mb-1">Where to Watch</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {showDetails['watch/providers'].results[userCountry].flatrate.slice(0, 4).map((provider: any) => (
-                      <button 
-                        key={provider.provider_id} 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setPendingRedirectLink(getProviderLink(provider.provider_name, title, showDetails['watch/providers'].results[userCountry].link));
-                          setPendingProviderName(provider.provider_name);
-                        }}
-                        title={`Watch on ${provider.provider_name}`} 
-                        className="w-8 h-8 rounded-lg overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block"
-                      >
-                        <img 
-                          src={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} 
-                          alt={provider.provider_name} 
-                          className="w-full h-full object-cover" 
-                        />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+          {showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate && (
+            <div className="mt-8">
+              <h3 className="text-zinc-500 text-xs sm:text-sm font-bold uppercase mb-3">Where to Watch</h3>
+              <div className="flex flex-wrap gap-3">
+                {showDetails['watch/providers'].results[userCountry].flatrate.slice(0, 4).map((provider: any) => (
+                  <button 
+                    key={provider.provider_id} 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setPendingRedirectLink(getProviderLink(provider.provider_name, title, showDetails['watch/providers'].results[userCountry].link));
+                      setPendingProviderName(provider.provider_name);
+                    }}
+                    title={`Watch on ${provider.provider_name}`} 
+                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block"
+                  >
+                    <img 
+                      src={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} 
+                      alt={provider.provider_name} 
+                      className="w-full h-full object-cover" 
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
 
       </div>
 
+      {/* Guest Stars Section */}
+      {guestStars.length > 0 && (
+        <div className="max-w-4xl mx-auto px-4 w-full mb-12">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              Guest Stars
+            </h2>
+            <div className="flex items-center gap-1 bg-zinc-900/80 rounded-full p-1 border border-zinc-800/80">
+              <button onClick={() => scrollContainer(guestStarsRef, 'left')} className="p-1 sm:p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div className="w-px h-4 bg-zinc-800"></div>
+              <button onClick={() => scrollContainer(guestStarsRef, 'right')} className="p-1 sm:p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div ref={guestStarsRef} className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden snap-x">
+            {guestStars.map((person: any) => (
+              <Link href={`/person/${person.id}`} key={person.id} className="shrink-0 w-28 sm:w-36 snap-start flex flex-col gap-2 sm:gap-3 group cursor-pointer">
+                <div className="aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 relative shadow-lg">
+                  {person.profile_path ? (
+                    <img
+                      src={`https://image.tmdb.org/t/p/w276_and_h350_face${person.profile_path}`}
+                      alt={person.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-900/50">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 sm:h-12 sm:w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </div>
+                <div>
+                  <p className="text-white text-xs sm:text-sm font-bold truncate group-hover:text-white transition-colors">{person.name}</p>
+                  <p className="text-zinc-500 text-[10px] sm:text-xs truncate" title={person.character}>{person.character}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Crew Section */}
+      {uniqueCrew.length > 0 && (
+        <div className="max-w-4xl mx-auto px-4 w-full mb-12">
+          <div className="flex items-center justify-between mb-4 sm:mb-6">
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              Crew
+            </h2>
+            <div className="flex items-center gap-1 bg-zinc-900/80 rounded-full p-1 border border-zinc-800/80">
+              <button onClick={() => scrollContainer(crewRef, 'left')} className="p-1 sm:p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <div className="w-px h-4 bg-zinc-800"></div>
+              <button onClick={() => scrollContainer(crewRef, 'right')} className="p-1 sm:p-1.5 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800 transition-colors cursor-pointer">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div ref={crewRef} className="flex gap-4 sm:gap-6 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden snap-x">
+            {uniqueCrew.map((person: any) => (
+              <Link href={`/person/${person.id}`} key={person.id} className="shrink-0 w-28 sm:w-36 snap-start flex flex-col gap-2 sm:gap-3 group cursor-pointer">
+                <div className="aspect-[2/3] bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800 relative shadow-lg">
+                  {person.profile_path ? (
+                    <img
+                      src={`https://image.tmdb.org/t/p/w276_and_h350_face${person.profile_path}`}
+                      alt={person.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-900/50">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 sm:h-12 sm:w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </div>
+                <div>
+                  <p className="text-white text-xs sm:text-sm font-bold truncate group-hover:text-white transition-colors">{person.name}</p>
+                  <p className="text-zinc-500 text-[10px] sm:text-xs truncate" title={person.job}>{person.job}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Videos Section */}
       {youtubeVideos.length > 0 && (
         <div className="max-w-4xl mx-auto px-4 w-full mb-12">
-          <h2 className="text-xl font-bold mb-6 text-white flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white flex items-center gap-2">
             Trailers & Clips
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -443,10 +552,10 @@ export default function EpisodeDetailsPage() {
       {/* Images Section */}
       {stills.length > 0 && (
         <div className="max-w-4xl mx-auto px-4 w-full mb-12">
-          <h2 className="text-xl font-bold mb-6 text-white flex items-center gap-2">
+          <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white flex items-center gap-2">
             Episode Stills
           </h2>
-          <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+          <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden snap-x">
             {stills.map((still: any, idx: number) => (
               <div key={idx} className="shrink-0 w-72 sm:w-80 snap-start">
                 <div className="aspect-video bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800">
@@ -469,7 +578,7 @@ export default function EpisodeDetailsPage() {
           {hasPrevious && (
             <Link
               href={`/title/tv/${id}/season/${season_number}/episode/${currentEpNum - 1}`}
-              className="px-5 py-2.5 bg-zinc-900/50 hover:bg-zinc-800 text-white font-medium rounded-full border border-zinc-800/80 transition-all flex items-center gap-2"
+              className="px-4 py-2 sm:px-5 sm:py-2.5 text-sm sm:text-base bg-zinc-900/50 hover:bg-zinc-800 text-white font-medium rounded-full border border-zinc-800/80 transition-all flex items-center gap-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -480,7 +589,7 @@ export default function EpisodeDetailsPage() {
           {hasNext && (
             <Link
               href={`/title/tv/${id}/season/${season_number}/episode/${currentEpNum + 1}`}
-              className="px-6 py-2.5 bg-white text-black hover:bg-zinc-200 font-bold rounded-full transition-all flex items-center gap-2 shadow-lg"
+              className="px-5 py-2 sm:px-6 sm:py-2.5 text-sm sm:text-base bg-white text-black hover:bg-zinc-200 font-bold rounded-full transition-all flex items-center gap-2 shadow-lg"
               replace
             >
               Next

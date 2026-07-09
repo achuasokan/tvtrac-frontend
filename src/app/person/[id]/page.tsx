@@ -58,7 +58,17 @@ export default function PersonDetailsPage() {
   }
 
   // Sort and filter credits
-  let credits = person.combined_credits?.cast || [];
+  const castCredits = person.combined_credits?.cast || [];
+  const crewCredits = person.combined_credits?.crew || [];
+  
+  // Deduplicate combined credits by ID so we don't show the same movie twice if they directed AND produced it
+  const allCreditsMap = new Map();
+  [...castCredits, ...crewCredits].forEach((credit: any) => {
+    if (!allCreditsMap.has(credit.id)) {
+      allCreditsMap.set(credit.id, credit);
+    }
+  });
+  let credits = Array.from(allCreditsMap.values());
   
   // Filter out talk shows, news, and appearances as "Self"
   credits = credits.filter((credit: any) => {

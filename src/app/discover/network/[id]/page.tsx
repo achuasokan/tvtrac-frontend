@@ -213,8 +213,10 @@ export default function DiscoverNetworkPage() {
       {/* Content Grid */}
       <div className="w-full max-w-5xl mx-auto px-4 mt-6">
         {isLoading ? (
-          <div className="flex justify-center py-20">
-             <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+            {[...Array(15)].map((_, i) => (
+              <div key={i} className="aspect-[2/3] w-full rounded-xl bg-zinc-900 animate-pulse border border-zinc-800/50" />
+            ))}
           </div>
         ) : errorMsg ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
