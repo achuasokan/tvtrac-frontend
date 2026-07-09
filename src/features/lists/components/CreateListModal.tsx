@@ -1,23 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { AppDispatch } from "@/store";
-import { createNewList } from "../store/listSlice";
+import { createNewList, updateListDetails } from "../store/listSlice";
+import { IList } from "../types";
 
 interface CreateListModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editList?: IList | null;
 }
 
-export function CreateListModal({ isOpen, onClose }: CreateListModalProps) {
+export function CreateListModal({ isOpen, onClose, editList }: CreateListModalProps) {
   const dispatch = useDispatch<AppDispatch>();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    if (isOpen) {
+      setName(editList?.name || "");
+      setDescription(editList?.description || "");
+      setError("");
+    }
+  }, [isOpen, editList]);
 
   if (!isOpen) return null;
 
@@ -32,75 +42,122 @@ export function CreateListModal({ isOpen, onClose }: CreateListModalProps) {
     setError("");
     
     try {
-      const newList = await dispatch(createNewList({ name, description })).unwrap();
-      setName("");
-      setDescription("");
-      onClose();
-      router.push(`/lists/${newList.id}`);
+      if (editList) {
+        await dispatch(updateListDetails({ listId: editList.id, data: { name, description } })).unwrap();
+        onClose();
+      } else {
+        const newList = await dispatch(createNewList({ name, description })).unwrap();
+        setName("");
+        setDescription("");
+        onClose();
+        router.push(`/lists/${newList.id}`);
+      }
     } catch (err: any) {
-      setError(err || "Failed to create list");
+      setError(err || `Failed to ${editList ? 'update' : 'create'} list`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
-        <div className="p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Create New List</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-zinc-400 mb-1">List Name</label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
-                placeholder="e.g. Favorites, Anime to Watch"
-                autoFocus
-              />
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-28 sm:pb-4"
+      onClick={onClose}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+
+      {/* Modal */}
+      <div 
+        className="relative w-full max-w-sm z-10 animate-in zoom-in-95 fade-in duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Glass card */}
+        <div className="bg-zinc-950/90 border border-white/10 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden">
+          {/* Accent top bar removed */}
+
+          <div className="p-6">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-white">
+                  {editList ? "Edit List" : "New List"}
+                </h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  {editList ? "Update your list details" : "Create a new collection"}
+                </p>
+              </div>
+              <button 
+                onClick={onClose}
+                className="text-zinc-600 hover:text-zinc-300 transition-colors p-1 rounded-full hover:bg-white/5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
             </div>
             
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-zinc-400 mb-1">Description (Optional)</label>
-              <textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all resize-none h-24"
-                placeholder="What is this list about?"
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Name Field */}
+              <div>
+                <label htmlFor="name" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                  List Name
+                </label>
+                <input
+                  id="name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20 transition-all"
+                  placeholder="e.g. Favorites, Anime to Watch"
+                  autoFocus
+                />
+              </div>
+              
+              {/* Description Field */}
+              <div>
+                <label htmlFor="description" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                  Description <span className="normal-case font-normal text-zinc-600">(optional)</span>
+                </label>
+                <textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20 transition-all resize-none h-20"
+                  placeholder="What is this list about?"
+                />
+              </div>
 
-            {error && (
-              <div className="text-red-500 text-sm">{error}</div>
-            )}
+              {error && (
+                <div className="text-red-400 text-xs bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                  {error}
+                </div>
+              )}
 
-            <div className="flex items-center gap-3 mt-6 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isSubmitting}
-                className="flex-1 px-4 py-2.5 rounded-lg font-medium text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || !name.trim()}
-                className="flex-1 px-4 py-2.5 rounded-lg font-medium bg-white text-black hover:bg-zinc-200 transition-colors disabled:opacity-50 flex items-center justify-center"
-              >
-                {isSubmitting ? (
-                  <span className="w-5 h-5 border-2 border-black/20 border-t-black rounded-full animate-spin"></span>
-                ) : (
-                  "Create List"
-                )}
-              </button>
-            </div>
-          </form>
+              {/* Actions */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  disabled={isSubmitting}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !name.trim()}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white hover:bg-zinc-100 text-black shadow-lg transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    editList ? "Save Changes" : "Create List"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
     </div>

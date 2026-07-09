@@ -6,11 +6,13 @@ import { api } from "@/lib/api";
 interface ListCardProps {
   list: IList;
   onDelete?: (id: string) => void;
+  onEdit?: (list: IList) => void;
 }
 
-export function ListCard({ list, onDelete }: ListCardProps) {
+export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
   const [posters, setPosters] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -27,9 +29,13 @@ export function ListCard({ list, onDelete }: ListCardProps) {
           top3.map(async (item) => {
             try {
               const res = await api.get(`/tmdb/title/${item.mediaType}/${item.tmdbId}`);
-              return res.data?.poster_path 
-                ? `https://image.tmdb.org/t/p/w200${res.data.poster_path}` 
-                : null;
+              // Use backdrop (landscape) for widescreen cards; fallback to poster
+              if (res.data?.backdrop_path) {
+                return `https://image.tmdb.org/t/p/w780${res.data.backdrop_path}`;
+              } else if (res.data?.poster_path) {
+                return `https://image.tmdb.org/t/p/w500${res.data.poster_path}`;
+              }
+              return null;
             } catch (err) {
               return null;
             }
@@ -50,68 +56,97 @@ export function ListCard({ list, onDelete }: ListCardProps) {
   }, [list.items]);
 
   return (
-    <div className="relative group bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden hover:border-zinc-700 transition-all flex flex-col h-[200px]">
+    <div className="group relative w-full aspect-video rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-lg hover:border-zinc-500 hover:shadow-xl transition-all duration-300">
       <Link href={`/lists/${list.id}`} className="absolute inset-0 z-10" aria-label={`View ${list.name}`} />
       
-      {/* Decorative top cover */}
-      <div className="absolute top-0 left-0 right-0 h-[60%] overflow-hidden bg-zinc-950/50">
-        {!isLoading && posters.length > 0 ? (
-          <div className="flex w-full h-full">
-            {posters.map((poster, idx) => (
-              <div 
-                key={idx} 
-                className="flex-1 h-full relative"
-              >
-                <div className="absolute inset-0 bg-black/20 z-10" />
-                <img 
-                  src={poster} 
-                  alt="Poster" 
-                  className="w-full h-full object-cover opacity-80"
-                />
+      {/* Background Image / Loading State */}
+      {isLoading ? (
+        <div className="w-full h-full bg-zinc-800/50 animate-pulse flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-700 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </div>
+      ) : posters.length > 0 ? (
+        <div className="flex w-full h-full">
+          {posters.map((poster, idx) => (
+            <div key={idx} className="flex-1 h-full relative overflow-hidden">
+              <img 
+                src={poster} 
+                alt="Poster" 
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="w-full h-full bg-zinc-800 flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-zinc-600" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+          </svg>
+        </div>
+      )}
+
+      {/* Protective Gradient just for text readability at the very bottom */}
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/90 to-transparent pointer-events-none" />
+
+      {/* List Name Inside Image */}
+      <div className="absolute bottom-4 left-4 right-4 z-20 pointer-events-none">
+        <h3 className="text-white font-black text-xl md:text-2xl truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] transition-colors">
+          {list.name}
+        </h3>
+      </div>
+
+      {/* 3-Dot Options Menu */}
+      {(onDelete || onEdit) && (
+        <div className="absolute top-3 right-3 z-30" onMouseLeave={() => setIsMenuOpen(false)}>
+          <button 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsMenuOpen(!isMenuOpen);
+            }}
+            className="text-white p-1.5 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-md transition-all md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 shadow-lg border border-white/10"
+            aria-label="Options"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+            </svg>
+          </button>
+
+          {isMenuOpen && (
+            <div className="absolute top-full right-0 pt-2 w-36 z-50">
+              <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150">
+                {onEdit && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsMenuOpen(false);
+                      onEdit(list);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors font-medium"
+                  >
+                    Edit Details
+                  </button>
+                )}
+                {onDelete && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsMenuOpen(false);
+                      if (onDelete) onDelete(list.id);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium"
+                  >
+                    Delete List
+                  </button>
+                )}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-900" />
-        )}
-        <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-zinc-900 to-transparent z-10 pointer-events-none" />
-      </div>
-      
-      <div className="p-4 flex-1 flex flex-col justify-end z-20 pointer-events-none mt-auto">
-        <div>
-          <h3 className="text-white font-bold text-lg truncate group-hover:text-blue-400 transition-colors drop-shadow-md">
-            {list.name}
-          </h3>
-          {list.description && (
-            <p className="text-zinc-400 text-sm mt-0.5 line-clamp-1 drop-shadow-sm">
-              {list.description}
-            </p>
+            </div>
           )}
         </div>
-        
-        <div className="flex items-center justify-between mt-3">
-          <span className="text-xs font-semibold text-zinc-300 bg-zinc-800/80 backdrop-blur-sm px-2.5 py-1 rounded-md border border-zinc-700/50">
-            {list.items.length} {list.items.length === 1 ? 'item' : 'items'}
-          </span>
-          
-          {onDelete && (
-            <button 
-              onClick={(e) => {
-                e.preventDefault(); // Prevent navigating to list
-                if (window.confirm("Are you sure you want to delete this list?")) {
-                  onDelete(list.id);
-                }
-              }}
-              className="text-zinc-500 hover:text-red-500 p-1.5 rounded-full hover:bg-red-500/10 transition-colors z-30 relative pointer-events-auto bg-zinc-900/50 backdrop-blur-sm"
-              aria-label="Delete list"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </button>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }

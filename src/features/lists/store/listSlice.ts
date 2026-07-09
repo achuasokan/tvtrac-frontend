@@ -47,6 +47,17 @@ export const updateListDetails = createAsyncThunk(
   }
 );
 
+export const reorderListItems = createAsyncThunk(
+  'lists/reorderListItems',
+  async ({ listId, items }: { listId: string; items: any[] }, { rejectWithValue }) => {
+    try {
+      return await listService.reorderList(listId, items);
+    } catch (error: any) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to reorder list');
+    }
+  }
+);
+
 export const addMovieToList = createAsyncThunk(
   'lists/addMovieToList',
   async ({ listId, data }: { listId: string; data: AddListItemDTO }, { rejectWithValue }) => {
@@ -102,10 +113,10 @@ const listSlice = createSlice({
 
     // createNewList
     builder.addCase(createNewList.fulfilled, (state, action) => {
-      state.lists.unshift(action.payload); // Add new list to the top
+      state.lists.push(action.payload); // Add new list to the bottom
     });
 
-    // updateListDetails, addMovieToList, removeMovieFromList
+    // updateListDetails, reorderListItems, addMovieToList, removeMovieFromList
     const updateListInState = (state: ListState, action: any) => {
       const index = state.lists.findIndex(l => l.id === action.payload.id);
       if (index !== -1) {
@@ -113,6 +124,7 @@ const listSlice = createSlice({
       }
     };
     builder.addCase(updateListDetails.fulfilled, updateListInState);
+    builder.addCase(reorderListItems.fulfilled, updateListInState);
     builder.addCase(addMovieToList.fulfilled, updateListInState);
     builder.addCase(removeMovieFromList.fulfilled, updateListInState);
 

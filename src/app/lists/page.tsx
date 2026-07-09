@@ -7,18 +7,28 @@ import { fetchLists, deleteList } from "@/features/lists/store/listSlice";
 import { ListCard } from "@/features/lists/components/ListCard";
 import { CreateListModal } from "@/features/lists/components/CreateListModal";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
 export default function ListsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const { lists, isLoading } = useSelector((state: RootState) => state.lists);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [listToEdit, setListToEdit] = useState<any>(null);
+  const [listToDelete, setListToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     dispatch(fetchLists());
   }, [dispatch]);
 
   const handleDelete = (id: string) => {
-    dispatch(deleteList(id));
+    setListToDelete(id);
+  };
+
+  const confirmDelete = () => {
+    if (listToDelete) {
+      dispatch(deleteList(listToDelete));
+      setListToDelete(null);
+    }
   };
 
   return (
@@ -40,13 +50,23 @@ export default function ListsPage() {
         </div>
 
         {isLoading && lists.length === 0 ? (
-          <div className="flex justify-center py-20">
-            <span className="w-8 h-8 border-2 border-zinc-600 border-t-white rounded-full animate-spin"></span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="w-full aspect-video rounded-2xl bg-zinc-800/50 animate-pulse border border-zinc-800" />
+            ))}
           </div>
         ) : lists.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {lists.map((list) => (
-              <ListCard key={list.id} list={list} onDelete={handleDelete} />
+              <ListCard 
+                key={list.id} 
+                list={list} 
+                onDelete={handleDelete} 
+                onEdit={(listToEdit) => {
+                  setListToEdit(listToEdit);
+                  setIsCreateModalOpen(true);
+                }} 
+              />
             ))}
           </div>
         ) : (
@@ -70,8 +90,22 @@ export default function ListsPage() {
 
       <CreateListModal 
         isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setListToEdit(null);
+        }} 
+        editList={listToEdit}
       />
+
+      <ConfirmModal
+        isOpen={!!listToDelete}
+        title="Delete List"
+        message="Are you sure you want to delete this list? This action cannot be undone."
+        confirmText="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setListToDelete(null)}
+      />
+
       <BottomNav />
     </div>
   );

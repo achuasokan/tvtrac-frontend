@@ -1,6 +1,4 @@
 import axios from 'axios';
-import { store } from '@/store';
-import { clearUser } from '@/store/slices/authSlice';
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api',
@@ -55,6 +53,8 @@ api.interceptors.response.use(
         processQueue(refreshError);
         
         // If refresh fails, log the user out
+        const { store } = await import('@/store');
+        const { clearUser } = await import('@/store/slices/authSlice');
         store.dispatch(clearUser());
         
         return Promise.reject(refreshError);

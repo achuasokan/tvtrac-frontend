@@ -24,6 +24,11 @@ export const listService = {
     return response.data.data;
   },
 
+  async reorderList(listId: string, items: { tmdbId: string, mediaType: 'movie' | 'tv', addedAt: string }[]): Promise<IList> {
+    const response = await api.put<ApiResponse<IList>>(`/lists/${listId}/reorder`, { items });
+    return response.data.data;
+  },
+
   async deleteList(listId: string): Promise<void> {
     await api.delete<ApiResponse<null>>(`/lists/${listId}`);
   },

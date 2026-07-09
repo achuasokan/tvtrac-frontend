@@ -42,7 +42,13 @@ function SeasonItem({
   user: any,
   router: any
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const storageKey = `tvtrac_expanded_season_${tvId}_${season.season_number}`;
+  const [expanded, setExpanded] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(storageKey) === 'true';
+    }
+    return false;
+  });
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +60,27 @@ function SeasonItem({
   const [pendingToggleEp, setPendingToggleEp] = useState<number | null>(null);
   const [missingPreviousEps, setMissingPreviousEps] = useState<number[]>([]);
 
+  useEffect(() => {
+    if (expanded && episodes.length === 0) {
+      setLoading(true);
+      setError(null);
+      api.get(`/tmdb/tv/${tvId}/season/${season.season_number}`)
+        .then(res => setEpisodes(res.data.episodes || []))
+        .catch(err => {
+          console.error("Failed to load episodes", err);
+          setError("Failed to load episodes. Please try again.");
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [expanded, tvId, season.season_number]); // Only runs if expanded is true on mount
+
   const handleToggle = async () => {
-    if (!expanded) {
+    const newState = !expanded;
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(storageKey, String(newState));
+    }
+    
+    if (newState) {
       if (episodes.length === 0) {
         setLoading(true);
         setError(null);
@@ -70,7 +95,7 @@ function SeasonItem({
         }
       }
     }
-    setExpanded(!expanded);
+    setExpanded(newState);
   };
 
   const handleRetry = async (e: React.MouseEvent) => {
@@ -431,6 +456,7 @@ export default function TitleDetailsPage() {
   const [pendingRedirectLink, setPendingRedirectLink] = useState<string | null>(null);
   const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
   const [isAddToListModalOpen, setIsAddToListModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const initialMount = useRef(true);
   const prevWatchedCount = useRef(0);
@@ -656,7 +682,7 @@ export default function TitleDetailsPage() {
       
       {/* Sticky App Bar */}
       <div className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 border-b ${isScrolled ? 'bg-[#050505]/95 backdrop-blur-md border-white/10 shadow-lg' : 'bg-transparent border-transparent pt-4'}`}>
-        <button onClick={() => router.back()} className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}>
+        <button onClick={() => router.back()} className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors cursor-pointer ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -666,11 +692,33 @@ export default function TitleDetailsPage() {
           {title}
         </h1>
         
-        <button className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-          </svg>
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors cursor-pointer ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+            </svg>
+          </button>
+          
+          {isMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
+              <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+                <button 
+                  onClick={() => { setIsAddToListModalOpen(true); setIsMenuOpen(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left text-zinc-300 hover:text-white transition-colors font-medium cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add to List
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Hero Section */}
@@ -686,35 +734,38 @@ export default function TitleDetailsPage() {
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent" />
         
-        {/* Floating Watched Button over cover photo (Movies Only) */}
-        {mediaType === 'movie' && (
-          <div className="absolute inset-0 max-w-4xl mx-auto pointer-events-none z-30">
-            <div className="absolute top-20 right-4 sm:top-auto sm:bottom-16 sm:right-4 pointer-events-auto flex flex-col items-center gap-1.5">
+        {/* Floating Actions over cover photo */}
+        <div className="absolute inset-0 max-w-4xl mx-auto pointer-events-none z-30">
+          <div className="absolute top-20 right-4 sm:top-auto sm:bottom-16 sm:right-4 pointer-events-auto flex flex-col items-center gap-3">
+            
+            {/* Floating Watched Button (Movies Only) */}
+            {mediaType === 'movie' && (
               <button 
-              onClick={handleToggleWatched}
-              disabled={isTogglingWatched}
-              className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md ${
-                isWatched 
-                  ? 'bg-green-500/30 border border-green-500/50 hover:bg-green-500/40' 
-                  : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
-              }`}
-            >
-              {isTogglingWatched ? (
-                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin text-white" />
-              ) : isWatched ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 drop-shadow-md" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white transition-colors drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              )}
-            </button>
-            </div>
+                onClick={handleToggleWatched}
+                disabled={isTogglingWatched}
+                className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md cursor-pointer ${
+                  isWatched 
+                    ? 'bg-green-500/30 border border-green-500/50 hover:bg-green-500/40' 
+                    : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
+                } cursor-pointer`}
+                title={isWatched ? "Mark as unwatched" : "Mark as watched"}
+              >
+                {isTogglingWatched ? (
+                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin text-white" />
+                ) : isWatched ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 drop-shadow-md" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white transition-colors drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                )}
+              </button>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Content */}
@@ -741,18 +792,8 @@ export default function TitleDetailsPage() {
               </span>
             )}
           </div>
-
-          <div className="flex items-center gap-3 mb-8">
-            <button
-              onClick={() => setIsAddToListModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-medium transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
-              Add to List
-            </button>
-          </div>
+          {/* Spacer to push tabs down where the button used to be */}
+          <div className="h-6" />
 
           {/* Tabs */}
           <div className="sticky top-16 z-40 w-[calc(100%+2rem)] -mx-4 sm:w-full sm:mx-0 mb-8">
@@ -772,28 +813,28 @@ export default function TitleDetailsPage() {
             
             <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-start sm:justify-center border-b border-zinc-800 w-full overflow-x-auto px-2 sm:px-0 [&::-webkit-scrollbar]:hidden">
               <button 
-                className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                 onClick={() => handleTabChange('about')}
               >
                 About
               </button>
               {mediaType === 'tv' && (
                 <button 
-                  className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'episodes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'episodes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                   onClick={() => handleTabChange('episodes')}
                 >
                   Episodes
                 </button>
               )}
               <button 
-                className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'cast' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'cast' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                 onClick={() => handleTabChange('cast')}
               >
-                Cast
+                Cast & Crew
               </button>
               {details.videos?.results?.some((v: any) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")) && (
                 <button 
-                  className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap ${activeTab === 'trailers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'trailers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                   onClick={() => handleTabChange('trailers')}
                 >
                   Trailers
@@ -894,13 +935,14 @@ export default function TitleDetailsPage() {
 
             {activeTab === 'cast' && (
               <div className="animate-in fade-in duration-300">
+                <h2 className="text-xl font-bold text-white mb-6">Cast</h2>
                 {details.credits?.cast?.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 mb-12">
                     {details.credits.cast.map((actor: any) => (
                       <Link href={`/person/${actor.id}`} key={actor.id} className="text-center group block cursor-pointer">
                         <div className="w-full aspect-[2/3] rounded-xl overflow-hidden mb-3 bg-zinc-900 border border-zinc-800 transition-transform group-hover:scale-105 group-hover:border-zinc-500 shadow-md">
                           {actor.profile_path ? (
-                            <img src={`https://image.tmdb.org/t/p/w300${actor.profile_path}`} alt={actor.name} className="w-full h-full object-cover" />
+                            <img src={`https://image.tmdb.org/t/p/w300${actor.profile_path}`} alt={actor.name} className="w-full h-full object-cover" loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-zinc-700">
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 20 20" fill="currentColor">
@@ -910,13 +952,55 @@ export default function TitleDetailsPage() {
                           )}
                         </div>
                         <p className="text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">{actor.name}</p>
-                        <p className="text-xs text-zinc-500 truncate">{actor.character}</p>
+                        <p className="text-xs text-zinc-500 truncate" title={actor.character}>{actor.character}</p>
                       </Link>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-zinc-500">No cast information available.</p>
+                  <p className="text-zinc-500 mb-12">No cast information available.</p>
                 )}
+
+                <h2 className="text-xl font-bold text-white mb-6">Crew</h2>
+                {(() => {
+                  const uniqueCrewMap = new Map();
+                  if (details.credits?.crew) {
+                    details.credits.crew.forEach((c: any) => {
+                      if (uniqueCrewMap.has(c.id)) {
+                        const existing = uniqueCrewMap.get(c.id);
+                        if (!existing.job.includes(c.job)) {
+                          existing.job += `, ${c.job}`;
+                        }
+                      } else {
+                        uniqueCrewMap.set(c.id, { ...c });
+                      }
+                    });
+                  }
+                  const uniqueCrew = Array.from(uniqueCrewMap.values());
+
+                  return uniqueCrew.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                      {uniqueCrew.map((person: any) => (
+                        <Link href={`/person/${person.id}`} key={person.id} className="text-center group block cursor-pointer">
+                          <div className="w-full aspect-[2/3] rounded-xl overflow-hidden mb-3 bg-zinc-900 border border-zinc-800 transition-transform group-hover:scale-105 group-hover:border-zinc-500 shadow-md">
+                            {person.profile_path ? (
+                              <img src={`https://image.tmdb.org/t/p/w300${person.profile_path}`} alt={person.name} className="w-full h-full object-cover" loading="lazy" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-zinc-700">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">{person.name}</p>
+                          <p className="text-xs text-zinc-500 truncate" title={person.job}>{person.job}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500">No crew information available.</p>
+                  );
+                })()}
               </div>
             )}
 

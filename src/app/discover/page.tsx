@@ -63,6 +63,10 @@ export default function DiscoverPage() {
   const [results, setResults] = useState<TmdbItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [genreImages, setGenreImages] = useState<Record<string, string>>({});
+  
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const platformsRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +95,7 @@ export default function DiscoverPage() {
       // Filter out people, only keep movies and tv
       const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
       setResults(filtered);
+      setHasMore(false);
     } catch (error) {
       console.error("Failed to fetch trending:", error);
     } finally {
@@ -107,9 +112,11 @@ export default function DiscoverPage() {
         const fetchSearch = async () => {
           try {
             setIsLoading(true);
-            const res = await api.get(`/tmdb/search?q=${encodeURIComponent(query)}`, { signal: controller.signal });
+            const res = await api.get(`/tmdb/search?q=${encodeURIComponent(query)}&page=1`, { signal: controller.signal });
             const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
             setResults(filtered);
+            setHasMore(res.data.page < res.data.total_pages);
+            setPage(1);
           } catch (error: any) {
             if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
               console.error("Failed to search:", error);
@@ -134,6 +141,23 @@ export default function DiscoverPage() {
   useEffect(() => {
     fetchTrending();
   }, []);
+
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    setIsLoadingMore(true);
+    try {
+      const res = await api.get(`/tmdb/search?q=${encodeURIComponent(query)}&page=${nextPage}`);
+      const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+      setResults(prev => [...prev, ...filtered]);
+      setHasMore(res.data.page < res.data.total_pages);
+      setPage(nextPage);
+    } catch (error) {
+      console.error("Failed to load more:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   // Fetch backdrop images for both genres and studios
   const genreNames = ["K-Drama", "Action", "Comedy", "Sci-Fi", "Horror", "Romance", "Drama", "Animation", "Documentary"];
@@ -169,15 +193,17 @@ export default function DiscoverPage() {
           className="w-full h-full object-cover"
         />
         
-        {/* Rating Badge */}
-        {item.vote_average ? (
-          <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-            <span className="text-[10px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
-          </div>
-        ) : null}
+        {/* Top Badges */}
+        <div className="absolute top-2 left-2 flex gap-1.5 z-10">
+          {item.vote_average ? (
+            <div className="bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              <span className="text-[10px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
+            </div>
+          ) : null}
+        </div>
 
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -199,7 +225,15 @@ export default function DiscoverPage() {
         <h3 className="text-xs sm:text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">
           {item.title || item.name}
         </h3>
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="flex items-center gap-1.5 mt-0.5">
+          {query.trim() && (
+            <>
+              <span className="text-[9px] sm:text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
+                {item.media_type === 'tv' ? 'TV Show' : 'Movie'}
+              </span>
+              <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
+            </>
+          )}
           <span className="text-[10px] text-zinc-500 font-medium">
             {item.release_date ? item.release_date.split('-')[0] : (item.first_air_date ? item.first_air_date.split('-')[0] : '')}
           </span>
@@ -355,8 +389,16 @@ export default function DiscoverPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-20">
-             <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="flex flex-col gap-2 animate-pulse">
+                <div className="relative aspect-[2/3] w-full rounded-xl bg-zinc-800 shadow-lg" />
+                <div>
+                  <div className="h-4 bg-zinc-800 rounded w-3/4 mb-1.5 mt-1"></div>
+                  <div className="h-3 bg-zinc-800 rounded w-1/4"></div>
+                </div>
+              </div>
+            ))}
           </div>
         ) : results.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -368,48 +410,77 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-10">
-            {/* TV Shows Section */}
-            {results.filter(item => item.media_type === "tv").length > 0 && (
+            {query.trim() ? (
+              // Unified Search Grid
               <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-zinc-300 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
-                    TV Shows
-                  </h3>
-                  {!query.trim() && (
-                    <button onClick={() => router.push('/discover/tv')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                      See All <span aria-hidden="true">&rarr;</span>
-                    </button>
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                  {results.map(renderItemCard)}
+                  
+                  {/* Inline Load More Card */}
+                  {hasMore && (
+                    <div 
+                      onClick={handleLoadMore}
+                      className={`group cursor-pointer flex flex-col items-center justify-center gap-3 aspect-[2/3] w-full rounded-xl bg-zinc-900 border border-zinc-800/50 shadow-lg hover:bg-zinc-800 hover:border-zinc-500 transition-all duration-300 ${isLoadingMore ? 'pointer-events-none opacity-80' : ''}`}
+                    >
+                      {isLoadingMore ? (
+                        <div className="w-8 h-8 border-4 border-zinc-700 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <div className="w-12 h-12 rounded-full bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </div>
+                          <span className="text-xs sm:text-sm font-bold text-zinc-400 group-hover:text-white transition-colors">Load More</span>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                  {results.filter(item => item.media_type === "tv").slice(0, 6).map(renderItemCard)}
-                </div>
               </div>
-            )}
+            ) : (
+              // Dashboard View (Trending)
+              <>
+                {/* TV Shows Section */}
+                {results.filter(item => item.media_type === "tv").length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-zinc-300 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                        </svg>
+                        TV Shows
+                      </h3>
+                      <button onClick={() => router.push('/discover/tv')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                        See All <span aria-hidden="true">&rarr;</span>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                      {results.filter(item => item.media_type === "tv").slice(0, 6).map(renderItemCard)}
+                    </div>
+                  </div>
+                )}
 
-            {/* Movies Section */}
-            {results.filter(item => item.media_type === "movie").length > 0 && (
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-zinc-300 flex items-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-                    </svg>
-                    Movies
-                  </h3>
-                  {!query.trim() && (
-                    <button onClick={() => router.push('/discover/movies')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                      See All <span aria-hidden="true">&rarr;</span>
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                  {results.filter(item => item.media_type === "movie").slice(0, 6).map(renderItemCard)}
-                </div>
-              </div>
+                {/* Movies Section */}
+                {results.filter(item => item.media_type === "movie").length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-zinc-300 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                        </svg>
+                        Movies
+                      </h3>
+                      <button onClick={() => router.push('/discover/movies')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                        See All <span aria-hidden="true">&rarr;</span>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                      {results.filter(item => item.media_type === "movie").slice(0, 6).map(renderItemCard)}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Explore by Genre Section */}
