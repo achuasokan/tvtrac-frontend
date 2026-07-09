@@ -6,6 +6,7 @@ import { RootState } from "@/store";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { AddToListModal } from "@/features/lists/components/AddToListModal";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -429,6 +430,7 @@ export default function TitleDetailsPage() {
   const [userCountry, setUserCountry] = useState("US");
   const [pendingRedirectLink, setPendingRedirectLink] = useState<string | null>(null);
   const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
+  const [isAddToListModalOpen, setIsAddToListModalOpen] = useState(false);
 
   const initialMount = useRef(true);
   const prevWatchedCount = useRef(0);
@@ -740,7 +742,17 @@ export default function TitleDetailsPage() {
             )}
           </div>
 
-          {/* Action Buttons Removed */}
+          <div className="flex items-center gap-3 mb-8">
+            <button
+              onClick={() => setIsAddToListModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg font-medium transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+              </svg>
+              Add to List
+            </button>
+          </div>
 
           {/* Tabs */}
           <div className="sticky top-16 z-40 w-[calc(100%+2rem)] -mx-4 sm:w-full sm:mx-0 mb-8">
@@ -963,6 +975,13 @@ export default function TitleDetailsPage() {
         </div>
       )}
 
+      {/* Add To List Modal */}
+      <AddToListModal
+        isOpen={isAddToListModalOpen}
+        onClose={() => setIsAddToListModalOpen(false)}
+        tmdbId={id}
+        mediaType={mediaType as 'movie' | 'tv'}
+      />
     </main>
   );
 }
