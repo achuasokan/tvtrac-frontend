@@ -216,9 +216,22 @@ function SeasonItem({
     
     setIsTogglingSeason(true);
     const seasonNum = season.season_number;
-    const epsNumbers = episodes.length > 0 
-      ? episodes.map(ep => ep.episode_number)
-      : Array.from({ length: season.episode_count }, (_, i) => i + 1);
+    
+    let currentEpisodes = episodes;
+    if (currentEpisodes.length === 0) {
+      // Must fetch episodes first to get the true episode numbers (vital for Anime where episode numbers are absolute)
+      try {
+        const res = await api.get(`/tmdb/tv/${tvId}/season/${seasonNum}`);
+        currentEpisodes = res.data.episodes || [];
+        setEpisodes(currentEpisodes);
+      } catch (err) {
+        console.error("Failed to fetch episodes to mark season", err);
+        setIsTogglingSeason(false);
+        return;
+      }
+    }
+    
+    const epsNumbers = currentEpisodes.map(ep => ep.episode_number);
     
     // Optimistic update
     const seasonEps = watchedEpisodes.filter(e => e.season === seasonNum);
@@ -226,7 +239,8 @@ function SeasonItem({
 
     setWatchedEpisodes(prev => {
       if (isFullyWatched) {
-        return prev.filter(e => !(e.season === seasonNum && epsNumbers.includes(e.episode)));
+        // Clear all episodes for this season in frontend to match backend behavior
+        return prev.filter(e => e.season !== seasonNum);
       } else {
         const newEps = [...prev];
         for (const epNum of epsNumbers) {
@@ -331,53 +345,69 @@ function SeasonItem({
               {episodes.map(ep => {
                 const isEpWatched = watchedEpisodes.some(e => e.season === season.season_number && e.episode === ep.episode_number);
                 const isToggling = togglingEpisodes[ep.episode_number];
+                
+                // Calculate if episode is in the future
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const airDate = ep.air_date ? new Date(ep.air_date) : null;
+                const isUnreleased = airDate && airDate > today;
+                const daysLeft = isUnreleased ? Math.ceil((airDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                
                 return (
                 <div 
                   key={ep.id} 
-                  className="flex gap-4 p-3 rounded-lg hover:bg-zinc-800/40 transition-colors cursor-pointer border border-transparent hover:border-zinc-800/50 group"
+                  className="flex gap-3 sm:gap-4 p-2.5 sm:p-3 rounded-lg hover:bg-zinc-800/40 transition-colors cursor-pointer border border-transparent hover:border-zinc-800/50 group"
                   onClick={() => router.push(`/title/tv/${tvId}/season/${season.season_number}/episode/${ep.episode_number}`)}
                 >
-                  <div className="relative w-28 sm:w-32 shrink-0 aspect-video bg-zinc-800 rounded overflow-hidden">
+                  <div className="relative w-24 sm:w-32 shrink-0 aspect-video bg-zinc-800 rounded overflow-hidden">
                     {ep.still_path ? (
                       <img src={`https://image.tmdb.org/t/p/w300${ep.still_path}`} alt={ep.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-zinc-600">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                       </div>
                     )}
                   </div>
                   
-                  <div className="flex-1 flex flex-col justify-center text-left">
-                    <div className="flex justify-between items-start w-full">
-                      <div>
-                        <h4 className="text-[13px] sm:text-sm font-bold text-zinc-200 group-hover:text-white transition-colors">{ep.episode_number}. {ep.name}</h4>
-                        {ep.runtime > 0 && <p className="text-[11px] sm:text-xs font-medium text-zinc-500 mt-0.5 sm:mt-1">{ep.runtime} min</p>}
+                  <div className="flex-1 flex flex-col justify-center text-left min-w-0">
+                    <div className="flex justify-between items-center w-full">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-zinc-200 group-hover:text-white transition-colors line-clamp-2">{ep.episode_number}. {ep.name}</h4>
+                        {ep.runtime > 0 && <p className="text-[10px] sm:text-xs font-medium text-zinc-500 mt-0.5">{ep.runtime} min</p>}
                       </div>
                       
-                      <button 
-                        onClick={(e) => handleToggleEpisode(e, ep.episode_number)}
-                        disabled={isToggling}
-                        className={`ml-2 sm:ml-3 w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-colors border ${
-                          isEpWatched 
-                            ? 'bg-green-500 text-white border-green-500 hover:bg-green-600' 
-                            : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/80 hover:bg-zinc-700 hover:text-white'
-                        }`}
-                      >
-                        {isToggling ? (
-                          <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
-                        ) : isEpWatched ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        )}
-                      </button>
+                      {isUnreleased ? (
+                        <div className="shrink-0 flex items-center justify-center">
+                          <span className="text-[10px] sm:text-xs font-bold text-white tracking-widest uppercase whitespace-nowrap">
+                            {daysLeft === 0 ? 'Today' : `${daysLeft} Days`}
+                          </span>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={(e) => handleToggleEpisode(e, ep.episode_number)}
+                          disabled={isToggling}
+                          className={`ml-2 sm:ml-3 w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-colors border ${
+                            isEpWatched 
+                              ? 'bg-green-500 text-white border-green-500 hover:bg-green-600' 
+                              : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/80 hover:bg-zinc-700 hover:text-white'
+                          }`}
+                        >
+                          {isToggling ? (
+                            <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                          ) : isEpWatched ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -811,30 +841,30 @@ export default function TitleDetailsPage() {
               );
             })()}
             
-            <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-start sm:justify-center border-b border-zinc-800 w-full overflow-x-auto px-2 sm:px-0 [&::-webkit-scrollbar]:hidden">
+            <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-between sm:justify-center border-b border-zinc-800 w-full px-1 sm:px-0">
               <button 
-                className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                 onClick={() => handleTabChange('about')}
               >
                 About
               </button>
               {mediaType === 'tv' && (
                 <button 
-                  className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'episodes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'episodes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                   onClick={() => handleTabChange('episodes')}
                 >
                   Episodes
                 </button>
               )}
               <button 
-                className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'cast' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'cast' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                 onClick={() => handleTabChange('cast')}
               >
                 Cast & Crew
               </button>
-              {details.videos?.results?.some((v: any) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")) && (
+              {details.videos?.results?.some((v: any) => v.site === "YouTube") && (
                 <button 
-                  className={`py-2.5 px-3 sm:py-3 sm:px-6 font-bold text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'trailers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'trailers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
                   onClick={() => handleTabChange('trailers')}
                 >
                   Trailers
@@ -859,21 +889,102 @@ export default function TitleDetailsPage() {
                   ))}
                 </div>
 
-                <div className="flex flex-col sm:flex-row flex-wrap justify-center items-center sm:items-start gap-10 sm:gap-12 mb-2 sm:mb-4 text-sm w-full">
-                  {(details.created_by?.length > 0 || details.credits?.crew?.find((c: any) => c.job === 'Director')) && (
-                    <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-                      <span className="block text-zinc-500 font-bold mb-3 uppercase tracking-wider text-[10px]">{mediaType === 'tv' ? 'Creator' : 'Director'}</span>
-                      <span className="text-zinc-200">
-                        {mediaType === 'tv' 
-                          ? details.created_by.map((c: any) => c.name).join(', ')
-                          : details.credits.crew.find((c: any) => c.job === 'Director')?.name}
-                      </span>
-                    </div>
-                  )}
+                <div className="flex flex-col w-full max-w-4xl mx-auto gap-6 sm:gap-8 mb-4">
+                  {(() => {
+                    // Extract precise crew members from TMDB credits
+                    const getCrew = (jobs: string[], departments: string[] = []) => {
+                      if (!details.credits?.crew) return '';
+                      let matches = details.credits.crew.filter((c: any) => jobs.includes(c.job));
+                      if (matches.length === 0 && departments.length > 0) {
+                        matches = details.credits.crew.filter((c: any) => departments.includes(c.department));
+                      }
+                      // Use a Set to remove duplicate names
+                      return Array.from(new Set(matches.map((c: any) => c.name))).join(', ');
+                    };
+
+                    const director = mediaType === 'tv' 
+                      ? details.created_by?.map((c: any) => c.name).join(', ')
+                      : getCrew(['Director']);
+                      
+                    const writer = getCrew(['Screenplay', 'Writer', 'Story', 'Author'], ['Writing']);
+                    const composer = getCrew(['Original Music Composer', 'Music']);
+                    const dop = getCrew(['Director of Photography', 'Cinematography']);
+                    
+                    const originalLangCode = details.original_language;
+                    const matchedLang = details.spoken_languages?.find((l: any) => l.iso_639_1 === originalLangCode) || details.spoken_languages?.[0];
+                    const language = matchedLang?.english_name || originalLangCode?.toUpperCase();
+                    
+                    const origin = details.production_countries?.[0]?.name || details.origin_country?.[0];
+                    
+                    // TMDB sometimes has broken numbers like '10' for budget, so we ensure it's > 1000 before showing
+                    const budget = mediaType === 'movie' && details.budget > 1000 ? `$${details.budget.toLocaleString()}` : null;
+                    const revenue = mediaType === 'movie' && details.revenue > 1000 ? `$${details.revenue.toLocaleString()}` : null;
+                    const studios = details.production_companies?.slice(0, 3).map((c: any) => c.name).join(', ');
+
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-y-5 gap-x-4 sm:gap-x-6 max-w-4xl mx-auto w-full px-4 mt-6 mb-4">
+                        {director && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">{mediaType === 'tv' ? 'Creator' : 'Director'}</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{director}</span>
+                          </div>
+                        )}
+                        {writer && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Writer</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{writer}</span>
+                          </div>
+                        )}
+                        {composer && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Music</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{composer}</span>
+                          </div>
+                        )}
+                        {dop && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Cinematography</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{dop}</span>
+                          </div>
+                        )}
+                        {language && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Language</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{language}</span>
+                          </div>
+                        )}
+                        {origin && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Origin</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{origin}</span>
+                          </div>
+                        )}
+                        {budget && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Budget</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{budget}</span>
+                          </div>
+                        )}
+                        {revenue && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Box Office</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{revenue}</span>
+                          </div>
+                        )}
+                        {studios && (
+                          <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80 sm:col-span-2 md:col-span-4 lg:col-span-2">
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">{mediaType === 'tv' ? 'Networks' : 'Studios'}</span>
+                            <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{studios}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {details['watch/providers']?.results?.[userCountry]?.flatrate && (
-                    <div className="flex flex-col items-center sm:items-start">
-                      <span className="block text-zinc-500 font-bold mb-3 uppercase tracking-wider text-[10px]">Where to Watch</span>
-                      <div className="flex flex-wrap justify-center sm:justify-start items-center gap-3 sm:gap-4">
+                    <div className="flex flex-col items-center mt-2">
+                      <span className="block text-zinc-500 font-bold mb-4 uppercase tracking-widest text-[10px]">Available On</span>
+                      <div className="flex flex-wrap justify-center items-center gap-4">
                         {details['watch/providers'].results[userCountry].flatrate.map((provider: any) => (
                           <button 
                             key={provider.provider_id} 
@@ -882,10 +993,10 @@ export default function TitleDetailsPage() {
                               setPendingRedirectLink(getProviderLink(provider.provider_name, title, details['watch/providers'].results[userCountry].link));
                               setPendingProviderName(provider.provider_name);
                             }}
-                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block"
+                            className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl overflow-hidden shadow-2xl border border-white/10 hover:scale-110 hover:border-white/30 hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] transition-all block group"
                             title={`Watch on ${provider.provider_name}`}
                           >
-                            <img src={`https://image.tmdb.org/t/p/original${provider.logo_path}`} alt={provider.provider_name} className="w-full h-full object-cover" />
+                            <img src={`https://image.tmdb.org/t/p/original${provider.logo_path}`} alt={provider.provider_name} className="w-full h-full object-cover group-hover:brightness-110 transition-all" />
                           </button>
                         ))}
                       </div>
@@ -894,19 +1005,21 @@ export default function TitleDetailsPage() {
                 </div>
 
                 {details.similar?.results?.length > 0 && (
-                  <div className="mt-8 border-t border-zinc-800 pt-6 w-full text-center">
+                  <div className="mt-4 border-t border-zinc-800 pt-6 w-full text-center">
                     <h3 className="text-xl font-bold text-white mb-6">You Might Also Like</h3>
                     <div className="flex overflow-x-auto gap-4 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                       {details.similar.results.map((item: any) => (
-                        <div key={item.id} className="w-32 shrink-0 cursor-pointer group" onClick={() => router.push(`/title/${item.media_type || mediaType}/${item.id}`)}>
-                          <div className="aspect-[2/3] rounded-lg overflow-hidden bg-zinc-900 border border-zinc-800 mb-2 transition-transform group-hover:scale-105 group-hover:border-zinc-500 shadow-md">
+                        <div key={item.id} className="w-32 sm:w-36 shrink-0 cursor-pointer group flex flex-col" onClick={() => router.push(`/title/${item.media_type || mediaType}/${item.id}`)}>
+                          <div className="aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-2.5 transition-transform group-hover:scale-105 group-hover:border-zinc-500 shadow-md">
                             {item.poster_path ? (
                               <img src={`https://image.tmdb.org/t/p/w200${item.poster_path}`} alt={item.title || item.name} className="w-full h-full object-cover" />
                             ) : (
-                              <div className="w-full h-full bg-zinc-800" />
+                              <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600 text-[10px] uppercase">
+                                No Image
+                              </div>
                             )}
                           </div>
-                          <p className="text-xs font-bold text-zinc-300 truncate group-hover:text-white transition-colors">{item.title || item.name}</p>
+                          <p className="text-[11px] sm:text-xs font-bold text-zinc-300 line-clamp-2 text-center leading-snug group-hover:text-white transition-colors">{item.title || item.name}</p>
                         </div>
                       ))}
                     </div>
@@ -1006,9 +1119,9 @@ export default function TitleDetailsPage() {
 
             {activeTab === 'trailers' && (
               <div className="animate-in fade-in duration-300">
-                {details.videos?.results?.filter((v: any) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")).length > 0 ? (
+                {details.videos?.results?.filter((v: any) => v.site === "YouTube").length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {details.videos.results.filter((v: any) => v.site === "YouTube" && (v.type === "Trailer" || v.type === "Teaser")).map((video: any) => (
+                    {details.videos.results.filter((v: any) => v.site === "YouTube").map((video: any) => (
                       <div key={video.id} className="flex flex-col gap-2">
                         <div className="aspect-video w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800">
                           <iframe

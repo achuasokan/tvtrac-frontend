@@ -86,18 +86,21 @@ export default function DiscoverMoviesPage() {
             <span className="text-[10px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
           </div>
         ) : null}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300 z-20 shadow-lg"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        
+        {/* Add Button - Always visible on mobile, hover-only on desktop */}
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          className="absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100"
+          title="Add to List"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
       </div>
       <div>
         <h3 className="text-xs sm:text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">

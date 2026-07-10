@@ -67,6 +67,7 @@ export default function DiscoverPage() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const platformsRef = useRef<HTMLDivElement>(null);
 
@@ -105,10 +106,13 @@ export default function DiscoverPage() {
 
   // Debounce search
   useEffect(() => {
+    if (!isInitialized) return;
+
     const controller = new AbortController();
     
     const timer = setTimeout(() => {
       if (query.trim()) {
+        window.history.replaceState(null, '', `?q=${encodeURIComponent(query)}`);
         const fetchSearch = async () => {
           try {
             setIsLoading(true);
@@ -127,6 +131,7 @@ export default function DiscoverPage() {
         };
         fetchSearch();
       } else {
+        window.history.replaceState(null, '', window.location.pathname);
         fetchTrending();
       }
     }, 500);
@@ -135,11 +140,18 @@ export default function DiscoverPage() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, isInitialized]);
 
   // Initial load
   useEffect(() => {
-    fetchTrending();
+    const params = new URLSearchParams(window.location.search);
+    const urlQuery = params.get('q');
+    if (urlQuery) {
+      setQuery(urlQuery);
+    } else {
+      fetchTrending();
+    }
+    setIsInitialized(true);
   }, []);
 
   const handleLoadMore = async () => {
@@ -206,18 +218,20 @@ export default function DiscoverPage() {
         </div>
 
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300 z-20 shadow-lg"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
+        <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        
+        {/* Add Button - Always visible on mobile, hover-only on desktop */}
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          className="absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100"
+          title="Add to List"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+          </svg>
+        </button>
       </div>
 
       {/* Title */}
