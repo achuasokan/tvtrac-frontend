@@ -56,6 +56,7 @@ export default function EpisodeDetailsPage() {
   const [pendingRedirectLink, setPendingRedirectLink] = useState<string | null>(null);
   const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [playingVideos, setPlayingVideos] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -292,7 +293,7 @@ export default function EpisodeDetailsPage() {
   const nextEpisodeData = hasNext ? seasonDetails?.episodes?.find((ep: any) => ep.episode_number === currentEpNum + 1) : null;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#050505] text-white flex flex-col relative overflow-x-hidden pb-12">
       
       {/* Sticky App Bar */}
       <div className={`fixed top-0 left-0 right-0 z-50 pointer-events-none transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 border-b ${isScrolled ? 'bg-[#050505]/95 backdrop-blur-md border-white/10 shadow-lg' : 'bg-transparent border-transparent pt-4'}`}>
@@ -621,15 +622,28 @@ export default function EpisodeDetailsPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {youtubeVideos.slice(0, 4).map((video: any) => (
-              <div key={video.id} className="relative aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800">
-                <iframe
-                  className="absolute inset-0 w-full h-full"
-                  src={`https://www.youtube.com/embed/${video.key}`}
-                  title={video.name}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+              <div key={video.id} className="cursor-pointer relative aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 group" onClick={() => setPlayingVideos(prev => ({...prev, [video.id]: true}))}>
+                {playingVideos[video.id] ? (
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`https://www.youtube.com/embed/${video.key}?autoplay=1`}
+                    title={video.name}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <>
+                    <img src={`https://img.youtube.com/vi/${video.key}/hqdefault.jpg`} alt={video.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/10 transition-colors duration-300">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-all duration-300 pl-0.5 sm:pl-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>

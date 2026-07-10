@@ -56,10 +56,11 @@ export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
   }, [list.items]);
 
   return (
-    <div className="group relative w-full aspect-video rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 shadow-lg hover:border-zinc-500 hover:shadow-xl transition-all duration-300">
-      <Link href={`/lists/${list.id}`} className="absolute inset-0 z-10" aria-label={`View ${list.name}`} />
+    <div className="group relative w-full aspect-video rounded-2xl bg-zinc-900 border border-zinc-800 shadow-lg hover:border-zinc-500 hover:shadow-xl transition-all duration-300">
       
-      {/* Background Image / Loading State */}
+      {/* Inner Image Wrapper with overflow-hidden */}
+      <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
+        {/* Background Image / Loading State */}
       {isLoading ? (
         <div className="w-full h-full bg-zinc-800/50 animate-pulse flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-zinc-700 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -86,8 +87,11 @@ export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
         </div>
       )}
 
-      {/* Protective Gradient just for text readability at the very bottom */}
-      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/90 to-transparent pointer-events-none" />
+        {/* Protective Gradient just for text readability at the very bottom */}
+        <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/90 to-transparent pointer-events-none" />
+      </div>
+
+      <Link href={`/lists/${list.id}`} className="absolute inset-0 z-10" aria-label={`View ${list.name}`} />
 
       {/* List Name Inside Image */}
       <div className="absolute bottom-4 left-4 right-4 z-20 pointer-events-none">
@@ -105,7 +109,7 @@ export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
               e.stopPropagation();
               setIsMenuOpen(!isMenuOpen);
             }}
-            className="text-white p-1.5 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-md transition-all md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 shadow-lg border border-white/10"
+            className="cursor-pointer text-white p-1.5 rounded-full bg-black/40 hover:bg-black/80 backdrop-blur-md transition-all md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 shadow-lg border border-white/10"
             aria-label="Options"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -124,7 +128,7 @@ export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
                       setIsMenuOpen(false);
                       onEdit(list);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors font-medium"
+                    className="cursor-pointer w-full text-left px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors font-medium"
                   >
                     Edit Details
                   </button>
@@ -137,7 +141,7 @@ export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
                       setIsMenuOpen(false);
                       if (onDelete) onDelete(list.id);
                     }}
-                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium"
+                    className="cursor-pointer w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium"
                   >
                     Delete List
                   </button>

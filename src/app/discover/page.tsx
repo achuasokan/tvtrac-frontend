@@ -36,11 +36,11 @@ function Carousel({ title, children }: { title: React.ReactNode, children: React
       <div className="flex items-center justify-between mb-4">
         {title}
         <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
-          <button onClick={() => scroll('left')} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+          <button onClick={() => scroll('left')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div className="w-px h-4 bg-zinc-700/50" />
-          <button onClick={() => scroll('right')} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+          <button onClick={() => scroll('right')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
@@ -300,7 +300,7 @@ export default function DiscoverPage() {
               
               <button 
                 onClick={() => router.push("/discover/filter")}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white transition-colors mr-0.5 sm:mr-1"
+                className="cursor-pointer p-1.5 sm:p-2 text-zinc-400 hover:text-white transition-colors mr-0.5 sm:mr-1"
                 title="Advanced Filters"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -328,13 +328,13 @@ export default function DiscoverPage() {
               
               {/* Scroll Controls Pill */}
               <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
-                <button onClick={scrollLeft} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+                <button onClick={scrollLeft} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
                 <div className="w-px h-4 bg-zinc-700/50" />
-                <button onClick={scrollRight} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+                <button onClick={scrollRight} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                   </svg>
@@ -465,7 +465,7 @@ export default function DiscoverPage() {
                         </svg>
                         TV Shows
                       </h3>
-                      <button onClick={() => router.push('/discover/tv')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                      <button onClick={() => router.push('/discover/tv')} className="cursor-pointer text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
                         See All <span aria-hidden="true">&rarr;</span>
                       </button>
                     </div>
@@ -485,7 +485,7 @@ export default function DiscoverPage() {
                         </svg>
                         Movies
                       </h3>
-                      <button onClick={() => router.push('/discover/movies')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                      <button onClick={() => router.push('/discover/movies')} className="cursor-pointer text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
                         See All <span aria-hidden="true">&rarr;</span>
                       </button>
                     </div>
@@ -516,7 +516,7 @@ export default function DiscoverPage() {
                     <button 
                       key={name}
                       onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
-                      className="flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow hover:shadow-xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-500"
+                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow hover:shadow-xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-500"
                     >
                       {genreImages[name] && (
                         <img 
@@ -548,7 +548,7 @@ export default function DiscoverPage() {
                     <button 
                       key={name}
                       onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
-                      className="flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-400"
+                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-400"
                     >
                       {genreImages[name] && (
                         <img 
