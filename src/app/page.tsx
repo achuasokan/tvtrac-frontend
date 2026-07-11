@@ -1,14 +1,13 @@
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
+import DomeGallery from "@/components/ui/DomeGallery";
 
 export const dynamic = 'force-dynamic';
 
-// Fetch live poster data from TVMaze API
+// Fetch live poster data from TVMaze API (Public API, no key required)
 async function getPosters() {
   try {
-    // TVMaze API is completely open, public, and requires no API key
     const res = await fetch("https://api.tvmaze.com/shows", {
-      // The API response is cached for 24 hours to prevent rate-limiting
-      next: { revalidate: 86400 }
+      next: { revalidate: 86400 } // Cache for 24 hours
     });
     
     if (!res.ok) {
@@ -17,14 +16,19 @@ async function getPosters() {
 
     const shows = await res.json();
     
-    // Extract all valid high-quality original poster images
+    
     const allPosters = shows
       .map((show: any) => show.image?.original || show.image?.medium)
       .filter(Boolean);
 
-    // Shuffle the array randomly and return 30 completely unique posters on every visit!
-    const shuffledPosters = allPosters.sort(() => 0.5 - Math.random());
-    return shuffledPosters.slice(0, 30);
+    
+    for (let i = allPosters.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [allPosters[i], allPosters[j]] = [allPosters[j], allPosters[i]];
+    }
+
+    
+    return allPosters.slice(0, 35);
   } catch (error) {
     console.error("Error fetching TVMaze posters:", error);
     return [];
@@ -40,46 +44,39 @@ export default async function Home() {
       
       {/* Real Movie Poster Grid Background & Overlay */}
       {/* Both share this container so hovered items can pop above the overlay! */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        
-        {/* The Grid */}
-        <div className="absolute inset-0 grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2 w-[110%] h-[110%] -translate-x-5 -translate-y-5 scale-105">
-          {posterGrid.map((posterUrl: string, i: number) => (
-            <div 
-              key={i} 
-              // Base z-0, on hover z-50 to pop above the z-10 overlay!
-              className="group relative z-0 w-full aspect-[2/3] rounded-lg bg-slate-900/50 overflow-hidden shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_0_50px_rgba(255,255,255,0.4)] hover:z-50 cursor-default"
-            >
-              <img
-                src={posterUrl}
-                alt="Show Poster"
-                className="object-cover w-full h-full opacity-40 transition-all duration-700 group-hover:scale-110 group-hover:opacity-100"
-                style={{ animationDelay: `${i * 0.05}s` }}
-              />
-              {/* Optional subtle border glow on hover */}
-              <div className="absolute inset-0 border-2 border-white/0 group-hover:border-white/30 rounded-lg transition-colors duration-500" />
-            </div>
-          ))}
-        </div>
-
+      <div className="absolute inset-0 z-0 overflow-hidden scale-105 md:scale-110">
+        <DomeGallery 
+          images={posterGrid.map((url: string) => ({ src: url, alt: "TV Show Poster" }))}
+          autoRotateSpeed={0.08}
+          grayscale={false}
+          overlayBlurColor="#0A0A0A"
+          minRadius={300}
+          fit={1.3}
+          fitBasis="max"
+          openedImageWidth="100vw"
+          openedImageHeight="100vh"
+          openedImageBorderRadius="0px"
+          segments={45}
+        />
         {/* Cinematic Dark Overlay - placed INSIDE the grid container at z-10 */}
-        {/* Unhovered items are z-0 (behind), hovered items are z-50 (above!) */}
         <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/95 via-black/70 to-black/40" />
       </div>
 
+      {/* Soft Radial Text Backdrop for Readability over any poster */}
+      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.6)_0%,transparent_60%)]" />
+
       {/* Clean Full-Bleed Content Container (No Box) */}
-      {/* Added pointer-events-none so hover passes through empty space, but pointer-events-auto on the interactive elements */}
-      <div className="pointer-events-none w-full max-w-2xl mx-auto text-center z-10 flex flex-col items-center px-4">
+      <div className="pointer-events-none w-full max-w-2xl mx-auto text-center z-20 flex flex-col items-center px-4">
         
         {/* Clean Logo */}
         <div className="mb-6 animate-fade-in-up">
-          <span className="text-6xl md:text-7xl font-black tracking-tighter text-white drop-shadow-2xl">
+          <span className="text-6xl md:text-7xl font-black tracking-tighter text-white drop-shadow-2xl" style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,1)' }}>
             tvtrac.
           </span>
         </div>
         
         {/* Sleek Subtitle */}
-        <p className="text-xl md:text-2xl text-slate-300 font-medium mb-12 max-w-md mx-auto tracking-wide drop-shadow-lg leading-relaxed">
+        <p className="text-xl md:text-2xl text-slate-200 font-medium mb-12 max-w-md mx-auto tracking-wide leading-relaxed" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,1)' }}>
           Your universe of shows and movies, perfectly organized.
         </p>
 
