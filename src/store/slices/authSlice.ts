@@ -8,6 +8,9 @@ export interface User {
   avatar: string;
   username: string;
   role: string;
+  coverPhoto?: string;
+  favoriteShows?: string[];
+  favoriteMovies?: string[];
 }
 
 interface AuthState {
