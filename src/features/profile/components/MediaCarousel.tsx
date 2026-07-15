@@ -26,13 +26,15 @@ interface MediaCarouselProps {
   title: React.ReactNode;
   items: CarouselItem[];
   emptyMessage?: string;
+  viewAllLink?: string;
 }
 
-export function MediaCarousel({ title, items, emptyMessage = "No items to display" }: MediaCarouselProps) {
+export function MediaCarousel({ title, items, emptyMessage = "No items to display", viewAllLink }: MediaCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [results, setResults] = useState<TmdbItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [canScroll, setCanScroll] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -69,6 +71,21 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
     return () => { isMounted = false; };
   }, [items]);
   
+  useEffect(() => {
+    const checkScroll = () => {
+      if (scrollRef.current) {
+        setCanScroll(scrollRef.current.scrollWidth > scrollRef.current.clientWidth);
+      }
+    };
+    // Check after a tiny delay to ensure DOM is updated with new items
+    const timeout = setTimeout(checkScroll, 100);
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      clearTimeout(timeout);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [results, isLoading]);
+
   const scroll = (dir: 'left' | 'right') => {
     if (scrollRef.current) {
       const { scrollLeft, clientWidth } = scrollRef.current;
@@ -83,8 +100,10 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
   if (!isLoading && results.length === 0) {
       return (
           <div className="mb-10">
-              <h2 className="text-xl font-bold tracking-tight text-white mb-4">{title}</h2>
-              <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/50 rounded-2xl border border-zinc-800/80">
+              <div className="flex items-center justify-between mb-4 px-4 sm:px-6 lg:px-8">
+                  <h2 className="text-xl font-bold tracking-tight text-white">{title}</h2>
+              </div>
+              <div className="px-4 sm:px-6 lg:px-8">
                   <p className="text-zinc-500 text-sm">{emptyMessage}</p>
               </div>
           </div>
@@ -93,48 +112,56 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
 
   return (
     <div className="group relative mb-10">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold tracking-tight text-white">{title}</h2>
-        <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
-          <button onClick={() => scroll('left')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <div className="w-px h-4 bg-zinc-700/50" />
-          <button onClick={() => scroll('right')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
-          </button>
+      <div className="flex items-center justify-between mb-4 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-end gap-4">
+            <h2 className="text-xl font-bold tracking-tight text-white">{title}</h2>
+            {viewAllLink && (
+                <button 
+                    onClick={() => router.push(viewAllLink)}
+                    className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors mb-1"
+                >
+                    View All &rsaquo;
+                </button>
+            )}
         </div>
+        {canScroll && (
+            <div className="hidden md:flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
+            <button onClick={() => scroll('left')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <div className="w-px h-4 bg-zinc-700/50" />
+            <button onClick={() => scroll('right')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+            </button>
+            </div>
+        )}
       </div>
       <div 
         ref={scrollRef}
-        className="flex items-center gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-4"
+        className="flex items-center gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-4 px-4 sm:px-6 lg:px-8"
       >
         {isLoading ? (
             [...Array(6)].map((_, i) => (
-                <div key={i} className="flex flex-col gap-2 animate-pulse min-w-[140px] sm:min-w-[160px] md:min-w-[180px] snap-start">
+                <div key={i} className="flex flex-col gap-2 animate-pulse w-[110px] sm:w-[130px] md:w-[150px] lg:w-[160px] shrink-0 snap-start">
                   <div className="relative aspect-[2/3] w-full rounded-xl bg-zinc-800 shadow-lg" />
-                  <div>
-                    <div className="h-4 bg-zinc-800 rounded w-3/4 mb-1.5 mt-1"></div>
-                    <div className="h-3 bg-zinc-800 rounded w-1/4"></div>
-                  </div>
                 </div>
               ))
         ) : (
             results.map(item => (
-                <div key={item.id} className="group/card cursor-pointer flex flex-col gap-2 min-w-[140px] sm:min-w-[160px] md:min-w-[180px] snap-start" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+                <div key={item.id} className="group/card cursor-pointer flex flex-col gap-2 w-[110px] sm:w-[130px] md:w-[150px] lg:w-[160px] shrink-0 snap-start" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
                     {/* Poster */}
                     <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover/card:scale-105 group-hover/card:shadow-2xl transition-all duration-300">
                         {item.poster_path ? (
-                            <img 
-                                src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} 
-                                alt={item.title || item.name} 
+                            <img
+                                src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
+                                alt={item.title || item.name}
                                 className="w-full h-full object-cover"
                             />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-800">No Image</div>
+                            <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-800 text-xs">No Image</div>
                         )}
-                        
-                        {/* Top Badges */}
+
+                        {/* Rating Badge */}
                         <div className="absolute top-2 left-2 flex gap-1.5 z-10">
                         {item.vote_average ? (
                             <div className="bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1">
@@ -148,35 +175,6 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
 
                         {/* Hover Overlay */}
                         <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover/card:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                        
-                        {/* Add Button - Always visible on mobile, hover-only on desktop */}
-                        <button 
-                        onClick={(e) => {
-                            e.stopPropagation();
-                        }}
-                        className="absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover/card:opacity-100 md:group-hover/card:scale-100"
-                        title="Add to List"
-                        >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                        </svg>
-                        </button>
-                    </div>
-
-                    {/* Title */}
-                    <div>
-                        <h3 className="text-xs sm:text-sm font-bold text-zinc-200 truncate group-hover/card:text-white transition-colors">
-                        {item.title || item.name}
-                        </h3>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                            <span className="text-[9px] sm:text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
-                                {item.media_type === 'tv' ? 'TV Show' : 'Movie'}
-                            </span>
-                            <span className="w-1 h-1 rounded-full bg-zinc-700"></span>
-                            <span className="text-[10px] text-zinc-500 font-medium">
-                                {item.release_date ? item.release_date.split('-')[0] : (item.first_air_date ? item.first_air_date.split('-')[0] : '')}
-                            </span>
-                        </div>
                     </div>
                 </div>
             ))

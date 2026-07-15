@@ -17,6 +17,13 @@ export interface WatchHistoryItem {
     watchedAt: string; // ISO date string
 }
 
+export interface ProfileStats {
+    totalMovies: number;
+    totalMovieMinutes: number;
+    totalEpisodes: number;
+    totalEpisodeMinutes: number;
+}
+
 export interface ApiResponse<T> {
     success: boolean;
     message: string;

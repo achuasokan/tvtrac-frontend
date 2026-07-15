@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { AddToListModal } from "@/features/lists/components/AddToListModal";
+import { setUser } from "@/store/slices/authSlice";
+import { profileService } from "@/features/profile/api/profile.service";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -31,7 +33,8 @@ function SeasonItem({
   ignorePrompt,
   setIgnorePrompt,
   user,
-  router
+  router,
+  episodeRuntime
 }: { 
   tvId: string, 
   season: any,
@@ -40,7 +43,8 @@ function SeasonItem({
   ignorePrompt: boolean,
   setIgnorePrompt: React.Dispatch<React.SetStateAction<boolean>>,
   user: any,
-  router: any
+  router: any,
+  episodeRuntime?: number
 }) {
   const storageKey = `tvtrac_expanded_season_${tvId}_${season.season_number}`;
   const [expanded, setExpanded] = useState(() => {
@@ -140,6 +144,11 @@ function SeasonItem({
     await proceedToggleEpisode(episodeNumber, isWatched);
   };
 
+  const getEpisodeRuntimeForToggle = (episodeNumber: number) => {
+    const epData = episodes.find(ep => ep.episode_number === episodeNumber);
+    return epData?.runtime || episodeRuntime || 0;
+  };
+
   const proceedToggleEpisode = async (episodeNumber: number, isWatched: boolean) => {
     const seasonNum = season.season_number;
     
@@ -152,7 +161,12 @@ function SeasonItem({
     
     setTogglingEpisodes(prev => ({ ...prev, [episodeNumber]: true }));
     try {
-      const res = await api.post("/tracking/watched/episode/toggle", { tmdbId: tvId, season: seasonNum, episode: episodeNumber });
+      const res = await api.post("/tracking/watched/episode/toggle", {
+        tmdbId: tvId,
+        season: seasonNum,
+        episode: episodeNumber,
+        runtime: getEpisodeRuntimeForToggle(episodeNumber),
+      });
       setWatchedEpisodes(res.data.watchedEpisodes);
     } catch (error) {
       console.error("Failed to toggle episode", error);
@@ -200,7 +214,13 @@ function SeasonItem({
       
       setTogglingEpisodes(prev => ({ ...prev, [epNum]: true }));
       try {
-        const res = await api.post("/tracking/watched/season/toggle", { tmdbId: tvId, season: seasonNum, episodes: allToMark });
+        const epData = episodes.find(ep => ep.episode_number === epNum);
+        const res = await api.post("/tracking/watched/season/toggle", {
+          tmdbId: tvId,
+          season: seasonNum,
+          episodes: allToMark,
+          runtime: epData?.runtime || episodeRuntime || 0,
+        });
         setWatchedEpisodes(res.data.watchedEpisodes);
       } catch (err) {
         console.error("Failed to bulk mark episodes", err);
@@ -253,7 +273,7 @@ function SeasonItem({
     });
 
     try {
-      const res = await api.post("/tracking/watched/season/toggle", { tmdbId: tvId, season: seasonNum, episodes: epsNumbers });
+      const res = await api.post("/tracking/watched/season/toggle", { tmdbId: tvId, season: seasonNum, episodes: epsNumbers, runtime: episodeRuntime || 0 });
       setWatchedEpisodes(res.data.watchedEpisodes);
     } catch (error) {
       console.error("Failed to mark season watched", error);
@@ -458,6 +478,7 @@ function SeasonItem({
 }
 
 export default function TitleDetailsPage() {
+  const dispatch = useDispatch();
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
   const params = useParams();
@@ -465,6 +486,9 @@ export default function TitleDetailsPage() {
   
   const mediaType = params.media_type as string;
   const id = params.id as string;
+  
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const isFavorite = user ? (mediaType === 'tv' ? user.favoriteShows?.includes(id.toString()) : user.favoriteMovies?.includes(id.toString())) : false;
 
   const [details, setDetails] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -606,25 +630,47 @@ export default function TitleDetailsPage() {
       }
     };
 
-    if (mediaType && id && (!isAuthLoading || user)) {
+    if (mediaType && id && (!isAuthLoading || user?.id)) {
       fetchDetails();
     }
-  }, [mediaType, id, isAuthLoading, user]);
+  }, [mediaType, id, isAuthLoading, user?.id]);
 
   const handleToggleWatched = async () => {
     if (!user) return router.push("/login");
+    setIsTogglingWatched(true);
     try {
-      setIsTogglingWatched(true);
-      // Optimistic update
-      setIsWatched(!isWatched);
-      const res = await api.post("/tracking/watched/toggle", { tmdbId: id, mediaType });
-      // Sync with server in case optimistic update was wrong
+      const res = await api.post(`/tracking/watched/toggle`, {
+        tmdbId: id,
+        mediaType,
+        runtime: details.runtime || 0,
+      });
       setIsWatched(res.data.watched);
+      if (mediaType === 'tv') {
+        setWatchedEpisodes(res.data.watchedEpisodes || []);
+      }
     } catch (error) {
-      console.error("Failed to toggle watched status:", error);
-      setIsWatched(!isWatched); // revert on error
+      console.error("Failed to toggle watched status", error);
     } finally {
       setIsTogglingWatched(false);
+    }
+  };
+
+  const handleToggleFavorite = async () => {
+    if (!user) return router.push("/login");
+    setIsTogglingFavorite(true);
+    try {
+      const updatedUser = await profileService.toggleFavorite(
+        { 
+          type: mediaType === 'tv' ? 'shows' : 'movies', 
+          tmdbId: id.toString() 
+        } as any, 
+        !isFavorite
+      );
+      dispatch(setUser(updatedUser));
+    } catch (error) {
+      console.error("Failed to toggle favorite", error);
+    } finally {
+      setIsTogglingFavorite(false);
     }
   };
 
@@ -769,10 +815,35 @@ export default function TitleDetailsPage() {
         <div className="absolute inset-0 max-w-4xl mx-auto pointer-events-none z-30">
           <div className="absolute top-20 right-4 sm:top-auto sm:bottom-16 sm:right-4 pointer-events-auto flex flex-col items-center gap-3">
             
+            {/* Floating Favorite Button */}
+            <button 
+              type="button"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(); }}
+              disabled={isTogglingFavorite}
+              className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md cursor-pointer ${
+                isFavorite 
+                  ? 'bg-red-500/30 border border-red-500/50 hover:bg-red-500/40' 
+                  : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
+              }`}
+            >
+              {isTogglingFavorite ? (
+                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              ) : isFavorite ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              )}
+            </button>
+
             {/* Floating Watched Button (Movies Only) */}
             {mediaType === 'movie' && (
               <button 
-                onClick={handleToggleWatched}
+                type="button"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleWatched(); }}
                 disabled={isTogglingWatched}
                 className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md cursor-pointer ${
                   isWatched 
@@ -1042,6 +1113,7 @@ export default function TitleDetailsPage() {
                     setIgnorePrompt={setIgnorePrompt}
                     user={user}
                     router={router}
+                    episodeRuntime={details?.episode_run_time?.[0] || 0}
                   />
                 ))}
               </div>

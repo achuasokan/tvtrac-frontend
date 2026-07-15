@@ -11,6 +11,8 @@ export interface User {
   coverPhoto?: string;
   favoriteShows?: string[];
   favoriteMovies?: string[];
+  watchlistShows?: string[];
+  watchlistMovies?: string[];
 }
 
 interface AuthState {

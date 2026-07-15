@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 import { API_ROUTES } from '@/lib/constants/api-routes';
 import { User } from '@/store/slices/authSlice';
-import { UpdateProfileDTO, ToggleFavoriteDTO, WatchHistoryItem, ApiResponse } from '../types';
+import { UpdateProfileDTO, ToggleFavoriteDTO, WatchHistoryItem, ProfileStats, ApiResponse } from '../types';
 
 export const profileService = {
     // 1. Update text profile details (name, username)
@@ -62,9 +62,36 @@ export const profileService = {
         return response.data.data;
     },
 
+    // 6.5 Toggle Watchlist (Add/Remove)
+    async toggleWatchlist(data: ToggleFavoriteDTO, isAdding: boolean): Promise<User> {
+        const method = isAdding ? 'post' : 'delete';
+        const response = await api.request<ApiResponse<User>>({
+            url: API_ROUTES.USERS.WATCHLIST,
+            method: method,
+            data: data
+        });
+        return response.data.data;
+    },
+
     // 7. Get Watch History
-    async getWatchHistory(): Promise<WatchHistoryItem[]> {
-        const response = await api.get<ApiResponse<WatchHistoryItem[]>>(API_ROUTES.TRACKING.HISTORY);
+    async getWatchHistory(page?: number, limit?: number, mediaType?: 'movie' | 'tv'): Promise<any> {
+        let url = API_ROUTES.TRACKING.HISTORY;
+        const params = new URLSearchParams();
+        if (page) params.append('page', page.toString());
+        if (limit) params.append('limit', limit.toString());
+        if (mediaType) params.append('mediaType', mediaType);
+        
+        if (params.toString()) {
+            url += `?${params.toString()}`;
+        }
+        
+        const response = await api.get<ApiResponse<any>>(url);
+        return response.data.data;
+    },
+
+    // 8. Get Profile Stats
+    async getStats(): Promise<ProfileStats> {
+        const response = await api.get<ApiResponse<ProfileStats>>(API_ROUTES.TRACKING.STATS);
         return response.data.data;
     },
 };

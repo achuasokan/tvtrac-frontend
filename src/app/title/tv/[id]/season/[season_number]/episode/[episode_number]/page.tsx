@@ -157,6 +157,12 @@ export default function EpisodeDetailsPage() {
     await proceedToggleEpisode();
   };
 
+  const getEpisodeRuntime = () => {
+    if (details?.runtime > 0) return details.runtime;
+    if (showDetails?.episode_run_time?.[0] > 0) return showDetails.episode_run_time[0];
+    return 0;
+  };
+
   const proceedToggleEpisode = async () => {
     try {
       setIsTogglingWatched(true);
@@ -171,7 +177,8 @@ export default function EpisodeDetailsPage() {
       await api.post("/tracking/watched/episode/toggle", { 
         tmdbId: id, 
         season: Number(season_number), 
-        episode: Number(episode_number) 
+        episode: Number(episode_number),
+        runtime: getEpisodeRuntime(),
       });
     } catch (error) {
       console.error("Failed to toggle episode watched status:", error);
@@ -210,7 +217,12 @@ export default function EpisodeDetailsPage() {
       });
       
       try {
-        await api.post("/tracking/watched/season/toggle", { tmdbId: id, season: sNum, episodes: allToMark });
+        await api.post("/tracking/watched/season/toggle", {
+          tmdbId: id,
+          season: sNum,
+          episodes: allToMark,
+          runtime: getEpisodeRuntime(),
+        });
       } catch (err) {
         console.error("Failed to bulk mark episodes", err);
       } finally {

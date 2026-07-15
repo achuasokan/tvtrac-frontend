@@ -10,8 +10,10 @@ export const API_ROUTES = {
         AVATAR: '/users/profile/avatar',
         COVER_PHOTO: '/users/profile/cover-photo',
         FAVORITES: '/users/favorites',
+        WATCHLIST: '/users/watchlist',
     },
     TRACKING: {
         HISTORY: '/tracking/history',
+        STATS: '/tracking/stats',
     },
 } as const;
