@@ -4,9 +4,9 @@ import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
-import { setUser } from "@/store/slices/authSlice";
 import { profileService } from "@/features/profile/api/profile.service";
+import { setUser } from "@/store/slices/authSlice";
+import { tmdbService } from "@/services/tmdb.service";
 
 interface TmdbItem {
   id: number;
@@ -119,9 +119,9 @@ export default function DiscoverPage() {
   const fetchTrending = async () => {
     try {
       setIsLoading(true);
-      const res = await api.get("/tmdb/trending");
+      const data = await tmdbService.getTrending();
       // Filter out people, only keep movies and tv
-      const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+      const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
       setResults(filtered);
       setHasMore(false);
     } catch (error) {
@@ -143,10 +143,10 @@ export default function DiscoverPage() {
         const fetchSearch = async () => {
           try {
             setIsLoading(true);
-            const res = await api.get(`/tmdb/search?q=${encodeURIComponent(query)}&page=1`, { signal: controller.signal });
-            const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+            const data = await tmdbService.search(query, 1, controller.signal);
+            const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
             setResults(filtered);
-            setHasMore(res.data.page < res.data.total_pages);
+            setHasMore(data.page < data.total_pages);
             setPage(1);
           } catch (error: any) {
             if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
@@ -186,10 +186,10 @@ export default function DiscoverPage() {
     const nextPage = page + 1;
     setIsLoadingMore(true);
     try {
-      const res = await api.get(`/tmdb/search?q=${encodeURIComponent(query)}&page=${nextPage}`);
-      const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+      const data = await tmdbService.search(query, nextPage);
+      const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
       setResults(prev => [...prev, ...filtered]);
-      setHasMore(res.data.page < res.data.total_pages);
+      setHasMore(data.page < data.total_pages);
       setPage(nextPage);
     } catch (error) {
       console.error("Failed to load more:", error);
@@ -209,8 +209,8 @@ export default function DiscoverPage() {
       await Promise.all(
         allCategories.map(async (name) => {
           try {
-            const res = await api.get(`/tmdb/discover/genre/${encodeURIComponent(name)}?type=movie`);
-            const firstWithBackdrop = res.data.results?.find((item: any) => item.backdrop_path);
+            const data = await tmdbService.getGenreBackdrop(name);
+            const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
             if (firstWithBackdrop) {
               images[name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
             }

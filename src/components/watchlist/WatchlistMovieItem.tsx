@@ -9,6 +9,7 @@ interface WatchlistMovieItemProps {
     viewType?: 'grid' | 'list';
     isUpcomingItem?: boolean;
     daysLeft?: number;
+    index?: number;
 }
 
 export function WatchlistMovieItem({ 
@@ -16,7 +17,8 @@ export function WatchlistMovieItem({
     details, 
     viewType = 'grid',
     isUpcomingItem,
-    daysLeft
+    daysLeft,
+    index
 }: WatchlistMovieItemProps) {
     const router = useRouter();
 
@@ -45,7 +47,7 @@ export function WatchlistMovieItem({
                 </div>
                 
                 <div className="flex-1 min-w-0 py-1 flex flex-col justify-center">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1">
                         <h3 className="font-bold text-sm sm:text-base text-zinc-200 truncate group-hover:text-white transition-colors">
                             {details.title}
                         </h3>
@@ -56,21 +58,27 @@ export function WatchlistMovieItem({
                         )}
                     </div>
                     
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex flex-col gap-1.5 mt-1">
                         {details.runtime > 0 && (
-                            <span className="text-[10px] sm:text-xs font-medium text-zinc-400 flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-3.5 sm:w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                                </svg>
-                                {Math.floor(details.runtime / 60)}h {details.runtime % 60}m
-                            </span>
+                            <div className="flex items-center">
+                                <span className="text-[10px] sm:text-xs font-medium text-zinc-400 flex items-center gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-3.5 sm:w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                    </svg>
+                                    {Math.floor(details.runtime / 60)}h {details.runtime % 60}m
+                                </span>
+                            </div>
                         )}
                         
-                        {details.genres && details.genres.slice(0, 2).map((g: any) => (
-                            <span key={g.id} className="text-[10px] sm:text-xs font-medium text-zinc-500 bg-zinc-800/50 px-2 py-0.5 rounded">
-                                {g.name}
-                            </span>
-                        ))}
+                        {details.genres && details.genres.length > 0 && (
+                            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                                {details.genres.slice(0, 2).map((g: any) => (
+                                    <span key={g.id} className="text-[10px] sm:text-xs font-medium text-zinc-500 bg-zinc-800/50 px-2 py-0.5 rounded">
+                                        {g.name}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -86,6 +94,8 @@ export function WatchlistMovieItem({
                             {daysLeft === 0 ? 'Today' : 
                              daysLeft === 1 ? 'Tmrw' : 
                              daysLeft === -1 ? 'Ystrdy' : 
+                             daysLeft !== undefined && daysLeft < -1 && details.release_date ? new Date(details.release_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) :
+                             daysLeft !== undefined && daysLeft < -1 ? `${Math.abs(daysLeft)} DAYS AGO` :
                              `+${daysLeft} DAYS`}
                         </span>
                     ) : null}
@@ -97,7 +107,8 @@ export function WatchlistMovieItem({
     return (
         <div 
             onClick={() => router.push(`/title/movie/${tmdbId}`)}
-            className="group cursor-pointer flex flex-col gap-2 relative"
+            className="group cursor-pointer flex flex-col gap-2 relative animate-grid-appear"
+            style={{ animationDelay: `${(index || 0) * 40}ms` }}
         >
             <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
                 {details.poster_path ? (

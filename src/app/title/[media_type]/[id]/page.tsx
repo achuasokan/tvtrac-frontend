@@ -251,11 +251,13 @@ function SeasonItem({
       }
     }
     
-    const epsNumbers = currentEpisodes.map(ep => ep.episode_number);
+    const now = new Date();
+    const releasedEpisodes = currentEpisodes.filter(ep => ep.air_date && new Date(ep.air_date) <= now);
+    const epsNumbers = releasedEpisodes.map(ep => ep.episode_number);
     
     // Optimistic update
     const seasonEps = watchedEpisodes.filter(e => e.season === seasonNum);
-    const isFullyWatched = seasonEps.length >= season.episode_count && season.episode_count > 0;
+    const isFullyWatched = seasonEps.length >= releasedEpisodes.length && releasedEpisodes.length > 0;
 
     setWatchedEpisodes(prev => {
       if (isFullyWatched) {
@@ -369,9 +371,15 @@ function SeasonItem({
                 // Calculate if episode is in the future
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
-                const airDate = ep.air_date ? new Date(ep.air_date) : null;
+                
+                let airDate = null;
+                if (ep.air_date) {
+                    const [year, month, day] = ep.air_date.split('-').map(Number);
+                    airDate = new Date(year, month - 1, day);
+                }
+                
                 const isUnreleased = airDate && airDate > today;
-                const daysLeft = isUnreleased ? Math.ceil((airDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                const daysLeft = isUnreleased && airDate ? Math.round((airDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
                 
                 return (
                 <div 

@@ -61,84 +61,73 @@ function TimeDisplay({ totalMinutes, animate }: { totalMinutes: number; animate:
     // Less than 1 hour — show minutes only
     if (totalMinutes < 60) {
         return (
-            <div className="flex items-end gap-4">
-                <div className="flex flex-col items-center">
-                    <span className="text-2xl sm:text-3xl font-bold text-white leading-none">
-                        {animate ? animMinutes : minutes}
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 tracking-widest uppercase mt-1">
-                        Minutes
-                    </span>
-                </div>
+            <div className="flex items-baseline gap-1">
+                <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
+                    {animate ? animMinutes : minutes}
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-zinc-500">m</span>
             </div>
         );
     }
 
     return (
-        <div className="flex items-end gap-3 sm:gap-5">
+        <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
             {months > 0 && (
-                <div className="flex flex-col items-center">
-                    <span className="text-2xl sm:text-3xl font-bold text-white leading-none">
+                <div className="flex items-baseline gap-0.5 sm:gap-1">
+                    <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
                         {animate ? animMonths : months}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 tracking-widest uppercase mt-1">
-                        Months
-                    </span>
+                    <span className="text-[10px] sm:text-xs font-bold text-zinc-500">mo</span>
                 </div>
             )}
             {(days > 0 || months > 0) && (
-                <div className="flex flex-col items-center">
-                    <span className="text-2xl sm:text-3xl font-bold text-white leading-none">
+                <div className="flex items-baseline gap-0.5 sm:gap-1">
+                    <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
                         {animate ? animDays : days}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 tracking-widest uppercase mt-1">
-                        Days
-                    </span>
+                    <span className="text-[10px] sm:text-xs font-bold text-zinc-500">d</span>
                 </div>
             )}
-            <div className="flex flex-col items-center">
-                <span className="text-2xl sm:text-3xl font-bold text-white leading-none">
+            <div className="flex items-baseline gap-0.5 sm:gap-1">
+                <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
                     {animate ? animHours : hours}
                 </span>
-                <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 tracking-widest uppercase mt-1">
-                    Hours
-                </span>
+                <span className="text-[10px] sm:text-xs font-bold text-zinc-500">h</span>
             </div>
             {minutes > 0 && (
-                <div className="flex flex-col items-center">
-                    <span className="text-2xl sm:text-3xl font-bold text-white leading-none">
+                <div className="flex items-baseline gap-0.5 sm:gap-1">
+                    <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
                         {animate ? animMinutes : minutes}
                     </span>
-                    <span className="text-[9px] sm:text-[10px] font-bold text-zinc-500 tracking-widest uppercase mt-1">
-                        Minutes
-                    </span>
+                    <span className="text-[10px] sm:text-xs font-bold text-zinc-500">m</span>
                 </div>
             )}
         </div>
     );
 }
 
-// Single stat card
 function StatCard({
     icon,
     label,
     children,
     animate,
+    accentColor = "from-zinc-500 to-zinc-700"
 }: {
     icon: React.ReactNode;
     label: string;
     children: React.ReactNode;
     animate: boolean;
+    accentColor?: string;
 }) {
     return (
-        <div className="flex-1 min-w-[140px] flex flex-col gap-3 px-5 py-4 border border-zinc-800 rounded-xl bg-zinc-900/40 hover:bg-zinc-900/70 transition-colors">
-            <div className="flex items-center gap-2 text-zinc-400">
-                {icon}
-                <span className="text-[11px] font-bold tracking-widest uppercase text-zinc-400">
+        <div className={`flex flex-col gap-1 sm:gap-2 relative pl-4 sm:pl-5 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-gradient-to-b ${accentColor}`}>
+            <div className="flex items-center gap-1.5 sm:gap-2 text-zinc-500">
+                <div className="opacity-70">{icon}</div>
+                <span className="text-[10px] sm:text-xs font-bold tracking-widest uppercase">
                     {label}
                 </span>
             </div>
-            <div>{children}</div>
+            <div className="w-full mt-0.5 sm:mt-1">{children}</div>
         </div>
     );
 }
@@ -146,9 +135,15 @@ function StatCard({
 // Skeleton loader card
 function SkeletonCard() {
     return (
-        <div className="flex-1 min-w-[140px] flex flex-col gap-3 px-5 py-4 border border-zinc-800 rounded-xl bg-zinc-900/40 animate-pulse">
-            <div className="h-3 w-24 bg-zinc-800 rounded" />
-            <div className="h-8 w-32 bg-zinc-800 rounded" />
+        <div className="flex flex-col gap-1 sm:gap-2 relative pl-4 sm:pl-5 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-zinc-800 animate-pulse">
+            <div className="flex items-center gap-1.5 sm:gap-2 text-zinc-500">
+                <div className="w-4 h-4 rounded bg-zinc-800" />
+                <div className="h-3 w-20 bg-zinc-800 rounded" />
+            </div>
+            <div className="w-full mt-0.5 sm:mt-1 flex gap-2">
+                <div className="h-8 w-12 bg-zinc-800 rounded" />
+                <div className="h-8 w-12 bg-zinc-800 rounded" />
+            </div>
         </div>
     );
 }
@@ -211,16 +206,16 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
             <h2 className="text-lg font-bold text-white mb-4 tracking-wide">Stats</h2>
 
             {isLoading ? (
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 gap-x-4 md:gap-8 lg:gap-12 pb-4">
                     <SkeletonCard />
                     <SkeletonCard />
                     <SkeletonCard />
                     <SkeletonCard />
                 </div>
             ) : !stats ? null : (
-                <div className="flex flex-wrap gap-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 gap-x-4 md:gap-8 lg:gap-12 pb-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     {/* TV Time */}
-                    <StatCard icon={tvIcon} label="TV Time" animate={animate}>
+                    <StatCard icon={tvIcon} label="TV Time" animate={animate} accentColor="from-blue-500 to-cyan-400">
                         {stats.totalEpisodeMinutes === 0 ? (
                             <span className="text-zinc-600 text-sm font-medium">No data yet</span>
                         ) : (
@@ -229,8 +224,8 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
                     </StatCard>
 
                     {/* Episodes Watched */}
-                    <StatCard icon={episodeIcon} label="Episodes Watched" animate={animate}>
-                        <span className="text-2xl sm:text-3xl font-bold text-white leading-none">
+                    <StatCard icon={episodeIcon} label="Episodes Watched" animate={animate} accentColor="from-emerald-500 to-teal-400">
+                        <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
                             {animate
                                 ? animEpisodes.toLocaleString()
                                 : stats.totalEpisodes.toLocaleString()}
@@ -238,7 +233,7 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
                     </StatCard>
 
                     {/* Movie Time */}
-                    <StatCard icon={movieIcon} label="Movie Time" animate={animate}>
+                    <StatCard icon={movieIcon} label="Movie Time" animate={animate} accentColor="from-purple-500 to-pink-400">
                         {stats.totalMovieMinutes === 0 ? (
                             <span className="text-zinc-600 text-sm font-medium">No data yet</span>
                         ) : (
@@ -247,8 +242,8 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
                     </StatCard>
 
                     {/* Movies Watched */}
-                    <StatCard icon={moviesCountIcon} label="Movies Watched" animate={animate}>
-                        <span className="text-2xl sm:text-3xl font-bold text-white leading-none">
+                    <StatCard icon={moviesCountIcon} label="Movies Watched" animate={animate} accentColor="from-orange-500 to-yellow-400">
+                        <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
                             {animate
                                 ? animMovies.toLocaleString()
                                 : stats.totalMovies.toLocaleString()}

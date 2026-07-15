@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import { api } from "@/lib/api";
+import { tmdbService } from "@/services/tmdb.service";
+import { profileService } from "@/features/profile/api/profile.service";
+import { setUser } from "@/store/slices/authSlice";
 
 interface TmdbItem {
   id: number;
@@ -33,6 +35,8 @@ export default function DiscoverNetworkPage() {
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<"tv" | "movies" | "animation" | "anime">("tv");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (!isAuthLoading && !user) {
@@ -55,8 +59,8 @@ export default function DiscoverNetworkPage() {
       const indianProviders = ["122", "220", "237", "232", "119"];
       const region = indianProviders.includes(networkId) ? "IN" : "US";
 
-      const res = await api.get(`/tmdb/network/${networkId}?page=${pageNumber}&filter=${currentFilter}&region=${region}`);
-      const newResults = res.data.results?.filter((item: any) => item.poster_path) || [];
+      const data = await tmdbService.discoverByNetwork(networkId, pageNumber, currentFilter, region);
+      const newResults = data.results?.filter((item: any) => item.poster_path) || [];
       
       const formattedResults = newResults.map((item: any) => ({ 
         ...item, 
@@ -73,7 +77,7 @@ export default function DiscoverNetworkPage() {
         });
       }
 
-      setHasMore(res.data.page < res.data.total_pages && pageNumber < 100);
+      setHasMore(data.page < data.total_pages && pageNumber < 100);
       
       if (isInitial) setIsLoading(false);
       else setLoadingMore(false);
@@ -107,6 +111,28 @@ export default function DiscoverNetworkPage() {
     }
   };
 
+  const handleToggleWatchlist = async (e: React.MouseEvent, item: TmdbItem) => {
+    e.stopPropagation();
+    if (!user) return router.push("/login");
+    
+    const isShow = item.media_type === 'tv';
+    const watchlist = isShow ? user.watchlistShows || [] : user.watchlistMovies || [];
+    const isAdded = watchlist.includes(item.id.toString());
+    
+    setTogglingId(item.id);
+    try {
+      const updatedUser = await profileService.toggleWatchlist(
+        { type: isShow ? 'shows' : 'movies', tmdbId: item.id.toString() } as any,
+        !isAdded
+      );
+      dispatch(setUser(updatedUser));
+    } catch (error) {
+      console.error("Failed to toggle watchlist", error);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   const renderItemCard = (item: TmdbItem) => (
     <div key={item.id} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
       <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
@@ -127,17 +153,38 @@ export default function DiscoverNetworkPage() {
         <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
         
         {/* Add Button - Always visible on mobile, hover-only on desktop */}
-        <button 
-          onClick={(e) => {
-            e.stopPropagation();
-          }}
-          className="absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100"
-          title="Add to List"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        {(() => {
+          const isShow = item.media_type === 'tv';
+          const watchlist = isShow ? user?.watchlistShows || [] : user?.watchlistMovies || [];
+          const isAdded = watchlist.includes(item.id.toString());
+          const isToggling = togglingId === item.id;
+          
+          return (
+            <button 
+              type="button"
+              disabled={isToggling}
+              onClick={(e) => handleToggleWatchlist(e, item)}
+              className={`absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100 ${
+                isAdded 
+                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  : 'bg-white/90 hover:bg-white text-black'
+              }`}
+              title={isAdded ? "Remove from Watchlist" : "Add to Watchlist"}
+            >
+              {isToggling ? (
+                <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
+              ) : isAdded ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          );
+        })()}
       </div>
       <div>
         <h3 className="text-xs sm:text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">

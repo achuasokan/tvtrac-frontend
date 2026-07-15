@@ -15,15 +15,35 @@ interface WatchlistShowItemProps {
     isHistoryItem?: boolean;
     isUpcomingItem?: boolean;
     daysLeft?: number;
-    airDate?: Date;
+    airDate?: string | Date;
+    networkName?: string;
     onToggleWatched?: (e: React.MouseEvent, season: number, episode: number) => void;
     isToggling?: boolean;
     viewType?: 'grid' | 'list';
+    index?: number;
 }
 
-export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr, nextEpisodeTitle, nextSeason, nextEpisode, isHistoryItem, isUpcomingItem, daysLeft, airDate, networkName, onToggleWatched, isToggling, viewType = 'list' }: WatchlistShowItemProps) {
+export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr, nextEpisodeTitle, nextSeason, nextEpisode, isHistoryItem, isUpcomingItem, daysLeft, airDate, networkName, onToggleWatched, isToggling, viewType = 'list', index }: WatchlistShowItemProps) {
     const router = useRouter();
     const [optimisticMarked, setOptimisticMarked] = React.useState(false);
+
+    const isNew = React.useMemo(() => {
+        if (isUpcomingItem || isHistoryItem) return false;
+        if (!details?.last_episode_to_air) return false;
+        if (details.last_episode_to_air.season_number !== nextSeason || details.last_episode_to_air.episode_number !== nextEpisode) return false;
+        
+        const airDateStr = details.last_episode_to_air.air_date;
+        if (!airDateStr) return false;
+        
+        const [year, month, day] = airDateStr.split('-').map(Number);
+        const airDate = new Date(year, month - 1, day);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const diffTime = today.getTime() - airDate.getTime();
+        const daysSince = Math.round(diffTime / (1000 * 3600 * 24));
+        
+        return daysSince >= 0 && daysSince <= 7;
+    }, [details, nextSeason, nextEpisode, isUpcomingItem, isHistoryItem]);
 
     React.useEffect(() => {
         setOptimisticMarked(false);
@@ -41,9 +61,10 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
                         router.push(`/title/tv/${tmdbId}`);
                     }
                 }}
-                className="group cursor-pointer flex flex-col gap-2 relative"
+                className="group cursor-pointer flex flex-col gap-2 relative animate-grid-appear"
+                style={{ animationDelay: `${(index || 0) * 40}ms` }}
             >
-                <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
+                <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-800 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
                     {details.poster_path ? (
                         <img 
                             src={`https://image.tmdb.org/t/p/w500${details.poster_path}`} 
@@ -82,10 +103,15 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
                     <h3 className="text-xs sm:text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">
                         {details.name}
                     </h3>
-                    <div className="flex items-center gap-1.5 mt-0.5">
+                    <div className="flex items-center justify-between gap-1.5 mt-0.5">
                         <span className="text-[10px] text-zinc-400 font-medium truncate">
                             {nextEpisodeStr}
                         </span>
+                        {isNew && (
+                            <span className="shrink-0 px-1 py-0.5 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-[7px] sm:text-[8px] font-bold tracking-widest uppercase">
+                                {nextEpisode === 1 ? 'Premiere' : 'New'}
+                            </span>
+                        )}
                     </div>
                 </div>
             </div>
@@ -125,17 +151,17 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
                 </div>
 
                 <div className="flex flex-col justify-center py-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span 
+                    <div className="flex items-center gap-2 mb-1 min-w-0">
+                        <div 
                             onClick={(e) => {
                                 e.stopPropagation();
                                 router.push(`/title/tv/${tmdbId}`);
                             }}
-                            className="text-[10px] font-bold tracking-widest text-white uppercase border border-zinc-700 hover:border-white rounded-full px-2 py-0.5 whitespace-nowrap cursor-pointer transition-colors"
+                            className="text-[10px] font-bold tracking-widest text-white uppercase border border-zinc-700 hover:border-white rounded-full px-2 py-0.5 truncate cursor-pointer transition-colors"
                         >
                             {details.name}
-                        </span>
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-zinc-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                     </div>
@@ -147,9 +173,16 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
                     </div>
                     
                     {nextEpisodeTitle && (
-                        <p className="text-xs sm:text-sm text-zinc-400 truncate mt-0.5">
-                            {nextEpisodeTitle}
-                        </p>
+                        <div className="flex items-center gap-3 mt-0.5">
+                            <p className="text-xs sm:text-sm text-zinc-400 truncate">
+                                {nextEpisodeTitle}
+                            </p>
+                            {isNew && (
+                                <span className="shrink-0 px-1.5 py-0.5 rounded border border-cyan-500/30 bg-cyan-500/10 text-cyan-400 text-[8px] sm:text-[9px] font-bold tracking-widest uppercase shadow-[0_0_8px_rgba(6,182,212,0.15)]">
+                                    {nextEpisode === 1 ? 'Premiere' : 'New'}
+                                </span>
+                            )}
+                        </div>
                     )}
                     {networkName && isUpcomingItem && (
                         <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
@@ -171,7 +204,7 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
                         {daysLeft === 0 ? 'Today' : 
                          daysLeft === 1 ? 'Tmrw' : 
                          daysLeft === -1 ? 'Ystrdy' : 
-                         daysLeft !== undefined && daysLeft < -1 && airDate ? airDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 
+                         daysLeft !== undefined && daysLeft < -1 && airDate ? new Date(airDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 
                          `+${daysLeft} DAYS`}
                     </span>
                 ) : (
