@@ -26,6 +26,8 @@ export function MediaGrid({ items, emptyMessage = "No items to display" }: Media
   const [results, setResults] = useState<TmdbItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const cacheRef = React.useRef<Map<string, TmdbItem>>(new Map());
+
   useEffect(() => {
     let isMounted = true;
     
@@ -39,12 +41,19 @@ export function MediaGrid({ items, emptyMessage = "No items to display" }: Media
       }
       
       try {
-        setIsLoading(true);
+        if (isMounted && cacheRef.current.size === 0) setIsLoading(true);
+        
         const fetchedItems = await Promise.all(
           items.map(async (item) => {
+            const cacheKey = `${item.mediaType}-${item.tmdbId}`;
+            if (cacheRef.current.has(cacheKey)) {
+                return cacheRef.current.get(cacheKey)!;
+            }
             try {
               const res = await api.get(`/tmdb/title/${item.mediaType}/${item.tmdbId}`);
-              return { ...res.data, media_type: item.mediaType } as TmdbItem;
+              const data = { ...res.data, media_type: item.mediaType } as TmdbItem;
+              cacheRef.current.set(cacheKey, data);
+              return data;
             } catch (err) {
               return null;
             }

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { tmdbService } from "@/services/tmdb.service";
 import { profileService } from "@/features/profile/api/profile.service";
 import { setUser } from "@/store/slices/authSlice";
+import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
 
 interface TmdbItem {
   id: number;
@@ -202,21 +203,11 @@ export default function DiscoverTvPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-10">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
-              {results.map(renderItemCard)}
-            </div>
-
-            {hasMore && (
-              <div className="flex justify-center mt-8">
-                <button 
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  className="px-8 py-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 rounded-full text-sm font-semibold transition-colors disabled:opacity-50"
-                >
-                  {loadingMore ? "Loading..." : "Load More"}
-                </button>
+            <InfiniteScroll hasMore={hasMore} isLoading={loadingMore} onLoadMore={handleLoadMore}>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
+                {results.map(renderItemCard)}
               </div>
-            )}
+            </InfiniteScroll>
           </div>
         )}
       </div>

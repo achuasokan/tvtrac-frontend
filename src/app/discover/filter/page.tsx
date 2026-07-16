@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { tmdbService } from "@/services/tmdb.service";
 import { profileService } from "@/features/profile/api/profile.service";
 import { setUser } from "@/store/slices/authSlice";
+import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
 
 type TmdbItem = {
   id: number;
@@ -459,89 +460,72 @@ export default function AdvancedFilterPage() {
           </div>
         ) : results.length > 0 ? (
           <div className="pb-10">
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4 mb-8">
-              {results.map((item, idx) => (
-                <div key={`${item.id}-${idx}`} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
-                  <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
-                    <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title || item.name} className="w-full h-full object-cover" />
-                    
-                    {item.vote_average ? (
-                      <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
-                      </div>
-                    ) : null}
-                    
-                    {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                    
-                    {/* Add Button - Always visible on mobile, hover-only on desktop */}
-                    {(() => {
-                      const isShow = item.media_type === 'tv';
-                      const watchlist = isShow ? user?.watchlistShows || [] : user?.watchlistMovies || [];
-                      const isAdded = watchlist.includes(item.id.toString());
-                      const isToggling = togglingId === item.id;
+            <InfiniteScroll hasMore={page < totalPages} isLoading={isFetchingMore} onLoadMore={() => setPage(p => p + 1)}>
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4 mb-8">
+                {results.map((item, idx) => (
+                  <div key={`${item.id}-${idx}`} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+                    <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
+                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title || item.name} className="w-full h-full object-cover" />
                       
-                      return (
-                        <button 
-                          type="button"
-                          disabled={isToggling}
-                          onClick={(e) => handleToggleWatchlist(e, item)}
-                          className={`absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100 ${
-                            isAdded 
-                              ? 'bg-green-500 hover:bg-green-600 text-white' 
-                              : 'bg-white/90 hover:bg-white text-black'
-                          }`}
-                          title={isAdded ? "Remove from Watchlist" : "Add to Watchlist"}
-                        >
-                          {isToggling ? (
-                            <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
-                          ) : isAdded ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                            </svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })()}
-                  </div>
-
-                  <div>
-                    <h3 className="text-[11px] sm:text-xs font-bold text-zinc-200 truncate group-hover:text-white transition-colors">{item.title || item.name}</h3>
-                    <div className="flex items-center gap-1 sm:gap-2 mt-0.5">
-                      <span className="text-[9px] sm:text-[10px] text-zinc-500 font-medium">
-                        {item.release_date ? item.release_date.split('-')[0] : (item.first_air_date ? item.first_air_date.split('-')[0] : '')}
-                      </span>
+                      {item.vote_average ? (
+                        <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                          <span className="text-[9px] sm:text-[10px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
+                        </div>
+                      ) : null}
+                      
+                      {/* Hover Overlay */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                      
+                      {/* Add Button - Always visible on mobile, hover-only on desktop */}
+                      {(() => {
+                        const isShow = item.media_type === 'tv';
+                        const watchlist = isShow ? user?.watchlistShows || [] : user?.watchlistMovies || [];
+                        const isAdded = watchlist.includes(item.id.toString());
+                        const isToggling = togglingId === item.id;
+                        
+                        return (
+                          <button 
+                            type="button"
+                            disabled={isToggling}
+                            onClick={(e) => handleToggleWatchlist(e, item)}
+                            className={`absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100 ${
+                              isAdded 
+                                ? 'bg-green-500 hover:bg-green-600 text-white' 
+                                : 'bg-white/90 hover:bg-white text-black'
+                            }`}
+                            title={isAdded ? "Remove from Watchlist" : "Add to Watchlist"}
+                          >
+                            {isToggling ? (
+                              <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
+                            ) : isAdded ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </button>
+                        );
+                      })()}
+                    </div>
+  
+                    <div>
+                      <h3 className="text-[11px] sm:text-xs font-bold text-zinc-200 truncate group-hover:text-white transition-colors">{item.title || item.name}</h3>
+                      <div className="flex items-center gap-1 sm:gap-2 mt-0.5">
+                        <span className="text-[9px] sm:text-[10px] text-zinc-500 font-medium">
+                          {item.release_date ? item.release_date.split('-')[0] : (item.first_air_date ? item.first_air_date.split('-')[0] : '')}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            
-            {page < totalPages && (
-              <div className="flex justify-center mt-6 mb-12">
-                <button 
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={isFetchingMore}
-                  className="bg-zinc-900 border border-zinc-700 hover:bg-zinc-800 text-white font-bold py-2.5 px-8 rounded-full transition-all text-sm flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isFetchingMore ? (
-                    <>
-                      <div className="h-4 w-4 rounded-full border-2 border-zinc-500 border-t-white animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    "Load More Results"
-                  )}
-                </button>
+                ))}
               </div>
-            )}
+            </InfiniteScroll>
           </div>
         ) : (
           <div className="text-center py-20 px-4">

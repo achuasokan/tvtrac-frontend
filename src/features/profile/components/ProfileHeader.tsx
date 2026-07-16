@@ -469,7 +469,9 @@ export const ProfileHeader = () => {
                                     </>
                                 )}
                             </div>
-                            <p className="text-zinc-400 text-sm mt-1">Since JUL 2026</p>
+                            <p className="text-zinc-400 text-sm mt-1">
+                                {user.createdAt ? `Joined on ${new Date(user.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).toUpperCase()}` : 'Joined on JUL 2026'}
+                            </p>
                         </div>
                     </div>
                 </div>

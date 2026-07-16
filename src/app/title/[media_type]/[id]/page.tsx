@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { AddToListModal } from "@/features/lists/components/AddToListModal";
 import { setUser } from "@/store/slices/authSlice";
 import { profileService } from "@/features/profile/api/profile.service";
+import { extractDominantColor } from "@/utils/colorExtractor";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -348,7 +349,7 @@ function SeasonItem({
           return (
             <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white/5">
               <div 
-                className={`absolute top-0 left-0 h-full transition-all duration-700 ease-out ${isComplete ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)]'}`} 
+                className={`absolute top-0 left-0 h-full transition-all duration-700 ease-out bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]`} 
                 style={{ width: `${progressPercentage}%` }} 
               />
             </div>
@@ -520,6 +521,12 @@ export default function TitleDetailsPage() {
   const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
   const [isAddToListModalOpen, setIsAddToListModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [dominantColor, setDominantColor] = useState<string | null>(null);
+  const [showVideo, setShowVideo] = useState(false);
+  const [videoKey, setVideoKey] = useState(0);
+  const swipeStartX = useRef<number | null>(null);
 
   const initialMount = useRef(true);
   const prevWatchedCount = useRef(0);
@@ -643,6 +650,47 @@ export default function TitleDetailsPage() {
     }
   }, [mediaType, id, isAuthLoading, user?.id]);
 
+  const trailer = details?.videos?.results?.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer') || details?.videos?.results?.find((v: any) => v.site === 'YouTube');
+
+  useEffect(() => {
+    if (trailer && !showVideo) {
+      const timer = setTimeout(() => setShowVideo(true), 2500); // 2.5s delay before video starts
+      return () => clearTimeout(timer);
+    }
+  }, [trailer, showVideo, videoKey]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== 'https://www.youtube.com') return;
+      try {
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+        
+        const isEnded = 
+          (data.event === 'onStateChange' && data.info === 0) ||
+          (data.event === 'infoDelivery' && data.info?.playerState === 0);
+
+        if (isEnded) {
+          setShowVideo(false); // Fade image back in
+          // Wait 1s for fade transition, then reset video key to force reload
+          setTimeout(() => setVideoKey(prev => prev + 1), 1000); 
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  useEffect(() => {
+    if (details?.backdrop_path) {
+      const imgUrl = `https://image.tmdb.org/t/p/w300${details.backdrop_path}`;
+      extractDominantColor(imgUrl).then(color => {
+        if (color) {
+          setDominantColor(color);
+        }
+      });
+    }
+  }, [details?.backdrop_path]);
+
   const handleToggleWatched = async () => {
     if (!user) return router.push("/login");
     setIsTogglingWatched(true);
@@ -685,18 +733,15 @@ export default function TitleDetailsPage() {
   if (isAuthLoading || !user || isLoading) {
     return (
       <div className="flex-1 flex flex-col relative min-h-screen bg-[#050505] animate-pulse pb-24 font-sans">
-        {/* Skeleton Sticky App Bar */}
         <div className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-16 px-4 sm:px-6 pt-4">
           <div className="w-10 h-10 bg-zinc-900 rounded-full" />
           <div className="w-10 h-10 bg-zinc-900 rounded-full" />
         </div>
 
-        {/* Skeleton Hero Section */}
         <div className="relative w-full h-[50vh] sm:h-[60vh] bg-zinc-900">
           <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent" />
         </div>
 
-        {/* Skeleton Content */}
         <div className="max-w-4xl mx-auto px-4 -mt-32 sm:-mt-48 relative z-10 w-full flex flex-col items-center gap-6 sm:gap-10">
           <div className="flex flex-col items-center text-center pt-4 sm:pt-16 w-full px-2 sm:px-24">
             <div className="w-3/4 sm:w-1/2 h-10 sm:h-14 bg-zinc-800/80 rounded-lg mb-4" />
@@ -762,6 +807,28 @@ export default function TitleDetailsPage() {
     ? `${Math.floor(details.runtime / 60)}h ${details.runtime % 60}m`
     : `${details.number_of_seasons} Season${details.number_of_seasons > 1 ? 's' : ''}`;
 
+  let isUnreleased = false;
+  const unreleasedStatuses = ['Planned', 'In Production', 'Post Production', 'Rumored'];
+  if (unreleasedStatuses.includes(details.status)) {
+    isUnreleased = true;
+  } else {
+    const dateStr = details.release_date || details.first_air_date;
+    if (dateStr) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const releaseDate = new Date(year, month - 1, day);
+      if (releaseDate > today) isUnreleased = true;
+    }
+  }
+
+  let allImages: string[] = [];
+  if (details.images?.backdrops?.length > 0) {
+    allImages = details.images.backdrops.map((img: any) => img.file_path);
+  } else if (details.backdrop_path) {
+    allImages = [details.backdrop_path];
+  }
+
   return (
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white pb-24 font-sans">
       
@@ -807,74 +874,116 @@ export default function TitleDetailsPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative w-full h-[50vh] sm:h-[60vh]">
-        {details.backdrop_path ? (
-          <img 
-            src={`https://image.tmdb.org/t/p/original${details.backdrop_path}`}
-            alt={title}
-            className="w-full h-full object-cover opacity-60"
-          />
-        ) : (
-          <div className="w-full h-full bg-zinc-900" />
+      <div className="relative w-full h-[50vh] sm:h-[60vh] overflow-hidden bg-black z-0">
+        {/* Background Video layer */}
+        {trailer && showVideo && (
+          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden animate-in fade-in duration-1000">
+            <iframe
+              key={videoKey}
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[1.05] pointer-events-none max-w-none"
+              style={{ 
+                width: 'max(100vw, 120vh)', 
+                height: 'max(56.25vw, 67.5vh)', 
+                border: 0 
+              }}
+              src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&cc_load_policy=1&cc_lang_pref=zz&disablekb=1&showinfo=0&enablejsapi=1`}
+              allow="autoplay; encrypted-media"
+              tabIndex={-1}
+              onLoad={(e) => {
+                const win = e.currentTarget.contentWindow;
+                if (!win) return;
+                // Send listening event repeatedly to ensure YT player is ready to receive it
+                const msg = JSON.stringify({ event: 'listening', id: videoKey });
+                win.postMessage(msg, '*');
+                setTimeout(() => win.postMessage(msg, '*'), 500);
+                setTimeout(() => win.postMessage(msg, '*'), 1500);
+                setTimeout(() => win.postMessage(msg, '*'), 3000);
+              }}
+            ></iframe>
+          </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent" />
+
+        {/* Image layer (Fades out when video plays) */}
+        <div className={`absolute inset-0 z-10 transition-opacity duration-1000 ${showVideo ? 'opacity-0' : 'opacity-100'}`}>
+          {details.backdrop_path ? (
+            <img 
+              src={`https://image.tmdb.org/t/p/original${details.backdrop_path}`}
+              alt={title}
+              className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => {
+                const idx = allImages.findIndex(p => p === details.backdrop_path);
+                setCurrentImageIndex(Math.max(0, idx));
+                setIsLightboxOpen(true);
+              }}
+            />
+          ) : (
+            <div className="w-full h-full bg-zinc-900" />
+          )}
+        </div>
         
-        {/* Floating Actions over cover photo */}
-        <div className="absolute inset-0 max-w-4xl mx-auto pointer-events-none z-30">
-          <div className="absolute top-20 right-4 sm:top-auto sm:bottom-16 sm:right-4 pointer-events-auto flex flex-col items-center gap-3">
-            
-            {/* Floating Favorite Button */}
+        {/* Gradients */}
+        <div className="absolute inset-0 z-20 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent pointer-events-none" />
+        
+        {/* Floating actions moved outside Hero section to fix z-index stacking */}
+
+        {/* TV Show Progress removed from Hero (moved to Tabs) */}
+      </div>
+
+      {/* Floating Actions over cover photo (Moved outside Hero to avoid Content overlap blocking clicks) */}
+      <div className="absolute top-0 left-0 right-0 w-full h-[50vh] sm:h-[60vh] max-w-4xl mx-auto pointer-events-none z-30">
+        <div className="absolute top-20 right-4 sm:top-auto sm:bottom-16 sm:right-4 pointer-events-auto flex flex-col items-center gap-3">
+          
+          {/* Floating Favorite Button */}
+          <button 
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(); }}
+            disabled={isTogglingFavorite}
+            className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md cursor-pointer ${
+              isFavorite 
+                ? 'bg-red-500/30 border border-red-500/50 hover:bg-red-500/40' 
+                : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
+            }`}
+          >
+            {isTogglingFavorite ? (
+              <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+            ) : isFavorite ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+            )}
+          </button>
+
+          {/* Floating Watched Button (Movies Only) */}
+          {mediaType === 'movie' && !isUnreleased && (
             <button 
               type="button"
-              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleFavorite(); }}
-              disabled={isTogglingFavorite}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleWatched(); }}
+              disabled={isTogglingWatched}
               className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md cursor-pointer ${
-                isFavorite 
-                  ? 'bg-red-500/30 border border-red-500/50 hover:bg-red-500/40' 
+                isWatched 
+                  ? 'bg-green-500/30 border border-green-500/50 hover:bg-green-500/40' 
                   : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
-              }`}
+              } cursor-pointer`}
+              title={isWatched ? "Mark as unwatched" : "Mark as watched"}
             >
-              {isTogglingFavorite ? (
-                <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-              ) : isFavorite ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd" />
+              {isTogglingWatched ? (
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin text-white" />
+              ) : isWatched ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 drop-shadow-md" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white transition-colors drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
               )}
             </button>
-
-            {/* Floating Watched Button (Movies Only) */}
-            {mediaType === 'movie' && (
-              <button 
-                type="button"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleWatched(); }}
-                disabled={isTogglingWatched}
-                className={`w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center rounded-full transition-all duration-300 shadow-2xl hover:scale-110 group backdrop-blur-md cursor-pointer ${
-                  isWatched 
-                    ? 'bg-green-500/30 border border-green-500/50 hover:bg-green-500/40' 
-                    : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
-                } cursor-pointer`}
-                title={isWatched ? "Mark as unwatched" : "Mark as watched"}
-              >
-                {isTogglingWatched ? (
-                  <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin text-white" />
-                ) : isWatched ? (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 drop-shadow-md" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white transition-colors drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                )}
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
@@ -906,21 +1015,27 @@ export default function TitleDetailsPage() {
           <div className="h-6" />
 
           {/* Tabs */}
-          <div className="sticky top-16 z-40 w-[calc(100%+2rem)] -mx-4 sm:w-full sm:mx-0 mb-8">
-            {/* Series Progress Line */}
-            {mediaType === 'tv' && details.number_of_episodes > 0 && watchedEpisodes.length > 0 && (() => {
-              const progressPercentage = Math.min(Math.round((watchedEpisodes.length / details.number_of_episodes) * 100), 100);
-              const isComplete = progressPercentage === 100;
+          <div className="sticky top-16 z-40 w-[calc(100%+2rem)] -mx-4 sm:w-full sm:mx-0 mb-8 flex flex-col">
+            
+            {/* TV Show Progress Bar (Sticky) */}
+            {mediaType === 'tv' && user && details?.number_of_episodes > 0 && (() => {
+              const percentage = (watchedEpisodes.length / details.number_of_episodes) * 100;
+              const isComplete = percentage === 100;
+              const barColor = isComplete ? '#22c55e' : '#ffffff';
               return (
-                <div className="absolute top-0 left-0 w-full h-[2px] bg-white/10 z-50">
+                <div className="w-full h-[2px] bg-white/10 relative shrink-0">
                   <div 
-                    className={`absolute top-0 left-0 h-full transition-all duration-1000 ease-out ${isComplete ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.8)]' : 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]'}`} 
-                    style={{ width: `${progressPercentage}%` }} 
+                    className="absolute top-0 left-0 h-full transition-all duration-1000 ease-out" 
+                    style={{ 
+                      width: `${percentage}%`, 
+                      backgroundColor: barColor,
+                      boxShadow: `0 0 10px ${barColor}80`
+                    }}
                   />
                 </div>
               );
             })()}
-            
+
             <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-between sm:justify-center border-b border-zinc-800 w-full px-1 sm:px-0">
               <button 
                 className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
@@ -1110,6 +1225,36 @@ export default function TitleDetailsPage() {
 
             {activeTab === 'episodes' && mediaType === 'tv' && (
               <div className="animate-in fade-in duration-300 flex flex-col">
+                {user && details.number_of_episodes > 0 && (() => {
+                  const totalEpisodes = details.number_of_episodes;
+                  const watchedCount = watchedEpisodes.length;
+                  const percentage = watchedCount === totalEpisodes ? 100 : Math.floor((watchedCount / totalEpisodes) * 100);
+                  
+                  const isComplete = watchedCount === totalEpisodes;
+                  
+                  return (
+                    <div className="mb-6 flex w-full justify-between items-center px-2">
+                      <div className="flex flex-col">
+                         <span className="text-zinc-200 font-bold tracking-widest uppercase text-[10px] sm:text-xs">Overall Progress</span>
+                         <span className="text-zinc-500 text-[10px] sm:text-xs mt-0.5 font-medium">{watchedCount} out of {totalEpisodes} episodes</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                         <span 
+                           className={`font-black text-xl sm:text-2xl tracking-tighter transition-colors duration-1000`}
+                           style={isComplete ? {} : { color: dominantColor || '#ffffff', filter: `drop-shadow(0 0 10px ${dominantColor || '#ffffff'}80)` }}
+                         >
+                           {percentage}%
+                         </span>
+                         {isComplete && (
+                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-green-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-in zoom-in duration-300" viewBox="0 0 20 20" fill="currentColor">
+                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                           </svg>
+                         )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {details.seasons?.filter((s: any) => s.season_number > 0).map((season: any) => (
                   <SeasonItem 
                     key={season.id} 
@@ -1273,6 +1418,86 @@ export default function TitleDetailsPage() {
         tmdbId={id}
         mediaType={mediaType as 'movie' | 'tv'}
       />
+
+      {/* Image Lightbox */}
+      {isLightboxOpen && allImages.length > 0 && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setIsLightboxOpen(false)}
+          onTouchStart={(e) => { swipeStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={(e) => {
+            if (swipeStartX.current !== null) {
+              const diffX = swipeStartX.current - e.changedTouches[0].clientX;
+              if (diffX > 50) {
+                setCurrentImageIndex(prev => prev < allImages.length - 1 ? prev + 1 : 0);
+              } else if (diffX < -50) {
+                setCurrentImageIndex(prev => prev > 0 ? prev - 1 : allImages.length - 1);
+              }
+              swipeStartX.current = null;
+            }
+          }}
+        >
+          {/* Close button */}
+          <button 
+            className="absolute top-4 right-4 z-50 p-2 text-white/70 hover:text-white bg-black/20 hover:bg-black/40 rounded-full backdrop-blur-md transition-all cursor-pointer"
+            onClick={(e) => { e.stopPropagation(); setIsLightboxOpen(false); }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          
+          {/* Counter */}
+          <div className="absolute top-4 left-4 z-50 px-3 py-1.5 text-sm font-bold text-white bg-black/40 rounded-full backdrop-blur-md">
+            {currentImageIndex + 1} / {allImages.length}
+          </div>
+          
+          {/* Previous Button */}
+          {allImages.length > 1 && (
+            <button 
+              className="hidden sm:block absolute left-4 top-1/2 -translate-y-1/2 z-50 p-2 text-white/70 hover:text-white bg-black/20 hover:bg-black/60 rounded-full backdrop-blur-md transition-all cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : allImages.length - 1));
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+          )}
+
+          {/* Next Button */}
+          {allImages.length > 1 && (
+            <button 
+              className="hidden sm:block absolute right-4 top-1/2 -translate-y-1/2 z-50 p-2 text-white/70 hover:text-white bg-black/20 hover:bg-black/60 rounded-full backdrop-blur-md transition-all cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentImageIndex((prev) => (prev < allImages.length - 1 ? prev + 1 : 0));
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          )}
+
+          {/* Main Image */}
+          <img 
+            src={`https://image.tmdb.org/t/p/original${allImages[currentImageIndex]}`}
+            alt={`${title} - Image ${currentImageIndex + 1}`}
+            className="max-w-[90vw] max-h-[90vh] object-contain rounded shadow-2xl pointer-events-none"
+            onClick={(e) => e.stopPropagation()}
+          />
+          
+          {/* Mobile Swipe Hint */}
+          {allImages.length > 1 && (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 sm:hidden px-4 py-2 bg-black/40 backdrop-blur-md rounded-full text-white/70 text-xs font-bold tracking-wider uppercase pointer-events-none">
+              Swipe to see more
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }

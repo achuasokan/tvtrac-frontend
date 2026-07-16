@@ -13,6 +13,7 @@ export interface User {
   favoriteMovies?: string[];
   watchlistShows?: string[];
   watchlistMovies?: string[];
+  createdAt?: string;
 }
 
 interface AuthState {

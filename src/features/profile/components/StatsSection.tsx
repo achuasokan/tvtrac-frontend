@@ -58,50 +58,26 @@ function TimeDisplay({ totalMinutes, animate }: { totalMinutes: number; animate:
     const animHours = useCountUp(hours, 1200, animate);
     const animMinutes = useCountUp(minutes, 1300, animate);
 
-    // Less than 1 hour — show minutes only
-    if (totalMinutes < 60) {
-        return (
-            <div className="flex items-baseline gap-1">
-                <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-                    {animate ? animMinutes : minutes}
-                </span>
-                <span className="text-xs sm:text-sm font-bold text-zinc-500">m</span>
-            </div>
-        );
-    }
+    const units = [];
+    if (months > 0) units.push({ value: months, label: 'Months', anim: animMonths });
+    if (days > 0) units.push({ value: days, label: 'Days', anim: animDays });
+    if (hours > 0) units.push({ value: hours, label: 'Hours', anim: animHours });
+    if (minutes > 0) units.push({ value: minutes, label: 'Mins', anim: animMinutes });
+    
+    if (units.length === 0) units.push({ value: 0, label: 'Mins', anim: 0 });
 
     return (
-        <div className="flex flex-wrap items-baseline gap-2 sm:gap-3">
-            {months > 0 && (
-                <div className="flex items-baseline gap-0.5 sm:gap-1">
-                    <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-                        {animate ? animMonths : months}
+        <div className="flex items-center justify-center gap-1.5 xs:gap-2 sm:gap-4 lg:gap-6">
+            {units.map((u, i) => (
+                <div key={i} className="flex flex-col items-center group cursor-default">
+                    <span className="text-lg xs:text-xl sm:text-2xl md:text-3xl lg:text-4xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                        {animate ? u.anim : u.value}
                     </span>
-                    <span className="text-[10px] sm:text-xs font-bold text-zinc-500">mo</span>
-                </div>
-            )}
-            {(days > 0 || months > 0) && (
-                <div className="flex items-baseline gap-0.5 sm:gap-1">
-                    <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-                        {animate ? animDays : days}
+                    <span className="text-[5px] xs:text-[6px] sm:text-[8px] md:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 group-hover:text-zinc-300 transition-colors duration-300">
+                        {u.label}
                     </span>
-                    <span className="text-[10px] sm:text-xs font-bold text-zinc-500">d</span>
                 </div>
-            )}
-            <div className="flex items-baseline gap-0.5 sm:gap-1">
-                <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-                    {animate ? animHours : hours}
-                </span>
-                <span className="text-[10px] sm:text-xs font-bold text-zinc-500">h</span>
-            </div>
-            {minutes > 0 && (
-                <div className="flex items-baseline gap-0.5 sm:gap-1">
-                    <span className="text-3xl sm:text-4xl font-black tracking-tight text-white">
-                        {animate ? animMinutes : minutes}
-                    </span>
-                    <span className="text-[10px] sm:text-xs font-bold text-zinc-500">m</span>
-                </div>
-            )}
+            ))}
         </div>
     );
 }
@@ -111,23 +87,21 @@ function StatCard({
     label,
     children,
     animate,
-    accentColor = "from-zinc-500 to-zinc-700"
 }: {
     icon: React.ReactNode;
     label: string;
     children: React.ReactNode;
     animate: boolean;
-    accentColor?: string;
 }) {
     return (
-        <div className={`flex flex-col gap-1 sm:gap-2 relative pl-4 sm:pl-5 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-gradient-to-b ${accentColor}`}>
-            <div className="flex items-center gap-1.5 sm:gap-2 text-zinc-500">
-                <div className="opacity-70">{icon}</div>
-                <span className="text-[10px] sm:text-xs font-bold tracking-widest uppercase">
+        <div className="flex flex-col items-center justify-center gap-2 sm:gap-4 flex-1 min-w-0 p-1 sm:p-2 group">
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-500">
+                <div className="opacity-70 w-3 h-3 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform duration-500 hidden xs:block">{icon}</div>
+                <span className="text-[6px] xs:text-[7px] sm:text-[8px] md:text-[10px] font-medium tracking-[0.2em] uppercase line-clamp-1 text-center">
                     {label}
                 </span>
             </div>
-            <div className="w-full mt-0.5 sm:mt-1">{children}</div>
+            <div className="flex justify-center items-center w-full">{children}</div>
         </div>
     );
 }
@@ -135,14 +109,11 @@ function StatCard({
 // Skeleton loader card
 function SkeletonCard() {
     return (
-        <div className="flex flex-col gap-1 sm:gap-2 relative pl-4 sm:pl-5 before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:rounded-full before:bg-zinc-800 animate-pulse">
-            <div className="flex items-center gap-1.5 sm:gap-2 text-zinc-500">
-                <div className="w-4 h-4 rounded bg-zinc-800" />
-                <div className="h-3 w-20 bg-zinc-800 rounded" />
-            </div>
-            <div className="w-full mt-0.5 sm:mt-1 flex gap-2">
-                <div className="h-8 w-12 bg-zinc-800 rounded" />
-                <div className="h-8 w-12 bg-zinc-800 rounded" />
+        <div className="flex flex-col items-center gap-1 sm:gap-2 flex-1 animate-pulse">
+            <div className="h-2 w-12 sm:w-20 bg-zinc-800/50 rounded" />
+            <div className="flex gap-1 sm:gap-2 mt-1">
+                <div className="h-4 sm:h-8 w-6 sm:w-12 bg-zinc-800/50 rounded" />
+                <div className="h-4 sm:h-8 w-6 sm:w-12 bg-zinc-800/50 rounded" />
             </div>
         </div>
     );
@@ -206,48 +177,67 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
             <h2 className="text-lg font-bold text-white mb-4 tracking-wide">Stats</h2>
 
             {isLoading ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 gap-x-4 md:gap-8 lg:gap-12 pb-4">
+                <div className="flex w-full justify-between items-center py-2 sm:py-6 mb-8">
                     <SkeletonCard />
+                    <div className="w-[1px] h-8 sm:h-12 bg-white/5" />
                     <SkeletonCard />
+                    <div className="w-[1px] h-8 sm:h-12 bg-white/5" />
                     <SkeletonCard />
+                    <div className="w-[1px] h-8 sm:h-12 bg-white/5" />
                     <SkeletonCard />
                 </div>
             ) : !stats ? null : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-8 gap-x-4 md:gap-8 lg:gap-12 pb-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="flex w-full justify-between items-center py-2 sm:py-6 animate-in fade-in slide-in-from-bottom-2 duration-500 mb-8 sm:mb-12">
                     {/* TV Time */}
-                    <StatCard icon={tvIcon} label="TV Time" animate={animate} accentColor="from-blue-500 to-cyan-400">
+                    <StatCard icon={tvIcon} label="TV Time" animate={animate}>
                         {stats.totalEpisodeMinutes === 0 ? (
-                            <span className="text-zinc-600 text-sm font-medium">No data yet</span>
+                            <span className="text-zinc-600 text-[10px] sm:text-sm font-medium">No data</span>
                         ) : (
                             <TimeDisplay totalMinutes={stats.totalEpisodeMinutes} animate={animate} />
                         )}
                     </StatCard>
 
+                    <div className="w-[1px] h-8 sm:h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent shrink-0" />
+
                     {/* Episodes Watched */}
-                    <StatCard icon={episodeIcon} label="Episodes Watched" animate={animate} accentColor="from-emerald-500 to-teal-400">
-                        <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                            {animate
-                                ? animEpisodes.toLocaleString()
-                                : stats.totalEpisodes.toLocaleString()}
-                        </span>
+                    <StatCard icon={episodeIcon} label="Episodes" animate={animate}>
+                        <div className="flex flex-col items-center group cursor-default">
+                            <span className="text-xl xs:text-2xl sm:text-4xl md:text-5xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                                {animate
+                                    ? animEpisodes.toLocaleString()
+                                    : stats.totalEpisodes.toLocaleString()}
+                            </span>
+                            <span className="text-[6px] xs:text-[7px] sm:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-2 group-hover:text-zinc-300 transition-colors duration-300">
+                                Watched
+                            </span>
+                        </div>
                     </StatCard>
 
+                    <div className="w-[1px] h-8 sm:h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent shrink-0" />
+
                     {/* Movie Time */}
-                    <StatCard icon={movieIcon} label="Movie Time" animate={animate} accentColor="from-purple-500 to-pink-400">
+                    <StatCard icon={movieIcon} label="Movie Time" animate={animate}>
                         {stats.totalMovieMinutes === 0 ? (
-                            <span className="text-zinc-600 text-sm font-medium">No data yet</span>
+                            <span className="text-zinc-600 text-[10px] sm:text-sm font-medium">No data</span>
                         ) : (
                             <TimeDisplay totalMinutes={stats.totalMovieMinutes} animate={animate} />
                         )}
                     </StatCard>
 
+                    <div className="w-[1px] h-8 sm:h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent shrink-0" />
+
                     {/* Movies Watched */}
-                    <StatCard icon={moviesCountIcon} label="Movies Watched" animate={animate} accentColor="from-orange-500 to-yellow-400">
-                        <span className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-                            {animate
-                                ? animMovies.toLocaleString()
-                                : stats.totalMovies.toLocaleString()}
-                        </span>
+                    <StatCard icon={moviesCountIcon} label="Movies" animate={animate}>
+                        <div className="flex flex-col items-center group cursor-default">
+                            <span className="text-xl xs:text-2xl sm:text-4xl md:text-5xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                                {animate
+                                    ? animMovies.toLocaleString()
+                                    : stats.totalMovies.toLocaleString()}
+                            </span>
+                            <span className="text-[6px] xs:text-[7px] sm:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-2 group-hover:text-zinc-300 transition-colors duration-300">
+                                Watched
+                            </span>
+                        </div>
                     </StatCard>
                 </div>
             )}
