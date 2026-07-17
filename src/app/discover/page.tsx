@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { profileService } from "@/features/profile/api/profile.service";
 import { setUser } from "@/store/slices/authSlice";
 import { tmdbService } from "@/services/tmdb.service";
@@ -61,18 +61,22 @@ export default function DiscoverPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const dispatch = useDispatch();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  
+  const urlQuery = searchParams.get('q') || "";
   
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
-  const [query, setQuery] = useState("");
+  const [inputValue, setInputValue] = useState(urlQuery);
   const [results, setResults] = useState<TmdbItem[]>([]);
+  const [trendingCache, setTrendingCache] = useState<TmdbItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [genreImages, setGenreImages] = useState<Record<string, string>>({});
   
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   const platformsRef = useRef<HTMLDivElement>(null);
 
@@ -116,77 +120,88 @@ export default function DiscoverPage() {
     }
   }, [user, isAuthLoading, router]);
 
-  const fetchTrending = async () => {
-    try {
-      setIsLoading(true);
-      const data = await tmdbService.getTrending();
-      // Filter out people, only keep movies and tv
-      const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
-      setResults(filtered);
-      setHasMore(false);
-    } catch (error) {
-      console.error("Failed to fetch trending:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Debounce search
+  // Keep inputValue in sync if URL changes externally (e.g. Back button)
   useEffect(() => {
-    if (!isInitialized) return;
+    setInputValue(urlQuery);
+  }, [urlQuery]);
 
+  // Debounce input value to URL
+  useEffect(() => {
+    if (inputValue.trim() === "") {
+      router.replace(pathname, { scroll: false });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      router.replace(`${pathname}?q=${encodeURIComponent(inputValue)}`, { scroll: false });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [inputValue, pathname, router]);
+
+  // Fetch data based on URL query
+  useEffect(() => {
     const controller = new AbortController();
     
-    const timer = setTimeout(() => {
-      if (query.trim()) {
-        window.history.replaceState(null, '', `?q=${encodeURIComponent(query)}`);
-        const fetchSearch = async () => {
-          try {
-            setIsLoading(true);
-            const data = await tmdbService.search(query, 1, controller.signal);
-            const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
-            setResults(filtered);
-            setHasMore(data.page < data.total_pages);
-            setPage(1);
-          } catch (error: any) {
-            if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
-              console.error("Failed to search:", error);
-            }
-          } finally {
-            setIsLoading(false);
+    if (urlQuery.trim()) {
+      const fetchSearch = async () => {
+        try {
+          setIsLoading(true);
+          const data = await tmdbService.search(urlQuery, 1, controller.signal);
+          const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+          setResults(filtered);
+          setHasMore(data.page < data.total_pages);
+          setPage(1);
+        } catch (error: any) {
+          if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+            console.error("Failed to search:", error);
           }
-        };
-        fetchSearch();
-      } else {
-        window.history.replaceState(null, '', window.location.pathname);
-        fetchTrending();
-      }
-    }, 500);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query, isInitialized]);
-
-  // Initial load
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const urlQuery = params.get('q');
-    if (urlQuery) {
-      setQuery(urlQuery);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchSearch();
     } else {
+      const fetchTrending = async () => {
+        if (trendingCache.length > 0) {
+          setResults(trendingCache);
+          setHasMore(false);
+          return;
+        }
+
+        try {
+          setIsLoading(true);
+          setResults([]);
+          const [tvData, movieData] = await Promise.all([
+            tmdbService.getTrendingTv().catch(() => ({ results: [] })),
+            tmdbService.getTrendingMovies().catch(() => ({ results: [] }))
+          ]);
+          
+          const tvShows = tvData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'tv' })) || [];
+          const movies = movieData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'movie' })) || [];
+          
+          const combined = [...tvShows, ...movies];
+          setTrendingCache(combined);
+          setResults(combined);
+          setHasMore(false);
+        } catch (error) {
+          console.error("Failed to fetch trending:", error);
+          setResults([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
       fetchTrending();
     }
-    setIsInitialized(true);
-  }, []);
+    
+    return () => controller.abort();
+  }, [urlQuery]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMore) return;
     const nextPage = page + 1;
     setIsLoadingMore(true);
     try {
-      const data = await tmdbService.search(query, nextPage);
+      const data = await tmdbService.search(urlQuery, nextPage);
       const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
       setResults(prev => [...prev, ...filtered]);
       setHasMore(data.page < data.total_pages);
@@ -288,7 +303,7 @@ export default function DiscoverPage() {
           {item.title || item.name}
         </h3>
         <div className="flex items-center gap-1.5 mt-0.5">
-          {query.trim() && (
+          {urlQuery.trim() && (
             <>
               <span className="text-[9px] sm:text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
                 {item.media_type === 'tv' ? 'TV Show' : 'Movie'}
@@ -327,15 +342,15 @@ export default function DiscoverPage() {
             <input
               type="text"
               placeholder="Search TV shows and movies..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               className="w-full bg-zinc-900/80 border border-zinc-800 text-white rounded-2xl py-3 sm:py-4 pl-11 sm:pl-14 pr-[80px] sm:pr-[100px] focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all text-sm sm:text-lg placeholder:text-zinc-500 shadow-xl backdrop-blur-md"
             />
             
             <div className="absolute inset-y-0 right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1">
-              {query.length > 0 && (
+              {inputValue.length > 0 && (
                 <button 
-                  onClick={() => setQuery("")}
+                  onClick={() => setInputValue("")}
                   className="p-1.5 sm:p-2 text-zinc-500 hover:text-white transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -364,7 +379,7 @@ export default function DiscoverPage() {
       <div className="w-full max-w-5xl mx-auto px-4 mt-2">
         
         {/* Platforms Section */}
-        {!query.trim() && (
+        {!urlQuery.trim() && (
           <div className="mb-10">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
@@ -446,7 +461,7 @@ export default function DiscoverPage() {
 
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold tracking-tight text-white">
-            {query.trim() ? "Search Results" : "Trending Now"}
+            {urlQuery.trim() ? "Search Results" : "Trending Now"}
           </h2>
         </div>
 
@@ -468,11 +483,11 @@ export default function DiscoverPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <h3 className="text-xl font-bold text-white mb-2">No results found</h3>
-            <p className="text-zinc-500">We couldn't find anything matching "{query}".</p>
+            <p className="text-zinc-500">We couldn't find anything matching "{urlQuery}".</p>
           </div>
         ) : (
           <div className="flex flex-col gap-10">
-            {query.trim() ? (
+            {urlQuery.trim() ? (
               // Unified Search Grid
               <div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
@@ -546,7 +561,7 @@ export default function DiscoverPage() {
             )}
 
             {/* Explore by Genre Section */}
-            {!query.trim() && (
+            {!urlQuery.trim() && (
               <div className="mt-10 mb-10 space-y-10">
                 
                 {/* Genres */}
