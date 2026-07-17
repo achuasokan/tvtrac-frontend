@@ -11,6 +11,8 @@ import { setUser } from "@/store/slices/authSlice";
 import { profileService } from "@/features/profile/api/profile.service";
 import { extractDominantColor } from "@/utils/colorExtractor";
 import { RatingsBar } from "@/components/ui/RatingsBar";
+import ReactPlayer from "react-player/lazy";
+import { Music, Play, Pause } from "lucide-react";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -505,12 +507,13 @@ export default function TitleDetailsPage() {
   const [errorStatus, setErrorStatus] = useState<number | null>(null);
   
   const initialTab = (searchParams.get('tab') as any) || 'about';
-  const [activeTab, setActiveTab] = useState<'about' | 'episodes' | 'cast' | 'trailers'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'about' | 'episodes' | 'cast' | 'trailers' | 'soundtrack'>(initialTab);
 
-  const handleTabChange = (tab: 'about' | 'episodes' | 'cast' | 'trailers') => {
+  const handleTabChange = (tab: 'about' | 'episodes' | 'cast' | 'trailers' | 'soundtrack') => {
     setActiveTab(tab);
     router.replace(`/title/${mediaType}/${id}?tab=${tab}`, { scroll: false });
   };
+  const [soundtrackUrl, setSoundtrackUrl] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [playingVideos, setPlayingVideos] = useState<Record<string, boolean>>({});
   
@@ -536,6 +539,10 @@ export default function TitleDetailsPage() {
   const [showVideo, setShowVideo] = useState(false);
   const [videoKey, setVideoKey] = useState(0);
   const swipeStartX = useRef<number | null>(null);
+  const [isPlayingSoundtrack, setIsPlayingSoundtrack] = useState(false);
+  const [soundtrackProgress, setSoundtrackProgress] = useState(0);
+  const [soundtrackDuration, setSoundtrackDuration] = useState(0);
+  const playerRef = useRef<any>(null);
 
   const initialMount = useRef(true);
   const prevWatchedCount = useRef(0);
@@ -658,6 +665,23 @@ export default function TitleDetailsPage() {
       fetchDetails();
     }
   }, [mediaType, id, isAuthLoading, user?.id]);
+
+  useEffect(() => {
+    if (details) {
+      const fetchSoundtrack = async () => {
+        try {
+          const titleToSearch = details.title || details.name;
+          const res = await api.get(`/youtube/soundtrack?q=${encodeURIComponent(titleToSearch)}`);
+          if (res.data && res.data.url) {
+            setSoundtrackUrl(res.data.url);
+          }
+        } catch (error) {
+          console.error("Failed to fetch soundtrack", error);
+        }
+      };
+      fetchSoundtrack();
+    }
+  }, [details]);
 
   const trailer = details?.videos?.results?.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer') || details?.videos?.results?.find((v: any) => v.site === 'YouTube');
 
@@ -1054,9 +1078,9 @@ export default function TitleDetailsPage() {
               );
             })()}
 
-            <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-between sm:justify-center border-b border-zinc-800 w-full px-1 sm:px-0">
+            <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-between sm:justify-center border-b border-zinc-800 w-full px-1 sm:px-4">
               <button 
-                className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'about' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                className={`py-2 px-1 sm:py-3 sm:px-6 font-bold text-[9px] xs:text-[10px] sm:text-sm tracking-wide uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'about' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
                 style={activeTab === 'about' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                 onClick={() => handleTabChange('about')}
               >
@@ -1064,7 +1088,7 @@ export default function TitleDetailsPage() {
               </button>
               {mediaType === 'tv' && (
                 <button 
-                  className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'episodes' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                  className={`py-2 px-1 sm:py-3 sm:px-6 font-bold text-[9px] xs:text-[10px] sm:text-sm tracking-wide uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'episodes' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
                   style={activeTab === 'episodes' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                   onClick={() => handleTabChange('episodes')}
                 >
@@ -1072,7 +1096,7 @@ export default function TitleDetailsPage() {
                 </button>
               )}
               <button 
-                className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'cast' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                className={`py-2 px-1 sm:py-3 sm:px-6 font-bold text-[9px] xs:text-[10px] sm:text-sm tracking-wide uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'cast' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
                 style={activeTab === 'cast' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                 onClick={() => handleTabChange('cast')}
               >
@@ -1080,13 +1104,20 @@ export default function TitleDetailsPage() {
               </button>
               {details.videos?.results?.some((v: any) => v.site === "YouTube") && (
                 <button 
-                  className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'trailers' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                  className={`py-2 px-1 sm:py-3 sm:px-6 font-bold text-[9px] xs:text-[10px] sm:text-sm tracking-wide uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'trailers' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
                   style={activeTab === 'trailers' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                   onClick={() => handleTabChange('trailers')}
                 >
                   Trailers
                 </button>
               )}
+              <button 
+                className={`py-2 px-1 sm:py-3 sm:px-6 font-bold text-[9px] xs:text-[10px] sm:text-sm tracking-wide uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'soundtrack' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                style={activeTab === 'soundtrack' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
+                onClick={() => handleTabChange('soundtrack')}
+              >
+                Soundtrack
+              </button>
             </div>
           </div>
 
@@ -1453,6 +1484,165 @@ export default function TitleDetailsPage() {
                   </div>
                 ) : (
                   <p className="text-zinc-500">No trailers available.</p>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'soundtrack' && (
+              <div className="animate-in fade-in duration-300 w-full flex flex-col items-center justify-center min-h-[120px] px-4">
+                {soundtrackUrl ? (
+                  <div className="w-full max-w-md mx-auto mt-6 mb-6">
+                    
+                    {/* The Mini Pill Player */}
+                    <div 
+                      className="w-[95%] sm:w-full max-w-[320px] sm:max-w-[400px] md:max-w-[450px] mx-auto flex items-center rounded-full h-12 sm:h-14 md:h-16 shadow-md relative backdrop-blur-3xl transition-colors duration-700"
+                      style={{ 
+                        backgroundColor: dominantColor ? dominantColor.replace('rgb', 'rgba').replace(')', ', 0.15)') : '#151515',
+                        border: dominantColor ? `1px solid ${dominantColor.replace('rgb', 'rgba').replace(')', ', 0.1)')}` : '1px solid transparent',
+                        boxShadow: dominantColor ? `0 10px 30px -15px ${dominantColor.replace('rgb', 'rgba').replace(')', ', 0.3)')}` : undefined
+                      }}
+                    >
+                      {/* Album Art / Poster (Connects exactly to left edge) */}
+                      <div className="h-full aspect-square rounded-full overflow-hidden shrink-0 bg-black relative border-none">
+                         {details.poster_path ? (
+                            <img src={`https://image.tmdb.org/t/p/w200${details.poster_path}`} alt="Album Art" className="w-full h-full object-cover" />
+                         ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Music className="w-4 h-4 text-zinc-500"/></div>
+                         )}
+                         <div className="absolute inset-0 bg-black/10" />
+                      </div>
+                      
+                      {/* Middle: Title & Progress Bar */}
+                      <div className="flex-1 flex flex-col justify-center px-3 sm:px-4 md:px-5 min-w-0 gap-0.5 md:gap-1">
+                         <h3 className="text-white font-bold text-[11px] sm:text-xs md:text-sm truncate w-full">{details.title || details.name}</h3>
+                         
+                         <div className="flex items-center gap-1.5 md:gap-2 w-full">
+                           <span className="text-[8px] sm:text-[9px] md:text-[10px] font-medium text-zinc-500 tabular-nums w-7 sm:w-8 md:w-10 text-right shrink-0">
+                             {Math.floor((soundtrackProgress * soundtrackDuration) / 60)}:{(Math.floor((soundtrackProgress * soundtrackDuration) % 60)).toString().padStart(2, '0')}
+                           </span>
+                           
+                           <div 
+                             className="flex-1 min-w-[40px] h-1 sm:h-1.5 bg-zinc-800 rounded-full overflow-hidden relative cursor-pointer"
+                             onClick={(e) => {
+                               if (playerRef.current) {
+                                 const bounds = e.currentTarget.getBoundingClientRect();
+                                 const percent = (e.clientX - bounds.left) / bounds.width;
+                                 playerRef.current.seekTo(percent);
+                               }
+                             }}
+                           >
+                             <div 
+                               className="h-full absolute left-0 top-0 transition-all duration-150 ease-linear rounded-full"
+                               style={{ 
+                                 width: `${soundtrackProgress * 100}%`,
+                                 backgroundColor: dominantColor || '#e5e5e5'
+                               }}
+                             />
+                           </div>
+
+                           <span className="text-[8px] sm:text-[9px] md:text-[10px] font-medium text-zinc-500 tabular-nums w-7 sm:w-8 md:w-10 shrink-0">
+                             {Math.floor(soundtrackDuration / 60)}:{(Math.floor(soundtrackDuration % 60)).toString().padStart(2, '0')}
+                           </span>
+                         </div>
+                      </div>
+
+                      {/* Custom Play Button */}
+                      <button 
+                        onClick={() => setIsPlayingSoundtrack(!isPlayingSoundtrack)}
+                        className="h-10 w-10 sm:h-11 sm:w-11 md:h-14 md:w-14 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer mr-1 md:mr-1.5"
+                        style={{ backgroundColor: dominantColor || '#e5e5e5', color: '#000000' }}
+                      >
+                        {isPlayingSoundtrack ? (
+                          <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                        ) : (
+                          <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current ml-0.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Hidden Player */}
+                    <div style={{ display: 'none' }}>
+                      <ReactPlayer 
+                        ref={playerRef}
+                        url={soundtrackUrl}
+                        width="0"
+                        height="0"
+                        playing={isPlayingSoundtrack}
+                        onPause={() => setIsPlayingSoundtrack(false)}
+                        onPlay={() => setIsPlayingSoundtrack(true)}
+                        onEnded={() => setIsPlayingSoundtrack(false)}
+                        onProgress={(state) => setSoundtrackProgress(state.played)}
+                        onDuration={(duration) => setSoundtrackDuration(duration)}
+                        config={{
+                          youtube: {
+                            playerVars: {
+                              showinfo: 0,
+                              modestbranding: 1,
+                              rel: 0,
+                              autoplay: 0
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Soundtrack Details Section (Large Unboxed Feature) */}
+                    <div className="w-[90%] sm:w-full max-w-[500px] sm:max-w-[700px] md:max-w-[850px] mx-auto mt-12 sm:mt-16 md:mt-24 mb-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-8 sm:gap-12 md:gap-16 px-4">
+                        
+                        {/* Composer Info */}
+                        {(() => {
+                          const composers = details?.credits?.crew?.filter((c: any) => c.job === 'Original Music Composer' || c.job === 'Music' || c.department === 'Sound' && c.job.includes('Music')) || [];
+                          const mainComposer = composers.length > 0 ? composers[0] : null;
+                          
+                          if (mainComposer) {
+                            return (
+                              <div className="flex items-center gap-4 sm:gap-6 md:gap-8 flex-1 justify-center sm:justify-end text-left">
+                                <Link href={`/person/${mainComposer.id}`} className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 transition-colors shadow-2xl shrink-0">
+                                  {mainComposer.profile_path ? (
+                                    <img src={`https://image.tmdb.org/t/p/w200${mainComposer.profile_path}`} className="w-full h-full object-cover" alt={mainComposer.name} />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center"><Music className="w-6 h-6 md:w-10 md:h-10 text-zinc-600"/></div>
+                                  )}
+                                </Link>
+                                <div className="flex flex-col items-start">
+                                  <span className="text-[10px] sm:text-xs md:text-sm font-bold text-zinc-500 uppercase tracking-[0.2em] mb-1 md:mb-2">Music By</span>
+                                  <Link href={`/person/${mainComposer.id}`} className="text-lg sm:text-2xl md:text-4xl font-extrabold text-white hover:text-zinc-300 transition-colors tracking-tight text-left max-w-[200px] sm:max-w-none">{mainComposer.name}</Link>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+
+                        {/* Divider */}
+                        <div className="hidden sm:block h-24 md:h-36 w-px bg-zinc-800/80 shrink-0" />
+                        <div className="block sm:hidden w-32 h-px bg-zinc-800/80 shrink-0" />
+
+                        {/* Soundtrack Info */}
+                        <div className="flex flex-col items-center sm:items-start text-center sm:text-left flex-1 justify-center sm:justify-start">
+                          <span className="text-[10px] sm:text-xs md:text-sm font-bold text-zinc-500 uppercase tracking-[0.2em] mb-1 md:mb-2">Original Soundtrack</span>
+                          <span className="text-lg sm:text-2xl md:text-4xl font-extrabold text-white tracking-tight">
+                            {details.release_date?.substring(0,4) || details.first_air_date?.substring(0,4) || 'TBA'} 
+                          </span>
+                          <span className="text-sm sm:text-base md:text-xl font-medium text-zinc-400 mt-1 md:mt-2">
+                            {soundtrackDuration > 0 ? `${Math.floor(soundtrackDuration / 60)} Minutes` : 'Full Score'}
+                          </span>
+                          {details.production_companies && details.production_companies.length > 0 && (
+                             <span className="text-[8px] sm:text-[9px] md:text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mt-4 md:mt-8 max-w-[200px] sm:max-w-[250px] md:max-w-[300px]">
+                               ℗ Released by {details.production_companies[0].name}
+                             </span>
+                          )}
+                        </div>
+
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-4 mt-8">
+                    <div className="w-12 h-12 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
+                    <p className="text-zinc-500 font-medium">Searching for soundtrack...</p>
+                  </div>
                 )}
               </div>
             )}
