@@ -80,7 +80,7 @@ function SeasonItem({
         })
         .finally(() => setLoading(false));
     }
-  }, [expanded, tvId, season.season_number]); // Only runs if expanded is true on mount
+  }, [expanded, tvId, season.season_number]); 
 
   const handleToggle = async () => {
     const newState = !expanded;
