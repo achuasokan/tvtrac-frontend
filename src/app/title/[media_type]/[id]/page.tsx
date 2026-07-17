@@ -10,6 +10,7 @@ import { AddToListModal } from "@/features/lists/components/AddToListModal";
 import { setUser } from "@/store/slices/authSlice";
 import { profileService } from "@/features/profile/api/profile.service";
 import { extractDominantColor } from "@/utils/colorExtractor";
+import { RatingsBar } from "@/components/ui/RatingsBar";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -512,6 +513,14 @@ export default function TitleDetailsPage() {
   };
   const [isScrolled, setIsScrolled] = useState(false);
   const [playingVideos, setPlayingVideos] = useState<Record<string, boolean>>({});
+  
+  const recommendationsScrollRef = useRef<HTMLDivElement>(null);
+  const handleScrollRecommendations = (direction: 'left' | 'right') => {
+    if (recommendationsScrollRef.current) {
+      const scrollAmount = 350;
+      recommendationsScrollRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
   const [isWatched, setIsWatched] = useState(false);
   const [watchedEpisodes, setWatchedEpisodes] = useState<{season: number, episode: number}[]>([]);
   const [ignorePrompt, setIgnorePrompt] = useState(false);
@@ -943,6 +952,12 @@ export default function TitleDetailsPage() {
                 ? 'bg-red-500/30 border border-red-500/50 hover:bg-red-500/40' 
                 : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
             }`}
+            onMouseEnter={(e) => {
+              if (dominantColor) e.currentTarget.style.boxShadow = `0 0 25px ${dominantColor}`;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = '';
+            }}
           >
             {isTogglingFavorite ? (
               <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -969,6 +984,12 @@ export default function TitleDetailsPage() {
                   : 'bg-black/60 border border-white/20 hover:bg-black/80 hover:border-white/40'
               } cursor-pointer`}
               title={isWatched ? "Mark as unwatched" : "Mark as watched"}
+              onMouseEnter={(e) => {
+                if (dominantColor) e.currentTarget.style.boxShadow = `0 0 25px ${dominantColor}`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '';
+              }}
             >
               {isTogglingWatched ? (
                 <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin text-white" />
@@ -991,18 +1012,15 @@ export default function TitleDetailsPage() {
       <div className="max-w-4xl mx-auto px-4 -mt-32 sm:-mt-48 relative z-10 w-full flex flex-col items-center gap-6 sm:gap-10">
         
         {/* Info */}
-        <div className="flex flex-col items-center text-center pt-4 sm:pt-16 w-full px-2 sm:px-24">
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-2">{title}</h1>
+        <div className="flex flex-col items-center text-center pt-4 sm:pt-16 w-full sm:px-24">
+          <h1 
+            className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-2 transition-all duration-1000"
+            style={{ textShadow: dominantColor ? `0 2px 15px ${dominantColor}, 0 0 30px ${dominantColor}80` : undefined }}
+          >
+            {title}
+          </h1>
           
-          <div className="flex items-center justify-center flex-wrap gap-4 text-sm text-zinc-400 mb-6 font-medium">
-            {details.vote_average > 0 && (
-              <div className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded text-white">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                {details.vote_average.toFixed(1)}
-              </div>
-            )}
+          <div className="flex items-center justify-center flex-wrap gap-4 text-sm text-zinc-400 mt-2 font-medium">
             <span>{releaseYear}</span>
             <span>{duration}</span>
             {details.status && (
@@ -1038,28 +1056,32 @@ export default function TitleDetailsPage() {
 
             <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-between sm:justify-center border-b border-zinc-800 w-full px-1 sm:px-0">
               <button 
-                className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'about' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'about' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                style={activeTab === 'about' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                 onClick={() => handleTabChange('about')}
               >
                 About
               </button>
               {mediaType === 'tv' && (
                 <button 
-                  className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'episodes' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'episodes' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                  style={activeTab === 'episodes' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                   onClick={() => handleTabChange('episodes')}
                 >
                   Episodes
                 </button>
               )}
               <button 
-                className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'cast' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'cast' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                style={activeTab === 'cast' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                 onClick={() => handleTabChange('cast')}
               >
                 Cast & Crew
               </button>
               {details.videos?.results?.some((v: any) => v.site === "YouTube") && (
                 <button 
-                  className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'trailers' ? 'text-white border-b-2 border-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  className={`py-2.5 px-1 xs:px-2 sm:py-3 sm:px-6 font-bold text-[10px] xs:text-xs sm:text-sm tracking-wider uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'trailers' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
+                  style={activeTab === 'trailers' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                   onClick={() => handleTabChange('trailers')}
                 >
                   Trailers
@@ -1076,13 +1098,32 @@ export default function TitleDetailsPage() {
                   {details.overview}
                 </p>
 
-                <div className="flex justify-center flex-wrap gap-2 mb-10">
+                <div className="flex justify-center flex-wrap gap-2 mb-6">
                   {details.genres?.map((g: any) => (
-                    <span key={g.id} className="text-xs font-semibold px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400">
+                    <span 
+                      key={g.id} 
+                      className="text-xs font-semibold px-3 py-1 bg-zinc-900 border border-zinc-800 rounded-full text-zinc-400 transition-all duration-300 cursor-pointer"
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = dominantColor || '#52525b';
+                        e.currentTarget.style.boxShadow = dominantColor ? `0 0 12px ${dominantColor}40` : 'none';
+                        e.currentTarget.style.color = '#fff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#27272a'; // zinc-800
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.color = '#a1a1aa'; // zinc-400
+                      }}
+                    >
                       {g.name}
                     </span>
                   ))}
                 </div>
+
+                <RatingsBar 
+                  tmdbRating={details.vote_average}
+                  tmdbVotes={details.vote_count}
+                  omdb={details.omdb}
+                />
 
                 <div className="flex flex-col w-full max-w-4xl mx-auto gap-6 sm:gap-8 mb-4">
                   {(() => {
@@ -1120,55 +1161,55 @@ export default function TitleDetailsPage() {
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-y-5 gap-x-4 sm:gap-x-6 max-w-4xl mx-auto w-full px-4 mt-6 mb-4">
                         {director && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">{mediaType === 'tv' ? 'Creator' : 'Director'}</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>{mediaType === 'tv' ? 'Creator' : 'Director'}</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{director}</span>
                           </div>
                         )}
                         {writer && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Writer</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>Writer</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{writer}</span>
                           </div>
                         )}
                         {composer && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Music</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>Music</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{composer}</span>
                           </div>
                         )}
                         {dop && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Cinematography</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>Cinematography</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{dop}</span>
                           </div>
                         )}
                         {language && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Language</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>Language</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{language}</span>
                           </div>
                         )}
                         {origin && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Origin</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>Origin</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{origin}</span>
                           </div>
                         )}
                         {budget && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Budget</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>Budget</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{budget}</span>
                           </div>
                         )}
                         {revenue && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">Box Office</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>Box Office</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{revenue}</span>
                           </div>
                         )}
                         {studios && (
                           <div className="flex flex-col pl-3 border-l-[1.5px] border-zinc-800/80 sm:col-span-2 md:col-span-4 lg:col-span-2">
-                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1">{mediaType === 'tv' ? 'Networks' : 'Studios'}</span>
+                            <span className="text-zinc-500 text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>{mediaType === 'tv' ? 'Networks' : 'Studios'}</span>
                             <span className="text-zinc-200 text-xs sm:text-[13px] font-medium leading-snug">{studios}</span>
                           </div>
                         )}
@@ -1178,7 +1219,7 @@ export default function TitleDetailsPage() {
 
                   {details['watch/providers']?.results?.[userCountry]?.flatrate && (
                     <div className="flex flex-col items-center mt-2">
-                      <span className="block text-zinc-500 font-bold mb-4 uppercase tracking-widest text-[10px]">Available On</span>
+                      <span className="block text-zinc-500 font-bold mb-4 uppercase tracking-widest text-[10px] transition-colors duration-1000" style={dominantColor ? { color: dominantColor, textShadow: `0 0 10px ${dominantColor}80` } : undefined}>Available On</span>
                       <div className="flex flex-wrap justify-center items-center gap-4">
                         {details['watch/providers'].results[userCountry].flatrate.map((provider: any) => (
                           <button 
@@ -1199,13 +1240,41 @@ export default function TitleDetailsPage() {
                   )}
                 </div>
 
-                {details.similar?.results?.length > 0 && (
-                  <div className="mt-4 border-t border-zinc-800 pt-6 w-full text-center">
-                    <h3 className="text-xl font-bold text-white mb-6">You Might Also Like</h3>
-                    <div className="flex overflow-x-auto gap-4 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                      {details.similar.results.map((item: any) => (
-                        <div key={item.id} className="w-32 sm:w-36 shrink-0 cursor-pointer group flex flex-col" onClick={() => router.push(`/title/${item.media_type || mediaType}/${item.id}`)}>
-                          <div className="aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-2.5 transition-transform group-hover:scale-105 group-hover:border-zinc-500 shadow-md">
+                {(() => {
+                  const recommendationItems = details.recommendations?.results?.length > 0 
+                    ? details.recommendations.results 
+                    : details.similar?.results || [];
+
+                  return recommendationItems.length > 0 && (
+                  <div className="mt-4 border-t border-zinc-800 pt-6 w-full text-center relative">
+                    <div className="flex items-center justify-between mb-6 px-2">
+                      <h3 className="text-xl font-bold text-white mb-0">You Might Also Like</h3>
+                      <div className="hidden sm:flex items-center gap-2">
+                        <button 
+                          onClick={(e) => { e.preventDefault(); handleScrollRecommendations('left'); }}
+                          className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all cursor-pointer"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <button 
+                          onClick={(e) => { e.preventDefault(); handleScrollRecommendations('right'); }}
+                          className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all cursor-pointer"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <div 
+                      ref={recommendationsScrollRef}
+                      className="flex overflow-x-auto gap-4 pb-4 px-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] snap-x snap-mandatory"
+                    >
+                      {recommendationItems.map((item: any) => (
+                        <div key={item.id} className="w-32 sm:w-36 shrink-0 cursor-pointer group flex flex-col snap-start" onClick={() => router.push(`/title/${item.media_type || mediaType}/${item.id}`)}>
+                          <div className="aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 mb-2.5 transition-transform group-hover:scale-105 group-hover:border-zinc-500 shadow-md relative">
                             {item.poster_path ? (
                               <img src={`https://image.tmdb.org/t/p/w200${item.poster_path}`} alt={item.title || item.name} className="w-full h-full object-cover" />
                             ) : (
@@ -1219,7 +1288,8 @@ export default function TitleDetailsPage() {
                       ))}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
               </div>
             )}
 
@@ -1240,8 +1310,11 @@ export default function TitleDetailsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                          <span 
-                           className={`font-black text-xl sm:text-2xl tracking-tighter transition-colors duration-1000`}
-                           style={isComplete ? {} : { color: dominantColor || '#ffffff', filter: `drop-shadow(0 0 10px ${dominantColor || '#ffffff'}80)` }}
+                           className="text-2xl font-black transition-colors duration-1000"
+                           style={{ 
+                             color: dominantColor || '#ffffff', 
+                             filter: `drop-shadow(0 0 10px ${dominantColor || '#ffffff'}80)` 
+                           }}
                          >
                            {percentage}%
                          </span>
