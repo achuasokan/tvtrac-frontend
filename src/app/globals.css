@@ -20,6 +20,19 @@ body {
   overflow-x: hidden;
 }
 
+* {
+  outline: none !important;
+}
+
+*:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+next-route-announcer {
+  display: none !important;
+}
+
 /* Glassmorphism utility */
 .glass-panel {
   background: rgba(15, 23, 42, 0.4);

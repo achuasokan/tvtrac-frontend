@@ -214,7 +214,12 @@ export default function DiscoverPage() {
   };
 
   // Fetch backdrop images for both genres and studios
-  const genreNames = ["K-Drama", "Action", "Comedy", "Sci-Fi", "Horror", "Romance", "Drama", "Animation", "Documentary"];
+  const genreNames = [
+    "K-Drama", "Action", "Comedy", "Sci-Fi", "Horror", 
+    "Romance", "Drama", "Animation", "Documentary",
+    "Kids", "Mystery", "News", "Reality", 
+    "Sci-Fi & Fantasy", "Soap", "Talk", "War & Politics", "Western"
+  ];
   const studioNames = ["Marvel", "DC", "Disney", "Pixar", "A24", "HBO", "Universal", "WB", "Star Wars", "James Bond"];
   const allCategories = [...genreNames, ...studioNames];
   

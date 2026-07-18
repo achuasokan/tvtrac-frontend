@@ -1490,7 +1490,6 @@ export default function TitleDetailsPage() {
 
             {activeTab === 'soundtrack' && (
               <div className="animate-in fade-in duration-300 w-full flex flex-col items-center justify-center min-h-[120px] px-4">
-                {soundtrackUrl ? (
                   <div className="w-full max-w-5xl mx-auto mt-10 mb-10">
 
                     {/* Awards & Age Rating Section — shown first */}
@@ -1522,7 +1521,30 @@ export default function TitleDetailsPage() {
                       </div>
                     )}
 
-                    {/* The Mini Pill Player */}
+                    {/* Collection Banner */}
+                    {details?.belongs_to_collection && (
+                      <Link href={`/collection/${details.belongs_to_collection.id}`} className="block w-full max-w-3xl mx-auto mb-8 sm:mb-12 group">
+                        <div className="relative w-full h-24 sm:h-32 md:h-40 rounded-xl overflow-hidden border border-zinc-800 hover:border-zinc-500 transition-colors shadow-2xl bg-zinc-900">
+                          {(details.belongs_to_collection.backdrop_path || details.backdrop_path) && (
+                            <img src={`https://image.tmdb.org/t/p/w780${details.belongs_to_collection.backdrop_path || details.backdrop_path}`} alt={details.belongs_to_collection.name} className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+                          <div className="absolute inset-0 p-4 sm:p-6 md:p-8 flex flex-col justify-center">
+                            <span className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2">Part of a Series</span>
+                            <h3 className="text-lg sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-tight group-hover:text-amber-50 transition-colors">{details.belongs_to_collection.name}</h3>
+                          </div>
+                          <div className="absolute right-4 sm:right-6 md:right-8 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm group-hover:bg-white/20 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
+                    )}
+
+                    {soundtrackUrl ? (
+                      <>
+                        {/* The Mini Pill Player */}
                     <div 
                       className="w-[95%] sm:w-full max-w-[320px] sm:max-w-[400px] md:max-w-[450px] mx-auto flex items-center rounded-full h-12 sm:h-14 md:h-16 shadow-md relative backdrop-blur-3xl transition-colors duration-700"
                       style={{ 
@@ -1641,13 +1663,14 @@ export default function TitleDetailsPage() {
                       </div>
                     </div>
 
-                  </div>
+                  </>
                 ) : (
-                  <div className="flex flex-col items-center gap-4 mt-8">
-                    <div className="w-12 h-12 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
-                    <p className="text-zinc-500 font-medium">Searching for soundtrack...</p>
+                      <div className="flex flex-col items-center gap-4 mt-8">
+                        <div className="w-12 h-12 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
+                        <p className="text-zinc-500 font-medium">Searching for soundtrack...</p>
+                      </div>
+                    )}
                   </div>
-                )}
               </div>
             )}
 
