@@ -1116,7 +1116,7 @@ export default function TitleDetailsPage() {
                 style={activeTab === 'soundtrack' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
                 onClick={() => handleTabChange('soundtrack')}
               >
-                Soundtrack
+                More
               </button>
             </div>
           </div>
@@ -1491,8 +1491,37 @@ export default function TitleDetailsPage() {
             {activeTab === 'soundtrack' && (
               <div className="animate-in fade-in duration-300 w-full flex flex-col items-center justify-center min-h-[120px] px-4">
                 {soundtrackUrl ? (
-                  <div className="w-full max-w-md mx-auto mt-6 mb-6">
-                    
+                  <div className="w-full max-w-5xl mx-auto mt-10 mb-10">
+
+                    {/* Awards & Age Rating Section — shown first */}
+                    {((details?.omdb?.Awards && details.omdb.Awards !== 'N/A') || (details?.omdb?.Rated && details.omdb.Rated !== 'N/A' && details.omdb.Rated !== 'Not Rated')) && (
+                      <div className="w-full max-w-3xl mx-auto mb-8 sm:mb-12 px-4 outline-none">
+                        <div className="flex flex-row flex-wrap items-start justify-center sm:justify-start gap-6 sm:gap-10 md:gap-16">
+
+                          {/* Age Rating */}
+                          {details?.omdb?.Rated && details.omdb.Rated !== 'N/A' && details.omdb.Rated !== 'Not Rated' && (
+                            <div className="flex flex-col items-center sm:items-start gap-1 sm:gap-2">
+                              <span className="text-[8px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Rating</span>
+                              <div className="px-2.5 sm:px-4 py-1 sm:py-1.5 border-2 border-zinc-600 rounded-md">
+                                <span className="text-sm sm:text-xl md:text-2xl font-extrabold text-white tracking-tight">{details.omdb.Rated}</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Awards */}
+                          {details?.omdb?.Awards && details.omdb.Awards !== 'N/A' && (
+                            <div className="flex flex-col items-center sm:items-start gap-1 sm:gap-2 flex-1 min-w-[140px]">
+                              <span className="text-[8px] sm:text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em]">Awards</span>
+                              <p className="text-xs sm:text-sm md:text-base font-semibold text-zinc-200 text-center sm:text-left leading-snug">{details.omdb.Awards}</p>
+                            </div>
+                          )}
+
+                        </div>
+                        {/* Divider below awards */}
+                        <div className="w-full h-px bg-zinc-800/60 mt-6 sm:mt-10" />
+                      </div>
+                    )}
+
                     {/* The Mini Pill Player */}
                     <div 
                       className="w-[95%] sm:w-full max-w-[320px] sm:max-w-[400px] md:max-w-[450px] mx-auto flex items-center rounded-full h-12 sm:h-14 md:h-16 shadow-md relative backdrop-blur-3xl transition-colors duration-700"
@@ -1560,35 +1589,10 @@ export default function TitleDetailsPage() {
                       </button>
                     </div>
 
-                    {/* Hidden Player */}
-                    <div style={{ display: 'none' }}>
-                      <ReactPlayer 
-                        ref={playerRef}
-                        url={soundtrackUrl}
-                        width="0"
-                        height="0"
-                        playing={isPlayingSoundtrack}
-                        onPause={() => setIsPlayingSoundtrack(false)}
-                        onPlay={() => setIsPlayingSoundtrack(true)}
-                        onEnded={() => setIsPlayingSoundtrack(false)}
-                        onProgress={(state) => setSoundtrackProgress(state.played)}
-                        onDuration={(duration) => setSoundtrackDuration(duration)}
-                        config={{
-                          youtube: {
-                            playerVars: {
-                              showinfo: 0,
-                              modestbranding: 1,
-                              rel: 0,
-                              autoplay: 0
-                            }
-                          }
-                        }}
-                      />
-                    </div>
 
-                    {/* Soundtrack Details Section (Large Unboxed Feature) */}
-                    <div className="w-[90%] sm:w-full max-w-[500px] sm:max-w-[700px] md:max-w-[850px] mx-auto mt-12 sm:mt-16 md:mt-24 mb-16 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-8 sm:gap-12 md:gap-16 px-4">
+                    {/* Soundtrack Details Section */}
+                    <div className="w-full max-w-2xl mx-auto mt-6 sm:mt-10 md:mt-16 mb-8 sm:mb-12 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300 px-4">
+                      <div className="flex flex-row items-center justify-center sm:justify-between gap-6 sm:gap-10 md:gap-16">
                         
                         {/* Composer Info */}
                         {(() => {
@@ -1597,17 +1601,17 @@ export default function TitleDetailsPage() {
                           
                           if (mainComposer) {
                             return (
-                              <div className="flex items-center gap-4 sm:gap-6 md:gap-8 flex-1 justify-center sm:justify-end text-left">
-                                <Link href={`/person/${mainComposer.id}`} className="w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-full overflow-hidden bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 transition-colors shadow-2xl shrink-0">
+                              <div className="flex items-center gap-3 sm:gap-5 md:gap-7 flex-1 justify-center sm:justify-end text-left">
+                                <Link href={`/person/${mainComposer.id}`} className="w-10 h-10 sm:w-16 sm:h-16 md:w-24 md:h-24 rounded-full overflow-hidden bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 transition-colors shadow-xl shrink-0">
                                   {mainComposer.profile_path ? (
                                     <img src={`https://image.tmdb.org/t/p/w200${mainComposer.profile_path}`} className="w-full h-full object-cover" alt={mainComposer.name} />
                                   ) : (
-                                    <div className="w-full h-full flex items-center justify-center"><Music className="w-6 h-6 md:w-10 md:h-10 text-zinc-600"/></div>
+                                    <div className="w-full h-full flex items-center justify-center"><Music className="w-4 h-4 md:w-8 md:h-8 text-zinc-600"/></div>
                                   )}
                                 </Link>
                                 <div className="flex flex-col items-start">
-                                  <span className="text-[10px] sm:text-xs md:text-sm font-bold text-zinc-500 uppercase tracking-[0.2em] mb-1 md:mb-2">Music By</span>
-                                  <Link href={`/person/${mainComposer.id}`} className="text-lg sm:text-2xl md:text-4xl font-extrabold text-white hover:text-zinc-300 transition-colors tracking-tight text-left max-w-[200px] sm:max-w-none">{mainComposer.name}</Link>
+                                  <span className="text-[8px] sm:text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] mb-0.5 sm:mb-1">Music By</span>
+                                  <Link href={`/person/${mainComposer.id}`} className="text-sm sm:text-xl md:text-3xl font-extrabold text-white hover:text-zinc-300 transition-colors tracking-tight text-left max-w-[130px] sm:max-w-none leading-tight">{mainComposer.name}</Link>
                                 </div>
                               </div>
                             );
@@ -1616,20 +1620,19 @@ export default function TitleDetailsPage() {
                         })()}
 
                         {/* Divider */}
-                        <div className="hidden sm:block h-24 md:h-36 w-px bg-zinc-800/80 shrink-0" />
-                        <div className="block sm:hidden w-32 h-px bg-zinc-800/80 shrink-0" />
+                        <div className="h-14 sm:h-20 md:h-28 w-px bg-zinc-800/80 shrink-0" />
 
                         {/* Soundtrack Info */}
-                        <div className="flex flex-col items-center sm:items-start text-center sm:text-left flex-1 justify-center sm:justify-start">
-                          <span className="text-[10px] sm:text-xs md:text-sm font-bold text-zinc-500 uppercase tracking-[0.2em] mb-1 md:mb-2">Original Soundtrack</span>
-                          <span className="text-lg sm:text-2xl md:text-4xl font-extrabold text-white tracking-tight">
+                        <div className="flex flex-col items-start text-left flex-1 justify-center">
+                          <span className="text-[8px] sm:text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] mb-0.5 sm:mb-1">Original Soundtrack</span>
+                          <span className="text-sm sm:text-xl md:text-3xl font-extrabold text-white tracking-tight">
                             {details.release_date?.substring(0,4) || details.first_air_date?.substring(0,4) || 'TBA'} 
                           </span>
-                          <span className="text-sm sm:text-base md:text-xl font-medium text-zinc-400 mt-1 md:mt-2">
+                          <span className="text-xs sm:text-sm md:text-lg font-medium text-zinc-400 mt-0.5 sm:mt-1">
                             {soundtrackDuration > 0 ? `${Math.floor(soundtrackDuration / 60)} Minutes` : 'Full Score'}
                           </span>
                           {details.production_companies && details.production_companies.length > 0 && (
-                             <span className="text-[8px] sm:text-[9px] md:text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mt-4 md:mt-8 max-w-[200px] sm:max-w-[250px] md:max-w-[300px]">
+                             <span className="text-[7px] sm:text-[8px] md:text-[10px] font-semibold text-zinc-600 uppercase tracking-widest mt-2 sm:mt-4 max-w-[150px] sm:max-w-[220px]">
                                ℗ Released by {details.production_companies[0].name}
                              </span>
                           )}
@@ -1637,6 +1640,7 @@ export default function TitleDetailsPage() {
 
                       </div>
                     </div>
+
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-4 mt-8">
@@ -1644,6 +1648,34 @@ export default function TitleDetailsPage() {
                     <p className="text-zinc-500 font-medium">Searching for soundtrack...</p>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Always-mounted hidden ReactPlayer — keeps playing across tab switches */}
+            {soundtrackUrl && (
+              <div style={{ display: 'none' }}>
+                <ReactPlayer 
+                  ref={playerRef}
+                  url={soundtrackUrl}
+                  width="0"
+                  height="0"
+                  playing={isPlayingSoundtrack}
+                  onPause={() => setIsPlayingSoundtrack(false)}
+                  onPlay={() => setIsPlayingSoundtrack(true)}
+                  onEnded={() => setIsPlayingSoundtrack(false)}
+                  onProgress={(state) => setSoundtrackProgress(state.played)}
+                  onDuration={(duration) => setSoundtrackDuration(duration)}
+                  config={{
+                    youtube: {
+                      playerVars: {
+                        showinfo: 0,
+                        modestbranding: 1,
+                        rel: 0,
+                        autoplay: 0
+                      }
+                    }
+                  }}
+                />
               </div>
             )}
           </div>
