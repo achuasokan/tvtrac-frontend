@@ -39,5 +39,15 @@ export const tmdbService = {
   getGenreBackdrop: async (genreName: string) => {
     const res = await api.get(`/tmdb/discover/genre/${encodeURIComponent(genreName)}?type=movie`);
     return res.data;
-  }
+  },
+
+  getCompany: async (id: string | number) => {
+    const res = await api.get(`/tmdb/company/${id}`);
+    return res.data;
+  },
+
+  discoverByCompany: async (companyId: string | number, queryParams: string) => {
+    const res = await api.get(`/tmdb/discover/company/${companyId}?${queryParams}`);
+    return res.data;
+  },
 };

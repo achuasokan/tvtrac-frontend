@@ -12,7 +12,7 @@ import { profileService } from "@/features/profile/api/profile.service";
 import { extractDominantColor } from "@/utils/colorExtractor";
 import { RatingsBar } from "@/components/ui/RatingsBar";
 import ReactPlayer from "react-player/lazy";
-import { Music, Play, Pause } from "lucide-react";
+import { Music, Play, Pause, Ticket } from "lucide-react";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -855,6 +855,22 @@ export default function TitleDetailsPage() {
     }
   }
 
+  let isInTheaters = false;
+  let formattedReleaseDate = '';
+  if (mediaType === 'movie' && details.release_date) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [year, month, day] = details.release_date.split('-').map(Number);
+    const releaseDate = new Date(year, month - 1, day);
+    
+    const diffDays = (today.getTime() - releaseDate.getTime()) / (1000 * 3600 * 24);
+    // If it releases within the next 14 days (pre-sales) OR was released within the last 45 days
+    if (diffDays >= -14 && diffDays <= 45) {
+      isInTheaters = true;
+      formattedReleaseDate = releaseDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    }
+  }
+
   let allImages: string[] = [];
   if (details.images?.backdrops?.length > 0) {
     allImages = details.images.backdrops.map((img: any) => img.file_path);
@@ -907,7 +923,7 @@ export default function TitleDetailsPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative w-full h-[50vh] sm:h-[60vh] overflow-hidden bg-black z-0">
+      <div className="relative w-full h-[50vh] sm:h-[60vh] overflow-hidden bg-[#050505] z-0">
         {/* Background Video layer */}
         {trailer && showVideo && (
           <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden animate-in fade-in duration-1000">
@@ -955,7 +971,9 @@ export default function TitleDetailsPage() {
         </div>
         
         {/* Gradients */}
-        <div className="absolute inset-0 z-20 bg-gradient-to-t from-[#050505] via-[#050505]/40 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 z-20 bg-gradient-to-t from-[#050505] from-0% via-[#050505]/60 via-30% to-transparent pointer-events-none" />
+        {/* Extra bottom block to completely eliminate 1px seam artifacts on some screens */}
+        <div className="absolute inset-x-0 bottom-0 h-1 z-20 bg-[#050505] pointer-events-none" />
         
         {/* Floating actions moved outside Hero section to fix z-index stacking */}
 
@@ -1053,8 +1071,42 @@ export default function TitleDetailsPage() {
               </span>
             )}
           </div>
-          {/* Spacer to push tabs down where the button used to be */}
-          <div className="h-6" />
+          
+          {/* In Theaters Premium Ticket Button */}
+          {isInTheaters && (
+            <a 
+              href={`https://www.google.com/search?q=${encodeURIComponent(`${title} movie showtimes near me`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 mb-2 flex items-center justify-between w-full max-w-[240px] mx-auto px-4 py-2 rounded-full backdrop-blur-md transition-all duration-300 cursor-pointer group hover:-translate-y-0.5"
+              style={{
+                backgroundColor: dominantColor ? `${dominantColor}20` : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${dominantColor ? `${dominantColor}50` : 'rgba(255,255,255,0.2)'}`,
+                boxShadow: dominantColor ? `0 4px 20px ${dominantColor}20` : undefined,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = dominantColor ? `${dominantColor}40` : 'rgba(255,255,255,0.1)';
+                e.currentTarget.style.borderColor = dominantColor ? dominantColor : 'rgba(255,255,255,0.4)';
+                if (dominantColor) e.currentTarget.style.boxShadow = `0 4px 25px ${dominantColor}40`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = dominantColor ? `${dominantColor}20` : 'rgba(255,255,255,0.05)';
+                e.currentTarget.style.borderColor = dominantColor ? `${dominantColor}50` : 'rgba(255,255,255,0.2)';
+                if (dominantColor) e.currentTarget.style.boxShadow = `0 4px 20px ${dominantColor}20`;
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <Ticket className="w-4 h-4 group-hover:rotate-12 transition-transform" style={{ color: dominantColor || '#fff' }} />
+                <span className="font-extrabold text-sm tracking-tight text-white drop-shadow-md">FIND TICKETS</span>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest pl-3 py-1 border-l text-zinc-300" style={{ borderColor: dominantColor ? `${dominantColor}40` : 'rgba(255,255,255,0.2)' }}>
+                {formattedReleaseDate}
+              </span>
+            </a>
+          )}
+          
+          {/* Spacer to push tabs down */}
+          <div className={`h-${isInTheaters ? '2' : '8'}`} />
 
           {/* Tabs */}
           <div className="sticky top-16 z-40 w-[calc(100%+2rem)] -mx-4 sm:w-full sm:mx-0 mb-8 flex flex-col">

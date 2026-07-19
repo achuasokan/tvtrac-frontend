@@ -73,6 +73,7 @@ export default function DiscoverPage() {
   const [trendingCache, setTrendingCache] = useState<TmdbItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [genreImages, setGenreImages] = useState<Record<string, string>>({});
+  const [studioLogos, setStudioLogos] = useState<Record<string, string>>({});
   
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -220,12 +221,51 @@ export default function DiscoverPage() {
     "Kids", "Mystery", "News", "Reality", 
     "Sci-Fi & Fantasy", "Soap", "Talk", "War & Politics", "Western"
   ];
-  const studioNames = ["Marvel", "DC", "Disney", "Pixar", "A24", "HBO", "Universal", "WB", "Star Wars", "James Bond"];
-  const allCategories = [...genreNames, ...studioNames];
+  
+  const franchises = [
+    { name: "Marvel", id: 420 },
+    { name: "DC", id: 9993 },
+    { name: "Disney", id: 2 },
+    { name: "Pixar", id: 3 },
+    { name: "A24", id: 41077 },
+    { name: "HBO", id: 3268 },
+    { name: "Universal", id: 33 },
+    { name: "WB", id: 174 },
+    { name: "Star Wars", id: 1 },
+    { name: "James Bond", id: 7576 }
+  ];
+  const allCategories = [...genreNames, ...franchises.map(f => f.name)];
+  
+  const topStudios = [
+    // Big 6 first
+    { name: "Warner Bros. Pictures", id: 174 },
+    { name: "Walt Disney Pictures", id: 2 },
+    { name: "Universal Pictures", id: 33 },
+    { name: "Marvel Studios", id: 420 },
+    { name: "Sony Pictures", id: 34 },
+    { name: "Paramount Pictures", id: 4 },
+    // Prestige
+    { name: "A24", id: 41077 },
+    { name: "Columbia Pictures", id: 5 },
+    // Animation / Genre
+    { name: "Pixar", id: 3 },
+    { name: "Studio Ghibli", id: 10342 },
+    { name: "DreamWorks Pictures", id: 7 },
+    // Classics
+    { name: "Lucasfilm Ltd.", id: 1 },
+    { name: "20th Century Studios", id: 127928 },
+    { name: "New Line Cinema", id: 12 },
+    { name: "TriStar Pictures", id: 559 },
+    { name: "Castle Rock Entertainment", id: 97 },
+    { name: "Focus Features", id: 10146 },
+    { name: "Searchlight Pictures", id: 43 },
+  ];
   
   useEffect(() => {
     const fetchImages = async () => {
       const images: Record<string, string> = {};
+      const logos: Record<string, string> = {};
+      
       await Promise.all(
         allCategories.map(async (name) => {
           try {
@@ -238,6 +278,22 @@ export default function DiscoverPage() {
         })
       );
       setGenreImages(images);
+
+      // Fetch studio logos in parallel for instant loading (backed by backend caching)
+      await Promise.all(
+        topStudios.map(async (studio) => {
+          try {
+            const data = await tmdbService.getCompany(studio.id);
+            if (data && data.logo_path) {
+              setStudioLogos(prev => ({ ...prev, [studio.name]: `https://image.tmdb.org/t/p/w300${data.logo_path}` }));
+            } else {
+              setStudioLogos(prev => ({ ...prev, [studio.name]: 'error' }));
+            }
+          } catch (error) {
+            setStudioLogos(prev => ({ ...prev, [studio.name]: 'error' }));
+          }
+        })
+      );
     };
     fetchImages();
   }, []);
@@ -580,57 +636,118 @@ export default function DiscoverPage() {
                     </h3>
                   }
                 >
+                  <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
                   {genreNames.map(name => (
                     <button 
                       key={name}
                       onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
-                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow hover:shadow-xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-500"
+                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow transition-all duration-300 border border-zinc-800/80"
                     >
                       {genreImages[name] && (
                         <img 
                           src={genreImages[name]} 
                           alt={name}
-                          className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-500"
+                          className="absolute inset-0 w-full h-full object-cover opacity-60 transition-all duration-500"
                         />
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
-                      <span className="relative z-10 font-bold text-[13px] sm:text-sm tracking-wide text-zinc-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] group-hover:-translate-y-0.5 transition-transform duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-80 transition-opacity duration-300" />
+                      <span className="relative z-10 font-bold text-[13px] sm:text-sm tracking-wide text-zinc-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] transition-transform duration-300">
                         {name}
                       </span>
                     </button>
                   ))}
+                  </div>
                 </Carousel>
 
-                {/* Studios / Universes */}
+                {/* Franchises / Universes */}
                 <Carousel
                   title={
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                       </svg>
-                      Explore by Universe & Studio
+                      Explore by Universe & Franchise
                     </h3>
                   }
                 >
-                  {studioNames.map(name => (
+                  <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
+                  {franchises.map(franchise => (
                     <button 
-                      key={name}
-                      onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
-                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-400"
+                      key={franchise.name}
+                      onClick={() => router.push(`/discover/studio/${franchise.id}/${encodeURIComponent(franchise.name)}`)}
+                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg transition-all duration-300 border border-zinc-800/80"
                     >
-                      {genreImages[name] && (
+                      {genreImages[franchise.name] && (
                         <img 
-                          src={genreImages[name]} 
-                          alt={name}
-                          className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-105 transition-all duration-700"
+                          src={genreImages[franchise.name]} 
+                          alt={franchise.name}
+                          className="absolute inset-0 w-full h-full object-cover opacity-70 transition-all duration-700"
                         />
                       )}
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-300" />
-                      <span className="relative z-10 font-black text-[13px] sm:text-[15px] tracking-wide uppercase text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform duration-300">
-                        {name}
+                      <div className="absolute inset-0 bg-black/30 transition-colors duration-300" />
+                      <span className="relative z-10 font-black text-[13px] sm:text-[15px] tracking-wide uppercase text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] transition-transform duration-300">
+                        {franchise.name}
                       </span>
                     </button>
                   ))}
+                  </div>
+                </Carousel>
+
+                <Carousel
+                  title={
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                      </svg>
+                      Top Studios
+                    </h3>
+                  }
+                >
+                  <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
+                  {topStudios.map(studio => {
+                    const invertLogos = [
+                      "20th Century Studios",
+                      "A24", 
+                      "Castle Rock Entertainment", 
+                      "Columbia Pictures",
+                      "DreamWorks Pictures",
+                      "Focus Features", 
+                      "Lucasfilm Ltd.", 
+                      "New Line Cinema", 
+                      "Paramount Pictures",
+                      "Pixar", 
+                      "Searchlight Pictures",
+                      "Sony Pictures", 
+                      "Studio Ghibli",
+                      "TriStar Pictures",
+                      "Walt Disney Pictures"
+                    ];
+                    const shouldInvert = invertLogos.includes(studio.name);
+                    
+                    return (
+                      <button 
+                        key={studio.name}
+                        onClick={() => router.push(`/discover/studio/${studio.id}/${encodeURIComponent(studio.name)}`)}
+                        className="cursor-pointer flex-shrink-0 snap-start relative flex items-center justify-center w-32 sm:w-40 h-16 sm:h-20 rounded-xl bg-gradient-to-br from-zinc-800/80 to-zinc-950 border border-zinc-700/50 transition-all duration-500 shadow-xl overflow-hidden"
+                        aria-label={studio.name}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity duration-500" />
+                        
+                        {studioLogos[studio.name] === 'error' ? (
+                          <span className="font-bold text-xl text-zinc-500">{studio.name.charAt(0)}</span>
+                        ) : studioLogos[studio.name] ? (
+                          <img 
+                            src={studioLogos[studio.name]} 
+                            alt={studio.name}
+                            className={`relative z-10 w-[75%] h-[65%] object-contain drop-shadow-lg ${shouldInvert ? 'brightness-0 invert' : ''}`}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin opacity-50" />
+                        )}
+                      </button>
+                    );
+                  })}
+                  </div>
                 </Carousel>
 
               </div>
