@@ -223,16 +223,13 @@ export default function DiscoverPage() {
   ];
   
   const franchises = [
-    { name: "Marvel", id: 420 },
-    { name: "DC", id: 9993 },
-    { name: "Disney", id: 2 },
-    { name: "Pixar", id: 3 },
-    { name: "A24", id: 41077 },
-    { name: "HBO", id: 3268 },
-    { name: "Universal", id: 33 },
-    { name: "WB", id: 174 },
-    { name: "Star Wars", id: 1 },
-    { name: "James Bond", id: 7576 }
+    { name: "Marvel Cinematic Universe", id: 180547, type: "keyword" },
+    { name: "DC Extended Universe", id: 229266, type: "keyword" },
+    { name: "Star Wars", id: 1, type: "company" },
+    { name: "Harry Potter", id: 377309, type: "keyword" },
+    { name: "Middle-earth", id: 361757, type: "keyword" },
+    { name: "James Bond", id: 7576, type: "company" },
+    { name: "Star Trek", id: 327763, type: "keyword" }
   ];
   const allCategories = [...genreNames, ...franchises.map(f => f.name)];
   
@@ -267,12 +264,26 @@ export default function DiscoverPage() {
       const logos: Record<string, string> = {};
       
       await Promise.all(
-        allCategories.map(async (name) => {
+        genreNames.map(async (name) => {
           try {
             const data = await tmdbService.getGenreBackdrop(name);
             const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
             if (firstWithBackdrop) {
               images[name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
+            }
+          } catch {}
+        })
+      );
+
+      await Promise.all(
+        franchises.map(async (f) => {
+          try {
+            const data = f.type === 'keyword' 
+              ? await tmdbService.discoverByKeyword(f.id, "type=movie") 
+              : await tmdbService.discoverByCompany(f.id, "type=movie");
+            const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
+            if (firstWithBackdrop) {
+              images[f.name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
             }
           } catch {}
         })
@@ -674,7 +685,7 @@ export default function DiscoverPage() {
                   {franchises.map(franchise => (
                     <button 
                       key={franchise.name}
-                      onClick={() => router.push(`/discover/studio/${franchise.id}/${encodeURIComponent(franchise.name)}`)}
+                      onClick={() => router.push(`/discover/franchise/${franchise.type}/${franchise.id}/${encodeURIComponent(franchise.name)}`)}
                       className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg transition-all duration-300 border border-zinc-800/80"
                     >
                       {genreImages[franchise.name] && (

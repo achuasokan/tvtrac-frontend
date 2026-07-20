@@ -50,4 +50,9 @@ export const tmdbService = {
     const res = await api.get(`/tmdb/discover/company/${companyId}?${queryParams}`);
     return res.data;
   },
+
+  discoverByKeyword: async (keywordId: string | number, queryParams: string) => {
+    const res = await api.get(`/tmdb/discover/keyword/${keywordId}?${queryParams}`);
+    return res.data;
+  },
 };
