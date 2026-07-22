@@ -62,6 +62,11 @@ export default function ProfilePage() {
         return history.filter(h => h.mediaType === 'movie').map(item => ({ tmdbId: item.tmdbId, mediaType: item.mediaType, watchedAt: item.watchedAt }));
     }, [history]);
 
+    // Prevent flashing empty skeletons while logging out / transitioning
+    if (!user) {
+        return <div className="min-h-screen bg-[#0a0a0a]" />;
+    }
+
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white">
             <ProfileHeader />
