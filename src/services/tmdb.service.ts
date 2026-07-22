@@ -46,8 +46,18 @@ export const tmdbService = {
     return res.data;
   },
 
+  getCollection: async (id: string | number) => {
+    const res = await api.get(`/tmdb/collection/${id}`);
+    return res.data;
+  },
+
   discoverByCompany: async (companyId: string | number, queryParams: string) => {
     const res = await api.get(`/tmdb/discover/company/${companyId}?${queryParams}`);
+    return res.data;
+  },
+
+  getTitleDetails: async (mediaType: string, id: string | number) => {
+    const res = await api.get(`/tmdb/title/${mediaType}/${id}`);
     return res.data;
   },
 

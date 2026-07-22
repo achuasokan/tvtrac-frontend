@@ -223,13 +223,16 @@ export default function DiscoverPage() {
   ];
   
   const franchises = [
-    { name: "Marvel Cinematic Universe", id: 180547, type: "keyword" },
-    { name: "DC Extended Universe", id: 229266, type: "keyword" },
+    { name: "MCU", id: 420, type: "company" },
+    { name: "DCU", id: 229266, type: "keyword" },
     { name: "Star Wars", id: 1, type: "company" },
-    { name: "Harry Potter", id: 377309, type: "keyword" },
-    { name: "Middle-earth", id: 361757, type: "keyword" },
-    { name: "James Bond", id: 7576, type: "company" },
-    { name: "Star Trek", id: 327763, type: "keyword" }
+    { name: "Harry Potter", id: "1241,435259", type: "collection" },
+    { name: "The Lord of the Rings", id: "119,121938", type: "collection" },
+    { name: "James Bond", id: 645, type: "collection" },
+    { name: "The Conjuring Universe", id: "313086,402074,968052", type: "collection" },
+    { name: "Fast & Furious Saga", id: "9485", type: "collection" },
+    { name: "Transformers Saga", id: "8650,movie:424783,movie:667538,movie:698687", type: "collection" },
+    { name: "Saw Franchise", id: "656", type: "collection" }
   ];
   const allCategories = [...genreNames, ...franchises.map(f => f.name)];
   
@@ -278,12 +281,26 @@ export default function DiscoverPage() {
       await Promise.all(
         franchises.map(async (f) => {
           try {
-            const data = f.type === 'keyword' 
-              ? await tmdbService.discoverByKeyword(f.id, "type=movie") 
-              : await tmdbService.discoverByCompany(f.id, "type=movie");
-            const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
-            if (firstWithBackdrop) {
-              images[f.name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
+            let data;
+            if (f.type === 'collection') {
+              const ids = f.id.toString().split(",");
+              data = await tmdbService.getCollection(ids[0].trim());
+              if (data && data.backdrop_path) {
+                images[f.name] = `https://image.tmdb.org/t/p/w780${data.backdrop_path}`;
+              } else if (data && data.parts && data.parts.length > 0) {
+                const firstWithBackdrop = data.parts.find((item: any) => item.backdrop_path);
+                if (firstWithBackdrop) {
+                  images[f.name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
+                }
+              }
+            } else {
+              data = f.type === 'keyword' 
+                ? await tmdbService.discoverByKeyword(f.id, "type=movie") 
+                : await tmdbService.discoverByCompany(f.id, "type=movie");
+              const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
+              if (firstWithBackdrop) {
+                images[f.name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
+              }
             }
           } catch {}
         })
