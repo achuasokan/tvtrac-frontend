@@ -67,13 +67,13 @@ function TimeDisplay({ totalMinutes, animate }: { totalMinutes: number; animate:
     if (units.length === 0) units.push({ value: 0, label: 'Mins', anim: 0 });
 
     return (
-        <div className="flex items-center justify-center gap-1.5 xs:gap-2 sm:gap-4 lg:gap-6">
+        <div className="flex items-center justify-center gap-1 sm:gap-3 md:gap-4 lg:gap-5">
             {units.map((u, i) => (
                 <div key={i} className="flex flex-col items-center group cursor-default">
-                    <span className="text-lg xs:text-xl sm:text-2xl md:text-3xl lg:text-4xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                    <span className="text-xl sm:text-3xl lg:text-4xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
                         {animate ? u.anim : u.value}
                     </span>
-                    <span className="text-[5px] xs:text-[6px] sm:text-[8px] md:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 group-hover:text-zinc-300 transition-colors duration-300">
+                    <span className="text-[6px] sm:text-[9px] md:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-1.5 group-hover:text-zinc-300 transition-colors duration-300">
                         {u.label}
                     </span>
                 </div>
@@ -94,10 +94,10 @@ function StatCard({
     animate: boolean;
 }) {
     return (
-        <div className="flex flex-col items-center justify-center gap-2 sm:gap-4 flex-1 min-w-0 p-1 sm:p-2 group">
-            <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-500">
-                <div className="opacity-70 w-3 h-3 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform duration-500 hidden xs:block">{icon}</div>
-                <span className="text-[6px] xs:text-[7px] sm:text-[8px] md:text-[10px] font-medium tracking-[0.2em] uppercase line-clamp-1 text-center">
+        <div className="flex flex-col items-center justify-center gap-1.5 sm:gap-4 w-full p-0 sm:p-2 group">
+            <div className="flex items-center justify-center gap-1 sm:gap-2 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-500">
+                <div className="opacity-70 w-3 h-3 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform duration-500">{icon}</div>
+                <span className="text-[7px] sm:text-[10px] font-medium tracking-[0.2em] uppercase line-clamp-1 text-center">
                     {label}
                 </span>
             </div>
@@ -109,11 +109,11 @@ function StatCard({
 // Skeleton loader card
 function SkeletonCard() {
     return (
-        <div className="flex flex-col items-center gap-1 sm:gap-2 flex-1 animate-pulse">
-            <div className="h-2 w-12 sm:w-20 bg-zinc-800/50 rounded" />
-            <div className="flex gap-1 sm:gap-2 mt-1">
-                <div className="h-4 sm:h-8 w-6 sm:w-12 bg-zinc-800/50 rounded" />
-                <div className="h-4 sm:h-8 w-6 sm:w-12 bg-zinc-800/50 rounded" />
+        <div className="flex flex-col items-center gap-2 flex-1 animate-pulse w-full">
+            <div className="h-3 w-16 sm:w-24 bg-zinc-800/50 rounded" />
+            <div className="flex gap-2 mt-2">
+                <div className="h-6 sm:h-10 w-8 sm:w-16 bg-zinc-800/50 rounded" />
+                <div className="h-6 sm:h-10 w-8 sm:w-16 bg-zinc-800/50 rounded" />
             </div>
         </div>
     );
@@ -177,17 +177,14 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
             <h2 className="text-lg font-bold text-white mb-4 tracking-wide">Stats</h2>
 
             {isLoading ? (
-                <div className="flex w-full justify-between items-center py-2 sm:py-6 mb-8">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-6 sm:gap-y-8 gap-x-4 w-full py-4 sm:py-6 mb-6 sm:mb-8">
                     <SkeletonCard />
-                    <div className="w-[1px] h-8 sm:h-12 bg-white/5" />
                     <SkeletonCard />
-                    <div className="w-[1px] h-8 sm:h-12 bg-white/5" />
                     <SkeletonCard />
-                    <div className="w-[1px] h-8 sm:h-12 bg-white/5" />
                     <SkeletonCard />
                 </div>
             ) : !stats ? null : (
-                <div className="flex w-full justify-between items-center py-2 sm:py-6 animate-in fade-in slide-in-from-bottom-2 duration-500 mb-8 sm:mb-12">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-y-8 sm:gap-y-10 gap-x-2 w-full py-4 sm:py-6 animate-in fade-in slide-in-from-bottom-2 duration-500 mb-8 sm:mb-12 lg:divide-x lg:divide-white/10">
                     {/* TV Time */}
                     <StatCard icon={tvIcon} label="TV Time" animate={animate}>
                         {stats.totalEpisodeMinutes === 0 ? (
@@ -197,23 +194,19 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
                         )}
                     </StatCard>
 
-                    <div className="w-[1px] h-8 sm:h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent shrink-0" />
-
                     {/* Episodes Watched */}
                     <StatCard icon={episodeIcon} label="Episodes" animate={animate}>
                         <div className="flex flex-col items-center group cursor-default">
-                            <span className="text-xl xs:text-2xl sm:text-4xl md:text-5xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                            <span className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
                                 {animate
                                     ? animEpisodes.toLocaleString()
                                     : stats.totalEpisodes.toLocaleString()}
                             </span>
-                            <span className="text-[6px] xs:text-[7px] sm:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-2 group-hover:text-zinc-300 transition-colors duration-300">
+                            <span className="text-[7px] sm:text-[9px] md:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-2 group-hover:text-zinc-300 transition-colors duration-300">
                                 Watched
                             </span>
                         </div>
                     </StatCard>
-
-                    <div className="w-[1px] h-8 sm:h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent shrink-0" />
 
                     {/* Movie Time */}
                     <StatCard icon={movieIcon} label="Movie Time" animate={animate}>
@@ -224,17 +217,15 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
                         )}
                     </StatCard>
 
-                    <div className="w-[1px] h-8 sm:h-16 bg-gradient-to-b from-transparent via-white/10 to-transparent shrink-0" />
-
                     {/* Movies Watched */}
                     <StatCard icon={moviesCountIcon} label="Movies" animate={animate}>
                         <div className="flex flex-col items-center group cursor-default">
-                            <span className="text-xl xs:text-2xl sm:text-4xl md:text-5xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                            <span className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
                                 {animate
                                     ? animMovies.toLocaleString()
                                     : stats.totalMovies.toLocaleString()}
                             </span>
-                            <span className="text-[6px] xs:text-[7px] sm:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-2 group-hover:text-zinc-300 transition-colors duration-300">
+                            <span className="text-[7px] sm:text-[9px] md:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-2 group-hover:text-zinc-300 transition-colors duration-300">
                                 Watched
                             </span>
                         </div>
