@@ -89,7 +89,7 @@ main.sphere-main {
   display: block;
   inset: 10px;
   border-radius: var(--tile-radius, 12px);
-  background: transparent;
+  background: rgba(255, 255, 255, 0.05);
   overflow: hidden;
   backface-visibility: hidden;
   transition: transform 300ms;

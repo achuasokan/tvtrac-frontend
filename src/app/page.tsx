@@ -3,34 +3,48 @@ import DomeGallery from "@/components/ui/DomeGallery";
 
 export const dynamic = 'force-dynamic';
 
-// Fetch live poster data from TVMaze API (Public API, no key required)
+// Fetch highly optimized trending posters from TMDB (Movies and Shows)
 async function getPosters() {
   try {
-    const res = await fetch("https://api.tvmaze.com/shows", {
-      next: { revalidate: 86400 } // Cache for 24 hours
-    });
+    const TMDB_API_KEY = process.env.TMDB_API_KEY;
     
-    if (!res.ok) {
-      throw new Error("Failed to fetch posters");
+    if (!TMDB_API_KEY) {
+      console.warn("Missing TMDB_API_KEY in environment variables");
+      return [];
+    }
+    
+    // Fetch both trending movies and TV shows
+    const [moviesRes, showsRes] = await Promise.all([
+      fetch(`https://api.themoviedb.org/3/trending/movie/day?api_key=${TMDB_API_KEY}`, {
+        next: { revalidate: 86400 } // Cache for 24 hours
+      }),
+      fetch(`https://api.themoviedb.org/3/trending/tv/day?api_key=${TMDB_API_KEY}`, {
+        next: { revalidate: 86400 }
+      })
+    ]);
+    
+    if (!moviesRes.ok || !showsRes.ok) {
+      throw new Error("Failed to fetch TMDB posters");
     }
 
-    const shows = await res.json();
+    const movies = await moviesRes.json();
+    const shows = await showsRes.json();
     
-    
-    const allPosters = shows
-      .map((show: any) => show.image?.original || show.image?.medium)
-      .filter(Boolean);
+    // Combine, extract optimized 'w500' URLs, and filter out missing ones
+    const allPosters = [...(movies.results || []), ...(shows.results || [])]
+      .map((item: any) => item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null)
+      .filter((url): url is string => url !== null);
 
-    
+    // Randomize the array perfectly
     for (let i = allPosters.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [allPosters[i], allPosters[j]] = [allPosters[j], allPosters[i]];
     }
 
-    
+    // Take exactly what we need for the globe
     return allPosters.slice(0, 35);
   } catch (error) {
-    console.error("Error fetching TVMaze posters:", error);
+    console.error("Error fetching TMDB posters:", error);
     return [];
   }
 }

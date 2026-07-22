@@ -2,10 +2,11 @@
 
 import React, { useRef, useState } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store';
-import { setUser } from '@/store/slices/authSlice';
+import { setUser, logoutUser } from '@/store/slices/authSlice';
 import { profileService } from '../api/profile.service';
 import { ImageCropModal } from '@/components/ui/ImageCropModal';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export const ProfileHeader = () => {
     const { user } = useAppSelector(state => state.auth);
@@ -15,6 +16,9 @@ export const ProfileHeader = () => {
     const [isUploadingCover, setIsUploadingCover] = useState(false);
     const [isCoverMenuOpen, setIsCoverMenuOpen] = useState(false);
     const [isEditMode, setIsEditMode] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const router = useRouter();
 
     // Optimistic preview: show local image immediately before Cloudinary upload finishes
     const [optimisticAvatar, setOptimisticAvatar] = useState<string | null>(null);
@@ -172,8 +176,80 @@ export const ProfileHeader = () => {
             setIsSavingUsername(false);
         }
     };
-
     return (
+        <>
+            {/* ── Logout Confirmation Modal ── */}
+            {showLogoutConfirm && (
+                <div
+                    className="fixed inset-0 z-[999] flex items-center justify-center p-4 sm:p-6"
+                    style={{ animation: 'tvtrac-fadeIn 0.3s ease forwards' }}
+                >
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-[#020617]/80 backdrop-blur-md transition-opacity"
+                        onClick={() => !isLoggingOut && setShowLogoutConfirm(false)}
+                    />
+                    {/* Dialog */}
+                    <div
+                        className="glass-panel relative z-10 w-full max-w-sm mx-auto rounded-3xl overflow-hidden flex flex-col items-center p-8 text-center"
+                        style={{ animation: 'tvtrac-slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+                    >
+                        {/* Glow effect behind icon */}
+                        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-32 bg-red-500/20 blur-[50px] rounded-full pointer-events-none" />
+
+                        {/* Icon */}
+                        <div className="relative w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6 shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+                            <svg className="w-8 h-8 text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.5)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                        </div>
+
+                        {/* Text */}
+                        <h2 className="text-xl font-semibold text-slate-50 mb-3 tracking-tight">Sign out of TVTrac?</h2>
+                        <p className="text-sm text-slate-400 mb-8 leading-relaxed max-w-[260px]">
+                            You will be securely signed out. Your favorites and watch history are safely stored.
+                        </p>
+
+                        {/* Actions */}
+                        <div className="flex flex-col w-full gap-3">
+                            <button
+                                onClick={async () => {
+                                    setIsLoggingOut(true);
+                                    await dispatch(logoutUser());
+                                    setIsLoggingOut(false);
+                                    setShowLogoutConfirm(false);
+                                    router.push('/');
+                                }}
+                                disabled={isLoggingOut}
+                                className="w-full py-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/30 text-[15px] font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {isLoggingOut ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                                        Signing out...
+                                    </>
+                                ) : (
+                                    'Yes, sign out'
+                                )}
+                            </button>
+                            <button
+                                onClick={() => setShowLogoutConfirm(false)}
+                                disabled={isLoggingOut}
+                                className="w-full py-3.5 rounded-2xl bg-slate-800/40 hover:bg-slate-800/60 text-slate-300 text-[15px] font-medium transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+
+                        {/* CSS keyframes injected inline */}
+                        <style>{`
+                            @keyframes tvtrac-fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+                            @keyframes tvtrac-slideUp { from { opacity: 0; transform: translateY(20px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+                        `}</style>
+                    </div>
+                </div>
+            )}
+
         <div className="w-full relative min-h-[160px] sm:min-h-[300px] md:min-h-[450px] lg:min-h-[600px] flex flex-col justify-end pb-6 md:pb-8">
             {cropImageSrc && cropType && (
                 <ImageCropModal
@@ -233,7 +309,7 @@ export const ProfileHeader = () => {
                 {/* Global Click-Away for Edit Mode */}
                 {(isEditMode || isCoverMenuOpen) && (
                     <div 
-                        className="fixed inset-0 z-20" 
+                        className="fixed inset-0 z-20 cursor-pointer" 
                         onClick={() => {
                             setIsEditMode(false);
                             setIsCoverMenuOpen(false);
@@ -242,10 +318,11 @@ export const ProfileHeader = () => {
                 )}
 
                 {/* Cover Photo Top Right Actions */}
-                <div className="absolute top-4 right-4 z-30 flex flex-col items-end gap-2">
+                <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">
                     {/* 3-Dot Toggle Button */}
                     <button 
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             if (isEditMode) {
                                 setIsEditMode(false);
                             } else {
@@ -261,9 +338,18 @@ export const ProfileHeader = () => {
 
                     {/* Edit Option Dropdown */}
                     {isCoverMenuOpen && !isEditMode && (
-                        <div className="w-40 bg-[#111] border border-zinc-800 rounded-xl shadow-xl overflow-hidden flex flex-col py-1 animate-in fade-in slide-in-from-top-2 z-40">
+                        <div className="w-48 bg-[#111] border border-zinc-800 rounded-xl shadow-xl overflow-hidden flex flex-col py-1 animate-in fade-in slide-in-from-top-2 z-40">
                             <button 
-                                onClick={() => {
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsCoverMenuOpen(false);
+                                    setIsEditMode(true);
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     setIsCoverMenuOpen(false);
                                     setIsEditMode(true);
                                 }}
@@ -273,6 +359,28 @@ export const ProfileHeader = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                 </svg>
                                 Edit Profile
+                            </button>
+                            <div className="h-px bg-zinc-800 mx-3" />
+                            <button 
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsCoverMenuOpen(false);
+                                    setShowLogoutConfirm(true);
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsCoverMenuOpen(false);
+                                    setShowLogoutConfirm(true);
+                                }}
+                                className="px-4 py-3 text-sm text-left hover:bg-red-950/40 transition-colors flex items-center gap-3 text-red-400 hover:text-red-300"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                Logout
                             </button>
                         </div>
                     )}
@@ -477,5 +585,6 @@ export const ProfileHeader = () => {
                 </div>
             </div>
         </div>
+        </>
     );
 };
