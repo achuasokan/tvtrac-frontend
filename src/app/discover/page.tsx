@@ -232,7 +232,8 @@ export default function DiscoverPage() {
     { name: "The Conjuring Universe", id: "313086,402074,968052", type: "collection" },
     { name: "Fast & Furious Saga", id: "9485", type: "collection" },
     { name: "Transformers Saga", id: "8650,movie:424783,movie:667538,movie:698687", type: "collection" },
-    { name: "Saw Franchise", id: "656", type: "collection" }
+    { name: "Saw Franchise", id: "656", type: "collection" },
+    { name: "X-Men Universe", id: "748,453993,448150,movie:340102", type: "collection" }
   ];
   const allCategories = [...genreNames, ...franchises.map(f => f.name)];
   
