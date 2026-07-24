@@ -2,19 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api';
-import { CarouselItem } from './MediaCarousel';
-
-interface TmdbItem {
-  id: number;
-  title?: string;
-  name?: string;
-  poster_path: string | null;
-  media_type: "movie" | "tv";
-  vote_average?: number;
-  release_date?: string;
-  first_air_date?: string;
-}
+import { motion } from 'framer-motion';
+import { CarouselItem, TmdbItem, fetchProfileMediaBatch } from './MediaCarousel';
 
 interface MediaGridProps {
   items: CarouselItem[];
@@ -26,12 +15,10 @@ export function MediaGrid({ items, emptyMessage = "No items to display" }: Media
   const [results, setResults] = useState<TmdbItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const cacheRef = React.useRef<Map<string, TmdbItem>>(new Map());
-
   useEffect(() => {
     let isMounted = true;
     
-    const fetchItems = async () => {
+    const loadItems = async () => {
       if (!items || items.length === 0) {
         if (isMounted) {
             setResults([]);
@@ -41,27 +28,9 @@ export function MediaGrid({ items, emptyMessage = "No items to display" }: Media
       }
       
       try {
-        if (isMounted && cacheRef.current.size === 0) setIsLoading(true);
-        
-        const fetchedItems = await Promise.all(
-          items.map(async (item) => {
-            const cacheKey = `${item.mediaType}-${item.tmdbId}`;
-            if (cacheRef.current.has(cacheKey)) {
-                return cacheRef.current.get(cacheKey)!;
-            }
-            try {
-              const res = await api.get(`/tmdb/title/${item.mediaType}/${item.tmdbId}`);
-              const data = { ...res.data, media_type: item.mediaType } as TmdbItem;
-              cacheRef.current.set(cacheKey, data);
-              return data;
-            } catch (err) {
-              return null;
-            }
-          })
-        );
-        
+        const data = await fetchProfileMediaBatch(items);
         if (isMounted) {
-          setResults(fetchedItems.filter(Boolean) as TmdbItem[]);
+          setResults(data);
           setIsLoading(false);
         }
       } catch (error) {
@@ -69,7 +38,7 @@ export function MediaGrid({ items, emptyMessage = "No items to display" }: Media
       }
     };
     
-    fetchItems();
+    loadItems();
     return () => { isMounted = false; };
   }, [items]);
 
@@ -86,19 +55,30 @@ export function MediaGrid({ items, emptyMessage = "No items to display" }: Media
       {isLoading ? (
           [...Array(10)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2 animate-pulse w-full">
-                <div className="relative aspect-[2/3] w-full rounded-xl bg-zinc-800 shadow-lg" />
+                <div className="relative aspect-[2/3] w-full rounded-xl bg-zinc-800/80 border border-zinc-800/60 shadow-lg" />
               </div>
             ))
       ) : (
-          results.map(item => (
-              <div key={item.id} className="group cursor-pointer flex flex-col gap-2 w-full" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+          results.map((item, idx) => (
+              <motion.div 
+                  key={item.id} 
+                  initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{
+                    duration: 0.3,
+                    delay: Math.min((idx % 12) * 0.03, 0.3),
+                    ease: [0.21, 0.47, 0.32, 0.98]
+                  }}
+                  className="group cursor-pointer flex flex-col gap-2 w-full" 
+                  onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}
+              >
                   {/* Poster */}
                   <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
                       {item.poster_path ? (
                           <img
                               src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
                               alt={item.title || item.name}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover animate-in fade-in duration-300"
                           />
                       ) : (
                           <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-800 text-xs">No Image</div>
@@ -119,7 +99,7 @@ export function MediaGrid({ items, emptyMessage = "No items to display" }: Media
                       {/* Hover Overlay */}
                       <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                   </div>
-              </div>
+              </motion.div>
           ))
       )}
     </div>

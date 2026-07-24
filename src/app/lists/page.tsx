@@ -9,6 +9,10 @@ import { CreateListModal } from "@/features/lists/components/CreateListModal";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 
+import { FEATURED_LISTS } from "@/features/lists/data/curatedLists";
+import { CuratedListCard } from "@/features/lists/components/CuratedListCard";
+import { motion } from "framer-motion";
+
 export default function ListsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const { lists, isLoading } = useSelector((state: RootState) => state.lists);
@@ -33,10 +37,37 @@ export default function ListsPage() {
 
   return (
     <div className="min-h-screen bg-black pb-24">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-white">My Lists</h1>
-          {!isLoading && lists.length > 0 && (
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-12">
+        
+        {/* Featured Lists Section */}
+        <section>
+          <div className="mb-6">
+            <h2 className="text-2xl font-black text-white tracking-tight">Featured Lists</h2>
+            <p className="text-zinc-400 text-xs sm:text-sm">Curated collections by tvtrac</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {FEATURED_LISTS.map((curatedList, idx) => (
+              <motion.div
+                key={curatedList.id}
+                initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{
+                  duration: 0.35,
+                  delay: idx * 0.05,
+                  ease: [0.21, 0.47, 0.32, 0.98]
+                }}
+              >
+                <CuratedListCard curatedList={curatedList} />
+              </motion.div>
+            ))}
+          </div>
+        </section>
+
+        {/* My Lists Section */}
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-white">My Lists</h2>
             <button
               onClick={() => setIsCreateModalOpen(true)}
               className="cursor-pointer flex items-center gap-1.5 bg-white text-black px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-zinc-200 transition-colors"
@@ -46,8 +77,7 @@ export default function ListsPage() {
               </svg>
               New List
             </button>
-          )}
-        </div>
+          </div>
 
         {isLoading && lists.length === 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -57,16 +87,26 @@ export default function ListsPage() {
           </div>
         ) : lists.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {lists.map((list) => (
-              <ListCard 
-                key={list.id} 
-                list={list} 
-                onDelete={handleDelete} 
-                onEdit={(listToEdit) => {
-                  setListToEdit(listToEdit);
-                  setIsCreateModalOpen(true);
-                }} 
-              />
+            {lists.map((list, idx) => (
+              <motion.div
+                key={list.id}
+                initial={{ opacity: 0, y: 16, scale: 0.97 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{
+                  duration: 0.35,
+                  delay: idx * 0.05,
+                  ease: [0.21, 0.47, 0.32, 0.98]
+                }}
+              >
+                <ListCard 
+                  list={list} 
+                  onDelete={handleDelete} 
+                  onEdit={(listToEdit) => {
+                    setListToEdit(listToEdit);
+                    setIsCreateModalOpen(true);
+                  }} 
+                />
+              </motion.div>
             ))}
           </div>
         ) : (
@@ -86,6 +126,7 @@ export default function ListsPage() {
             </button>
           </div>
         )}
+        </section>
       </div>
 
       <CreateListModal 

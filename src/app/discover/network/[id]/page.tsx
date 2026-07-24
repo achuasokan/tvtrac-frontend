@@ -8,6 +8,10 @@ import { tmdbService } from "@/services/tmdb.service";
 import { profileService } from "@/features/profile/api/profile.service";
 import { setUser } from "@/store/slices/authSlice";
 import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
+import { motion } from "framer-motion";
+
+// Global cache for network/platform discovery results
+const networkResultsCache = new Map<string, TmdbItem[]>();
 
 interface TmdbItem {
   id: number;
@@ -134,13 +138,24 @@ export default function DiscoverNetworkPage() {
     }
   };
 
-  const renderItemCard = (item: TmdbItem) => (
-    <div key={item.id} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+  const renderItemCard = (item: TmdbItem, idx: number = 0) => (
+    <motion.div 
+      key={item.id} 
+      initial={{ opacity: 0, y: 18, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.35,
+        delay: Math.min((idx % 12) * 0.03, 0.35),
+        ease: [0.21, 0.47, 0.32, 0.98]
+      }}
+      className="group cursor-pointer flex flex-col gap-2" 
+      onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}
+    >
       <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
         <img 
           src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} 
           alt={item.title || item.name} 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover animate-in fade-in duration-300"
         />
         {item.vote_average ? (
           <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
@@ -200,7 +215,7 @@ export default function DiscoverNetworkPage() {
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   if (isAuthLoading || !user) {
@@ -295,7 +310,7 @@ export default function DiscoverNetworkPage() {
           <div className="flex flex-col gap-10">
             <InfiniteScroll hasMore={hasMore} isLoading={loadingMore} onLoadMore={handleLoadMore}>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
-                {results.map(renderItemCard)}
+                {results.map((item, idx) => renderItemCard(item, idx))}
               </div>
             </InfiniteScroll>
           </div>

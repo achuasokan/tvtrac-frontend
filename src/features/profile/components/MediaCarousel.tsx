@@ -3,15 +3,15 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { motion } from 'framer-motion';
 
 export interface CarouselItem {
   tmdbId: string;
   mediaType: 'movie' | 'tv';
-  // Optional extra data for history
   watchedAt?: string;
 }
 
-interface TmdbItem {
+export interface TmdbItem {
   id: number;
   title?: string;
   name?: string;
@@ -20,6 +20,49 @@ interface TmdbItem {
   vote_average?: number;
   release_date?: string;
   first_air_date?: string;
+}
+
+// Global in-memory cache for profile media details
+export const globalProfileTmdbCache = new Map<string, TmdbItem>();
+
+export async function fetchProfileMediaBatch(items: CarouselItem[]): Promise<TmdbItem[]> {
+  if (!items || items.length === 0) return [];
+
+  const cachedItems: TmdbItem[] = [];
+  const missingItems: { tmdbId: string; mediaType: 'movie' | 'tv' }[] = [];
+
+  items.forEach((item) => {
+    const cacheKey = `${item.mediaType}-${item.tmdbId}`;
+    if (globalProfileTmdbCache.has(cacheKey)) {
+      cachedItems.push(globalProfileTmdbCache.get(cacheKey)!);
+    } else {
+      missingItems.push({ tmdbId: String(item.tmdbId), mediaType: item.mediaType });
+    }
+  });
+
+  if (missingItems.length > 0) {
+    try {
+      const res = await api.post("/tmdb/batch", { items: missingItems });
+      if (res.data) {
+        Object.entries(res.data).forEach(([key, val]) => {
+          if (val) {
+            const mediaType = key.startsWith("tv") ? "tv" : "movie";
+            const formatted = { ...(val as any), media_type: mediaType } as TmdbItem;
+            globalProfileTmdbCache.set(key, formatted);
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Profile batch fetch error:", err);
+    }
+  }
+
+  return items
+    .map((item) => {
+      const cacheKey = `${item.mediaType}-${item.tmdbId}`;
+      return globalProfileTmdbCache.get(cacheKey) || null;
+    })
+    .filter(Boolean) as TmdbItem[];
 }
 
 interface MediaCarouselProps {
@@ -39,27 +82,16 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
   useEffect(() => {
     let isMounted = true;
     
-    const fetchItems = async () => {
+    const loadItems = async () => {
       if (!items || items.length === 0) {
         if (isMounted) setIsLoading(false);
         return;
       }
       
       try {
-        setIsLoading(true);
-        const fetchedItems = await Promise.all(
-          items.map(async (item) => {
-            try {
-              const res = await api.get(`/tmdb/title/${item.mediaType}/${item.tmdbId}`);
-              return { ...res.data, media_type: item.mediaType } as TmdbItem;
-            } catch (err) {
-              return null;
-            }
-          })
-        );
-        
+        const data = await fetchProfileMediaBatch(items);
         if (isMounted) {
-          setResults(fetchedItems.filter(Boolean) as TmdbItem[]);
+          setResults(data);
           setIsLoading(false);
         }
       } catch (error) {
@@ -67,7 +99,7 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
       }
     };
     
-    fetchItems();
+    loadItems();
     return () => { isMounted = false; };
   }, [items]);
   
@@ -77,7 +109,6 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
         setCanScroll(scrollRef.current.scrollWidth > scrollRef.current.clientWidth);
       }
     };
-    // Check after a tiny delay to ensure DOM is updated with new items
     const timeout = setTimeout(checkScroll, 100);
     window.addEventListener('resize', checkScroll);
     return () => {
@@ -118,7 +149,7 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
             {viewAllLink && (
                 <button 
                     onClick={() => router.push(viewAllLink)}
-                    className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors mb-1"
+                    className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors mb-1 cursor-pointer"
                 >
                     View All &rsaquo;
                 </button>
@@ -143,19 +174,30 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
         {isLoading ? (
             [...Array(6)].map((_, i) => (
                 <div key={i} className="flex flex-col gap-2 animate-pulse w-[110px] sm:w-[130px] md:w-[150px] lg:w-[160px] shrink-0 snap-start">
-                  <div className="relative aspect-[2/3] w-full rounded-xl bg-zinc-800 shadow-lg" />
+                  <div className="relative aspect-[2/3] w-full rounded-xl bg-zinc-800/80 border border-zinc-800/60 shadow-lg" />
                 </div>
               ))
         ) : (
-            results.map(item => (
-                <div key={item.id} className="group/card cursor-pointer flex flex-col gap-2 w-[110px] sm:w-[130px] md:w-[150px] lg:w-[160px] shrink-0 snap-start" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+            results.map((item, idx) => (
+                <motion.div 
+                    key={item.id} 
+                    initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      duration: 0.3,
+                      delay: Math.min(idx * 0.03, 0.3),
+                      ease: [0.21, 0.47, 0.32, 0.98]
+                    }}
+                    className="group/card cursor-pointer flex flex-col gap-2 w-[110px] sm:w-[130px] md:w-[150px] lg:w-[160px] shrink-0 snap-start" 
+                    onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}
+                >
                     {/* Poster */}
                     <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover/card:scale-105 group-hover/card:shadow-2xl transition-all duration-300">
                         {item.poster_path ? (
                             <img
                                 src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
                                 alt={item.title || item.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover animate-in fade-in duration-300"
                             />
                         ) : (
                             <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-800 text-xs">No Image</div>
@@ -176,7 +218,7 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
                         {/* Hover Overlay */}
                         <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover/card:opacity-100 transition-opacity duration-300 pointer-events-none" />
                     </div>
-                </div>
+                </motion.div>
             ))
         )}
       </div>

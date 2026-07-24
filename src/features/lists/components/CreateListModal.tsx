@@ -73,10 +73,19 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
         onClick={(e) => e.stopPropagation()}
       >
         {/* Glass card */}
-        <div className="bg-zinc-950/90 border border-white/10 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden">
-          {/* Accent top bar removed */}
+        <div className="relative bg-zinc-950/90 border border-white/10 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden">
+          {/* Sci-Fi Fading Border Glow */}
+          <div 
+            className="absolute inset-0 z-0 pointer-events-none rounded-3xl border-[1.5px] border-transparent"
+            style={{
+              background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
+              WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'destination-out',
+              maskComposite: 'exclude'
+            }}
+          />
 
-          <div className="p-6">
+          <div className="relative z-10 p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div>

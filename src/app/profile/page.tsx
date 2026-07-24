@@ -8,19 +8,25 @@ import { useAppSelector } from '@/store';
 import { profileService } from '@/features/profile/api/profile.service';
 import { WatchHistoryItem, ProfileStats } from '@/features/profile/types';
 
+// Global module-level caches for instant 0ms back-navigation
+let globalHistoryCache: WatchHistoryItem[] | null = null;
+let globalStatsCache: ProfileStats | null = null;
+
 export default function ProfilePage() {
     const { user } = useAppSelector(state => state.auth);
-    const [history, setHistory] = useState<WatchHistoryItem[]>([]);
-    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-    const [stats, setStats] = useState<ProfileStats | null>(null);
-    const [isLoadingStats, setIsLoadingStats] = useState(true);
+    const [history, setHistory] = useState<WatchHistoryItem[]>(() => globalHistoryCache || []);
+    const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(() => !globalHistoryCache);
+    const [stats, setStats] = useState<ProfileStats | null>(() => globalStatsCache);
+    const [isLoadingStats, setIsLoadingStats] = useState<boolean>(() => !globalStatsCache);
 
     useEffect(() => {
         const fetchHistory = async () => {
             try {
-                setIsLoadingHistory(true);
+                if (!globalHistoryCache) setIsLoadingHistory(true);
                 const data = await profileService.getWatchHistory();
-                setHistory(data?.items || []);
+                const items = data?.items || [];
+                globalHistoryCache = items;
+                setHistory(items);
             } catch (err) {
                 console.error('Failed to load watch history', err);
             } finally {
@@ -30,8 +36,9 @@ export default function ProfilePage() {
 
         const fetchStats = async () => {
             try {
-                setIsLoadingStats(true);
+                if (!globalStatsCache) setIsLoadingStats(true);
                 const data = await profileService.getStats();
+                globalStatsCache = data;
                 setStats(data);
             } catch (err) {
                 console.error('Failed to load stats', err);
@@ -47,19 +54,19 @@ export default function ProfilePage() {
     }, [user]);
 
     const favoriteShows = useMemo(() => {
-        return (user?.favoriteShows || []).map(id => ({ tmdbId: id, mediaType: 'tv' as const }));
-    }, [user]);
+        return (user?.favoriteShows || []).map(id => ({ tmdbId: String(id), mediaType: 'tv' as const }));
+    }, [user?.favoriteShows]);
 
     const favoriteMovies = useMemo(() => {
-        return (user?.favoriteMovies || []).map(id => ({ tmdbId: id, mediaType: 'movie' as const }));
-    }, [user]);
+        return (user?.favoriteMovies || []).map(id => ({ tmdbId: String(id), mediaType: 'movie' as const }));
+    }, [user?.favoriteMovies]);
 
     const historyShows = useMemo(() => {
-        return history.filter(h => h.mediaType === 'tv').map(item => ({ tmdbId: item.tmdbId, mediaType: item.mediaType, watchedAt: item.watchedAt }));
+        return history.filter(h => h.mediaType === 'tv').map(item => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
     }, [history]);
 
     const historyMovies = useMemo(() => {
-        return history.filter(h => h.mediaType === 'movie').map(item => ({ tmdbId: item.tmdbId, mediaType: item.mediaType, watchedAt: item.watchedAt }));
+        return history.filter(h => h.mediaType === 'movie').map(item => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
     }, [history]);
 
     // Prevent flashing empty skeletons while logging out / transitioning

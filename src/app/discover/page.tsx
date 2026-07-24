@@ -7,6 +7,12 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { profileService } from "@/features/profile/api/profile.service";
 import { setUser } from "@/store/slices/authSlice";
 import { tmdbService } from "@/services/tmdb.service";
+import { motion } from "framer-motion";
+
+// Global module-level caches to make Discover page load in 0ms when navigating back
+let globalTrendingCache: TmdbItem[] = [];
+const globalGenreImagesCache: Record<string, string> = {};
+const globalStudioLogosCache: Record<string, string> = {};
 
 interface TmdbItem {
   id: number;
@@ -69,11 +75,11 @@ export default function DiscoverPage() {
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
   const [inputValue, setInputValue] = useState(urlQuery);
-  const [results, setResults] = useState<TmdbItem[]>([]);
-  const [trendingCache, setTrendingCache] = useState<TmdbItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [genreImages, setGenreImages] = useState<Record<string, string>>({});
-  const [studioLogos, setStudioLogos] = useState<Record<string, string>>({});
+  const [results, setResults] = useState<TmdbItem[]>(() => !urlQuery.trim() ? globalTrendingCache : []);
+  const [trendingCache, setTrendingCache] = useState<TmdbItem[]>(() => globalTrendingCache);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !urlQuery.trim() && globalTrendingCache.length === 0);
+  const [genreImages, setGenreImages] = useState<Record<string, string>>(() => globalGenreImagesCache);
+  const [studioLogos, setStudioLogos] = useState<Record<string, string>>(() => globalStudioLogosCache);
   
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -163,15 +169,16 @@ export default function DiscoverPage() {
       fetchSearch();
     } else {
       const fetchTrending = async () => {
-        if (trendingCache.length > 0) {
-          setResults(trendingCache);
+        if (globalTrendingCache.length > 0) {
+          setTrendingCache(globalTrendingCache);
+          setResults(globalTrendingCache);
           setHasMore(false);
+          setIsLoading(false);
           return;
         }
 
         try {
           setIsLoading(true);
-          setResults([]);
           const [tvData, movieData] = await Promise.all([
             tmdbService.getTrendingTv().catch(() => ({ results: [] })),
             tmdbService.getTrendingMovies().catch(() => ({ results: [] }))
@@ -181,6 +188,7 @@ export default function DiscoverPage() {
           const movies = movieData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'movie' })) || [];
           
           const combined = [...tvShows, ...movies];
+          globalTrendingCache = combined;
           setTrendingCache(combined);
           setResults(combined);
           setHasMore(false);
@@ -238,21 +246,17 @@ export default function DiscoverPage() {
   const allCategories = [...genreNames, ...franchises.map(f => f.name)];
   
   const topStudios = [
-    // Big 6 first
     { name: "Warner Bros. Pictures", id: 174 },
     { name: "Walt Disney Pictures", id: 2 },
     { name: "Universal Pictures", id: 33 },
     { name: "Marvel Studios", id: 420 },
     { name: "Sony Pictures", id: 34 },
     { name: "Paramount Pictures", id: 4 },
-    // Prestige
     { name: "A24", id: 41077 },
     { name: "Columbia Pictures", id: 5 },
-    // Animation / Genre
     { name: "Pixar", id: 3 },
     { name: "Studio Ghibli", id: 10342 },
     { name: "DreamWorks Pictures", id: 7 },
-    // Classics
     { name: "Lucasfilm Ltd.", id: 1 },
     { name: "20th Century Studios", id: 127928 },
     { name: "New Line Cinema", id: 12 },
@@ -263,6 +267,12 @@ export default function DiscoverPage() {
   ];
   
   useEffect(() => {
+    if (Object.keys(globalGenreImagesCache).length > 0 && Object.keys(globalStudioLogosCache).length > 0) {
+      setGenreImages(globalGenreImagesCache);
+      setStudioLogos(globalStudioLogosCache);
+      return;
+    }
+
     const fetchImages = async () => {
       const images: Record<string, string> = {};
       const logos: Record<string, string> = {};
@@ -306,19 +316,24 @@ export default function DiscoverPage() {
           } catch {}
         })
       );
+
+      Object.assign(globalGenreImagesCache, images);
       setGenreImages(images);
 
-      // Fetch studio logos in parallel for instant loading (backed by backend caching)
       await Promise.all(
         topStudios.map(async (studio) => {
           try {
             const data = await tmdbService.getCompany(studio.id);
             if (data && data.logo_path) {
-              setStudioLogos(prev => ({ ...prev, [studio.name]: `https://image.tmdb.org/t/p/w300${data.logo_path}` }));
+              const logoUrl = `https://image.tmdb.org/t/p/w300${data.logo_path}`;
+              globalStudioLogosCache[studio.name] = logoUrl;
+              setStudioLogos(prev => ({ ...prev, [studio.name]: logoUrl }));
             } else {
+              globalStudioLogosCache[studio.name] = 'error';
               setStudioLogos(prev => ({ ...prev, [studio.name]: 'error' }));
             }
           } catch (error) {
+            globalStudioLogosCache[studio.name] = 'error';
             setStudioLogos(prev => ({ ...prev, [studio.name]: 'error' }));
           }
         })
@@ -327,14 +342,25 @@ export default function DiscoverPage() {
     fetchImages();
   }, []);
 
-  const renderItemCard = (item: TmdbItem) => (
-    <div key={item.id} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+  const renderItemCard = (item: TmdbItem, idx: number = 0) => (
+    <motion.div 
+      key={item.id} 
+      initial={{ opacity: 0, y: 18, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.35,
+        delay: Math.min((idx % 12) * 0.03, 0.35),
+        ease: [0.21, 0.47, 0.32, 0.98]
+      }}
+      className="group cursor-pointer flex flex-col gap-2" 
+      onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}
+    >
       {/* Poster */}
       <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
         <img 
           src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} 
           alt={item.title || item.name} 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover animate-in fade-in duration-300"
         />
         
         {/* Top Badges */}
@@ -406,7 +432,7 @@ export default function DiscoverPage() {
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   if (isAuthLoading || !user) {
@@ -581,7 +607,7 @@ export default function DiscoverPage() {
               // Unified Search Grid
               <div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                  {results.map(renderItemCard)}
+                  {results.map((item, idx) => renderItemCard(item, idx))}
                   
                   {/* Inline Load More Card */}
                   {hasMore && (
@@ -623,7 +649,7 @@ export default function DiscoverPage() {
                       </button>
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                      {results.filter(item => item.media_type === "tv").slice(0, 6).map(renderItemCard)}
+                      {results.filter(item => item.media_type === "tv").slice(0, 6).map((item, idx) => renderItemCard(item, idx))}
                     </div>
                   </div>
                 )}
@@ -643,7 +669,7 @@ export default function DiscoverPage() {
                       </button>
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                      {results.filter(item => item.media_type === "movie").slice(0, 6).map(renderItemCard)}
+                      {results.filter(item => item.media_type === "movie").slice(0, 6).map((item, idx) => renderItemCard(item, idx))}
                     </div>
                   </div>
                 )}

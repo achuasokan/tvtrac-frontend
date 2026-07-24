@@ -8,6 +8,7 @@ import { tmdbService } from "@/services/tmdb.service";
 import { profileService } from "@/features/profile/api/profile.service";
 import { setUser } from "@/store/slices/authSlice";
 import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
+import { motion } from "framer-motion";
 
 type TmdbItem = {
   id: number;
@@ -463,9 +464,20 @@ export default function AdvancedFilterPage() {
             <InfiniteScroll hasMore={page < totalPages} isLoading={isFetchingMore} onLoadMore={() => setPage(p => p + 1)}>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4 mb-8">
                 {results.map((item, idx) => (
-                  <div key={`${item.id}-${idx}`} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+                  <motion.div 
+                    key={`${item.id}-${idx}`} 
+                    initial={{ opacity: 0, y: 18, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      duration: 0.35,
+                      delay: Math.min((idx % 14) * 0.03, 0.35),
+                      ease: [0.21, 0.47, 0.32, 0.98]
+                    }}
+                    className="group cursor-pointer flex flex-col gap-2" 
+                    onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}
+                  >
                     <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
-                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title || item.name} className="w-full h-full object-cover" />
+                      <img src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} alt={item.title || item.name} className="w-full h-full object-cover animate-in fade-in duration-300" />
                       
                       {item.vote_average ? (
                         <div className="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
@@ -522,7 +534,7 @@ export default function AdvancedFilterPage() {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </InfiniteScroll>
