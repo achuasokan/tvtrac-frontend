@@ -55,6 +55,14 @@ export default function EpisodeDetailsPage() {
   const [userCountry, setUserCountry] = useState("US");
   const [pendingRedirectLink, setPendingRedirectLink] = useState<string | null>(null);
   const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [playingVideos, setPlayingVideos] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     fetch('https://ipapi.co/country/')
@@ -149,6 +157,12 @@ export default function EpisodeDetailsPage() {
     await proceedToggleEpisode();
   };
 
+  const getEpisodeRuntime = () => {
+    if (details?.runtime > 0) return details.runtime;
+    if (showDetails?.episode_run_time?.[0] > 0) return showDetails.episode_run_time[0];
+    return 0;
+  };
+
   const proceedToggleEpisode = async () => {
     try {
       setIsTogglingWatched(true);
@@ -163,7 +177,8 @@ export default function EpisodeDetailsPage() {
       await api.post("/tracking/watched/episode/toggle", { 
         tmdbId: id, 
         season: Number(season_number), 
-        episode: Number(episode_number) 
+        episode: Number(episode_number),
+        runtime: getEpisodeRuntime(),
       });
     } catch (error) {
       console.error("Failed to toggle episode watched status:", error);
@@ -202,7 +217,12 @@ export default function EpisodeDetailsPage() {
       });
       
       try {
-        await api.post("/tracking/watched/season/toggle", { tmdbId: id, season: sNum, episodes: allToMark });
+        await api.post("/tracking/watched/season/toggle", {
+          tmdbId: id,
+          season: sNum,
+          episodes: allToMark,
+          runtime: getEpisodeRuntime(),
+        });
       } catch (err) {
         console.error("Failed to bulk mark episodes", err);
       } finally {
@@ -282,19 +302,30 @@ export default function EpisodeDetailsPage() {
   
   const hasPrevious = currentEpNum > 1;
   const hasNext = currentEpNum < totalEpisodes;
+  const nextEpisodeData = hasNext ? seasonDetails?.episodes?.find((ep: any) => ep.episode_number === currentEpNum + 1) : null;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#050505] text-white flex flex-col relative overflow-x-hidden pb-12">
       
-      <button 
-        onClick={() => router.back()} 
-        className="absolute top-6 left-4 sm:top-8 sm:left-8 z-50 flex items-center justify-center w-10 h-10 text-white transition-colors bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10 rounded-full shadow-lg cursor-pointer"
-        title="Back to Series"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
+      {/* Sticky App Bar */}
+      <div className={`fixed top-0 left-0 right-0 z-50 pointer-events-none transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 border-b ${isScrolled ? 'bg-[#050505]/95 backdrop-blur-md border-white/10 shadow-lg' : 'bg-transparent border-transparent pt-4'}`}>
+        <button onClick={() => router.back()} className={`pointer-events-auto shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-colors cursor-pointer ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        
+        <div className={`flex-1 min-w-0 flex flex-col items-center justify-center px-2 sm:px-4 transition-opacity duration-300 ${isScrolled ? 'opacity-100' : 'opacity-0'}`}>
+          <h1 className="font-bold text-sm sm:text-base truncate w-full text-center">
+            {showDetails?.name ? `${showDetails.name} • S${season_number} E${episode_number}` : `Season ${season_number} E${episode_number}`}
+          </h1>
+          <span className="text-[10px] sm:text-xs text-zinc-400 font-medium truncate w-full text-center">
+            {title}
+          </span>
+        </div>
+        
+        <div className="shrink-0 w-10" /> {/* Empty div to balance the back button */}
+      </div>
 
       {/* Hero Section */}
       <div className="relative w-full h-[50vh] sm:h-[60vh]">
@@ -311,8 +342,9 @@ export default function EpisodeDetailsPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-transparent to-transparent opacity-80" />
 
         {/* Floating Watched Button */}
-        <div className="absolute inset-0 max-w-4xl mx-auto pointer-events-none z-30">
-          <div className="absolute top-4 right-4 sm:top-auto sm:bottom-4 sm:right-4 pointer-events-auto flex flex-col items-center gap-2 group">
+        <div className="absolute inset-0 flex justify-center pointer-events-none z-30 px-4">
+          <div className="relative w-full max-w-4xl h-full">
+            <div className="absolute top-6 right-0 sm:top-auto sm:bottom-4 sm:right-0 pointer-events-auto inline-flex flex-col items-center group">
             <button
               onClick={handleToggleWatched}
               disabled={isTogglingWatched}
@@ -336,16 +368,19 @@ export default function EpisodeDetailsPage() {
                 </svg>
               )}
             </button>
-            <span className="text-xs font-bold tracking-wider text-zinc-400 group-hover:text-white transition-colors opacity-0 group-hover:opacity-100">
-              {isWatched ? 'WATCHED' : 'MARK'}
-            </span>
+            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 pointer-events-none">
+              <span className="text-xs font-bold tracking-wider text-zinc-400 group-hover:text-white transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                {isWatched ? 'WATCHED' : 'MARK'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
+    </div>
 
 
       {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 -mt-32 sm:-mt-48 relative z-10 w-full flex flex-col gap-6 sm:gap-10 pb-20">
+      <div className="max-w-4xl mx-auto px-4 -mt-32 sm:-mt-48 relative z-10 w-full flex flex-col gap-6 sm:gap-10 pb-4">
         <div className="flex flex-col pt-4 sm:pt-16 w-full text-left">
           <p className="text-zinc-400 font-bold uppercase tracking-widest text-xs sm:text-sm mb-2">
             Season {season_number} • Episode {episode_number}
@@ -395,33 +430,98 @@ export default function EpisodeDetailsPage() {
             )}
           </div>
           
-          {showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate && (
-            <div className="mt-8">
-              <h3 className="text-zinc-500 text-xs sm:text-sm font-bold uppercase mb-3">Where to Watch</h3>
-              <div className="flex flex-wrap gap-3">
-                {showDetails['watch/providers'].results[userCountry].flatrate.slice(0, 4).map((provider: any) => (
-                  <button 
-                    key={provider.provider_id} 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setPendingRedirectLink(getProviderLink(provider.provider_name, title, showDetails['watch/providers'].results[userCountry].link));
-                      setPendingProviderName(provider.provider_name);
-                    }}
-                    title={`Watch on ${provider.provider_name}`} 
-                    className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block"
-                  >
-                    <img 
-                      src={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} 
-                      alt={provider.provider_name} 
-                      className="w-full h-full object-cover" 
-                    />
-                  </button>
-                ))}
+          <div className="mt-8 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-zinc-800/50 pb-6">
+            {/* Left side: Where to Watch */}
+            {showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate ? (
+              <div className="flex-1">
+                <h3 className="text-zinc-500 text-xs sm:text-sm font-bold uppercase mb-3">Where to Watch</h3>
+                <div className="flex flex-wrap gap-3">
+                  {showDetails['watch/providers'].results[userCountry].flatrate.slice(0, 4).map((provider: any) => (
+                    <button 
+                      key={provider.provider_id} 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setPendingRedirectLink(getProviderLink(provider.provider_name, title, showDetails['watch/providers'].results[userCountry].link));
+                        setPendingProviderName(provider.provider_name);
+                      }}
+                      title={`Watch on ${provider.provider_name}`} 
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden shadow-sm border border-zinc-800 hover:scale-110 hover:border-zinc-500 transition-all block shrink-0"
+                    >
+                      <img 
+                        src={`https://image.tmdb.org/t/p/w92${provider.logo_path}`} 
+                        alt={provider.provider_name} 
+                        className="w-full h-full object-cover" 
+                      />
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            ) : <div className="hidden md:block flex-1" />}
 
+            {/* Right side: Navigation */}
+            <div className="flex justify-between md:justify-end items-center gap-3 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-zinc-800/50 shrink-0">
+              {/* Previous Button */}
+              {hasPrevious ? (
+                <Link
+                  href={`/title/tv/${id}/season/${season_number}/episode/${currentEpNum - 1}`}
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs text-zinc-400 hover:text-white font-bold rounded-full border border-zinc-800/80 hover:bg-zinc-800 transition-colors flex items-center gap-1.5 sm:gap-2 shrink-0 uppercase tracking-widest"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  <span className="hidden sm:inline">Prev</span>
+                </Link>
+              ) : <div className="w-10 md:hidden" />}
+
+              {/* Compact Up Next Pill */}
+              {nextEpisodeData ? (
+                <Link 
+                  href={`/title/tv/${id}/season/${season_number}/episode/${currentEpNum + 1}`}
+                  className="group flex flex-1 md:flex-initial max-w-[280px] sm:max-w-[340px] md:w-[280px] items-center justify-between rounded-full overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-zinc-500 transition-colors shadow-md cursor-pointer ml-auto"
+                  replace
+                >
+                  <div className="flex items-center gap-3 overflow-hidden min-w-0 w-full">
+                    <div className="w-16 h-12 sm:w-20 sm:h-14 shrink-0 bg-zinc-800 relative">
+                      {nextEpisodeData.still_path ? (
+                        <img 
+                          src={`https://image.tmdb.org/t/p/w200${nextEpisodeData.still_path}`} 
+                          alt={nextEpisodeData.name} 
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col flex-1 min-w-0 pr-1 py-1">
+                      <span className="text-[9px] sm:text-[10px] text-zinc-500 font-bold uppercase tracking-widest line-clamp-1">Up Next: Ep {currentEpNum + 1}</span>
+                      <span className="text-[11px] sm:text-xs text-zinc-200 font-bold truncate group-hover:text-white transition-colors mt-0.5">{nextEpisodeData.name}</span>
+                    </div>
+                  </div>
+                  <div className="shrink-0 pr-3 sm:pr-4 text-zinc-500 group-hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </Link>
+              ) : hasNext ? (
+                <Link
+                  href={`/title/tv/${id}/season/${season_number}/episode/${currentEpNum + 1}`}
+                  className="px-5 py-2 sm:px-6 sm:py-2.5 text-sm sm:text-base bg-white text-black hover:bg-zinc-200 font-bold rounded-full transition-all flex items-center gap-2 shadow-lg ml-auto"
+                  replace
+                >
+                  Next
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              ) : <div className="w-10 md:hidden" />}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Guest Stars Section */}
@@ -534,15 +634,28 @@ export default function EpisodeDetailsPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {youtubeVideos.slice(0, 4).map((video: any) => (
-              <div key={video.id} className="relative aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800">
-                <iframe
-                  className="absolute inset-0 w-full h-full"
-                  src={`https://www.youtube.com/embed/${video.key}`}
-                  title={video.name}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+              <div key={video.id} className="cursor-pointer relative aspect-video rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800 group" onClick={() => setPlayingVideos(prev => ({...prev, [video.id]: true}))}>
+                {playingVideos[video.id] ? (
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={`https://www.youtube.com/embed/${video.key}?autoplay=1`}
+                    title={video.name}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : (
+                  <>
+                    <img src={`https://img.youtube.com/vi/${video.key}/hqdefault.jpg`} alt={video.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/10 transition-colors duration-300">
+                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-all duration-300 pl-0.5 sm:pl-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -572,34 +685,7 @@ export default function EpisodeDetailsPage() {
         </div>
       )}
 
-      {/* Navigation Footer */}
-      <div className="max-w-4xl mx-auto px-4 w-full mb-20">
-        <div className="flex justify-end items-center py-6 border-t border-zinc-800/50 gap-3">
-          {hasPrevious && (
-            <Link
-              href={`/title/tv/${id}/season/${season_number}/episode/${currentEpNum - 1}`}
-              className="px-4 py-2 sm:px-5 sm:py-2.5 text-sm sm:text-base bg-zinc-900/50 hover:bg-zinc-800 text-white font-medium rounded-full border border-zinc-800/80 transition-all flex items-center gap-2"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Prev
-            </Link>
-          )}
-          {hasNext && (
-            <Link
-              href={`/title/tv/${id}/season/${season_number}/episode/${currentEpNum + 1}`}
-              className="px-5 py-2 sm:px-6 sm:py-2.5 text-sm sm:text-base bg-white text-black hover:bg-zinc-200 font-bold rounded-full transition-all flex items-center gap-2 shadow-lg"
-              replace
-            >
-              Next
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          )}
-        </div>
-      </div>
+
 
       {showPromptModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-in fade-in duration-200" onClick={(e) => { e.stopPropagation(); setShowPromptModal(false); }}>

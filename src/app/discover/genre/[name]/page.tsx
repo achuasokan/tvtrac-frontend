@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { useRouter, useParams, useSearchParams, usePathname } from "next/navigation";
-import { api } from "@/lib/api";
+import { tmdbService } from "@/services/tmdb.service";
+import { profileService } from "@/features/profile/api/profile.service";
+import { setUser } from "@/store/slices/authSlice";
+import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
+import { motion } from "framer-motion";
+
+// Global cache for genre discovery results
+const genreResultsCache = new Map<string, TmdbItem[]>();
 
 interface TmdbItem {
   id: number;
@@ -164,6 +171,8 @@ export default function DiscoverGenrePage() {
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+  const dispatch = useDispatch();
   
   // Initialize state from URL params if they exist
   const [filter, setFilter] = useState<"tv" | "movie">((searchParams.get("type") as "tv" | "movie") || "movie");
@@ -221,8 +230,8 @@ export default function DiscoverGenrePage() {
       else setLoadingMore(true);
 
       const queryString = buildQueryParams(pageNumber, currentFilter);
-      const res = await api.get(`/tmdb/discover/genre/${encodeURIComponent(genreName)}?${queryString}`);
-      const newResults = res.data.results?.filter((item: any) => item.poster_path) || [];
+      const data = await tmdbService.discoverByGenre(genreName, queryString);
+      const newResults = data.results?.filter((item: any) => item.poster_path) || [];
       
       const formattedResults = newResults.map((item: any) => ({ 
         ...item, 
@@ -235,7 +244,7 @@ export default function DiscoverGenrePage() {
         setResults(prev => [...prev, ...formattedResults]);
       }
 
-      setHasMore(res.data.page < res.data.total_pages && pageNumber < 100);
+      setHasMore(data.page < data.total_pages && pageNumber < 100);
     } catch (error) {
       console.error("Failed to fetch genre shows:", error);
     } finally {
@@ -266,13 +275,46 @@ export default function DiscoverGenrePage() {
     setLanguage("");
   };
 
-  const renderItemCard = (item: TmdbItem) => (
-    <div key={item.id} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+  const handleToggleWatchlist = async (e: React.MouseEvent, item: TmdbItem) => {
+    e.stopPropagation();
+    if (!user) return router.push("/login");
+    
+    const isShow = item.media_type === 'tv';
+    const watchlist = isShow ? user.watchlistShows || [] : user.watchlistMovies || [];
+    const isAdded = watchlist.includes(item.id.toString());
+    
+    setTogglingId(item.id);
+    try {
+      const updatedUser = await profileService.toggleWatchlist(
+        { type: isShow ? 'shows' : 'movies', tmdbId: item.id.toString() } as any,
+        !isAdded
+      );
+      dispatch(setUser(updatedUser));
+    } catch (error) {
+      console.error("Failed to toggle watchlist", error);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const renderItemCard = (item: TmdbItem, idx: number = 0) => (
+    <motion.div 
+      key={item.id} 
+      initial={{ opacity: 0, y: 18, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.35,
+        delay: Math.min((idx % 12) * 0.03, 0.35),
+        ease: [0.21, 0.47, 0.32, 0.98]
+      }}
+      className="group cursor-pointer flex flex-col gap-2" 
+      onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}
+    >
       <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
         <img 
           src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} 
           alt={item.title || item.name} 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover animate-in fade-in duration-300"
         />
         {item.vote_average ? (
           <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-md px-1.5 py-0.5 rounded border border-white/10 flex items-center gap-1 z-10">
@@ -282,18 +324,42 @@ export default function DiscoverGenrePage() {
             <span className="text-[10px] font-bold text-white">{item.vote_average.toFixed(1)}</span>
           </div>
         ) : null}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300 z-20 shadow-lg"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
+        {/* Hover Overlay */}
+        <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        
+        {/* Add Button - Always visible on mobile, hover-only on desktop */}
+        {(() => {
+          const isShow = item.media_type === 'tv';
+          const watchlist = isShow ? user?.watchlistShows || [] : user?.watchlistMovies || [];
+          const isAdded = watchlist.includes(item.id.toString());
+          const isToggling = togglingId === item.id;
+          
+          return (
+            <button 
+              type="button"
+              disabled={isToggling}
+              onClick={(e) => handleToggleWatchlist(e, item)}
+              className={`absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100 ${
+                isAdded 
+                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  : 'bg-white/90 hover:bg-white text-black'
+              }`}
+              title={isAdded ? "Remove from Watchlist" : "Add to Watchlist"}
+            >
+              {isToggling ? (
+                <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
+              ) : isAdded ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          );
+        })()}
       </div>
       <div>
         <h3 className="text-xs sm:text-sm font-bold text-zinc-200 truncate group-hover:text-white transition-colors">
@@ -301,11 +367,11 @@ export default function DiscoverGenrePage() {
         </h3>
         <div className="flex items-center gap-2 mt-0.5">
           <span className="text-[10px] text-zinc-600 font-medium">
-            {(item.first_air_date || item.release_date) ? (item.first_air_date || item.release_date)!.split('-')[0] : ''}
+            {item.first_air_date ? item.first_air_date.split('-')[0] : (item.release_date ? item.release_date.split('-')[0] : '')}
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   if (isAuthLoading || !user) {
@@ -463,21 +529,11 @@ export default function DiscoverGenrePage() {
           </div>
         ) : (
           <div className="flex flex-col gap-10">
-            <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 lg:gap-5">
-              {results.map(renderItemCard)}
-            </div>
-
-            {hasMore && (
-              <div className="flex justify-center mt-8">
-                <button 
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  className="px-8 py-3 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 rounded-full text-sm font-semibold transition-colors disabled:opacity-50"
-                >
-                  {loadingMore ? "Loading..." : "Load More"}
-                </button>
+            <InfiniteScroll hasMore={hasMore} isLoading={loadingMore} onLoadMore={handleLoadMore}>
+              <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3 lg:gap-5">
+                {results.map((item, idx) => renderItemCard(item, idx))}
               </div>
-            )}
+            </InfiniteScroll>
           </div>
         )}
       </div>

@@ -8,6 +8,12 @@ export interface User {
   avatar: string;
   username: string;
   role: string;
+  coverPhoto?: string;
+  favoriteShows?: string[];
+  favoriteMovies?: string[];
+  watchlistShows?: string[];
+  watchlistMovies?: string[];
+  createdAt?: string;
 }
 
 interface AuthState {

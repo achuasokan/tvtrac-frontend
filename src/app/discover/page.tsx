@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
-import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { profileService } from "@/features/profile/api/profile.service";
+import { setUser } from "@/store/slices/authSlice";
+import { tmdbService } from "@/services/tmdb.service";
+import { motion } from "framer-motion";
+
+// Global module-level caches to make Discover page load in 0ms when navigating back
+let globalTrendingCache: TmdbItem[] = [];
+const globalGenreImagesCache: Record<string, string> = {};
+const globalStudioLogosCache: Record<string, string> = {};
 
 interface TmdbItem {
   id: number;
@@ -36,11 +44,11 @@ function Carousel({ title, children }: { title: React.ReactNode, children: React
       <div className="flex items-center justify-between mb-4">
         {title}
         <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
-          <button onClick={() => scroll('left')} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+          <button onClick={() => scroll('left')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div className="w-px h-4 bg-zinc-700/50" />
-          <button onClick={() => scroll('right')} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+          <button onClick={() => scroll('right')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
@@ -57,12 +65,21 @@ function Carousel({ title, children }: { title: React.ReactNode, children: React
 
 export default function DiscoverPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
+  const dispatch = useDispatch();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  
+  const urlQuery = searchParams.get('q') || "";
+  
+  const [togglingId, setTogglingId] = useState<number | null>(null);
 
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<TmdbItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [genreImages, setGenreImages] = useState<Record<string, string>>({});
+  const [inputValue, setInputValue] = useState(urlQuery);
+  const [results, setResults] = useState<TmdbItem[]>(() => !urlQuery.trim() ? globalTrendingCache : []);
+  const [trendingCache, setTrendingCache] = useState<TmdbItem[]>(() => globalTrendingCache);
+  const [isLoading, setIsLoading] = useState<boolean>(() => !urlQuery.trim() && globalTrendingCache.length === 0);
+  const [genreImages, setGenreImages] = useState<Record<string, string>>(() => globalGenreImagesCache);
+  const [studioLogos, setStudioLogos] = useState<Record<string, string>>(() => globalStudioLogosCache);
   
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
@@ -82,75 +99,121 @@ export default function DiscoverPage() {
     }
   };
 
+  const handleToggleWatchlist = async (e: React.MouseEvent, item: TmdbItem) => {
+    e.stopPropagation();
+    if (!user) return router.push("/login");
+    
+    const isShow = item.media_type === 'tv';
+    const watchlist = isShow ? user.watchlistShows || [] : user.watchlistMovies || [];
+    const isAdded = watchlist.includes(item.id.toString());
+    
+    setTogglingId(item.id);
+    try {
+      const updatedUser = await profileService.toggleWatchlist(
+        { type: isShow ? 'shows' : 'movies', tmdbId: item.id.toString() } as any,
+        !isAdded
+      );
+      dispatch(setUser(updatedUser));
+    } catch (error) {
+      console.error("Failed to toggle watchlist", error);
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthLoading && !user) {
       router.push("/");
     }
   }, [user, isAuthLoading, router]);
 
-  const fetchTrending = async () => {
-    try {
-      setIsLoading(true);
-      const res = await api.get("/tmdb/trending");
-      // Filter out people, only keep movies and tv
-      const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
-      setResults(filtered);
-      setHasMore(false);
-    } catch (error) {
-      console.error("Failed to fetch trending:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Keep inputValue in sync if URL changes externally (e.g. Back button)
+  useEffect(() => {
+    setInputValue(urlQuery);
+  }, [urlQuery]);
 
-  // Debounce search
+  // Debounce input value to URL
+  useEffect(() => {
+    if (inputValue.trim() === "") {
+      router.replace(pathname, { scroll: false });
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      router.replace(`${pathname}?q=${encodeURIComponent(inputValue)}`, { scroll: false });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [inputValue, pathname, router]);
+
+  // Fetch data based on URL query
   useEffect(() => {
     const controller = new AbortController();
     
-    const timer = setTimeout(() => {
-      if (query.trim()) {
-        const fetchSearch = async () => {
-          try {
-            setIsLoading(true);
-            const res = await api.get(`/tmdb/search?q=${encodeURIComponent(query)}&page=1`, { signal: controller.signal });
-            const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
-            setResults(filtered);
-            setHasMore(res.data.page < res.data.total_pages);
-            setPage(1);
-          } catch (error: any) {
-            if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
-              console.error("Failed to search:", error);
-            }
-          } finally {
-            setIsLoading(false);
+    if (urlQuery.trim()) {
+      const fetchSearch = async () => {
+        try {
+          setIsLoading(true);
+          const data = await tmdbService.search(urlQuery, 1, controller.signal);
+          const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+          setResults(filtered);
+          setHasMore(data.page < data.total_pages);
+          setPage(1);
+        } catch (error: any) {
+          if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+            console.error("Failed to search:", error);
           }
-        };
-        fetchSearch();
-      } else {
-        fetchTrending();
-      }
-    }, 500);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchSearch();
+    } else {
+      const fetchTrending = async () => {
+        if (globalTrendingCache.length > 0) {
+          setTrendingCache(globalTrendingCache);
+          setResults(globalTrendingCache);
+          setHasMore(false);
+          setIsLoading(false);
+          return;
+        }
 
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query]);
-
-  // Initial load
-  useEffect(() => {
-    fetchTrending();
-  }, []);
+        try {
+          setIsLoading(true);
+          const [tvData, movieData] = await Promise.all([
+            tmdbService.getTrendingTv().catch(() => ({ results: [] })),
+            tmdbService.getTrendingMovies().catch(() => ({ results: [] }))
+          ]);
+          
+          const tvShows = tvData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'tv' })) || [];
+          const movies = movieData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'movie' })) || [];
+          
+          const combined = [...tvShows, ...movies];
+          globalTrendingCache = combined;
+          setTrendingCache(combined);
+          setResults(combined);
+          setHasMore(false);
+        } catch (error) {
+          console.error("Failed to fetch trending:", error);
+          setResults([]);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchTrending();
+    }
+    
+    return () => controller.abort();
+  }, [urlQuery]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMore) return;
     const nextPage = page + 1;
     setIsLoadingMore(true);
     try {
-      const res = await api.get(`/tmdb/search?q=${encodeURIComponent(query)}&page=${nextPage}`);
-      const filtered = res.data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+      const data = await tmdbService.search(urlQuery, nextPage);
+      const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
       setResults(prev => [...prev, ...filtered]);
-      setHasMore(res.data.page < res.data.total_pages);
+      setHasMore(data.page < data.total_pages);
       setPage(nextPage);
     } catch (error) {
       console.error("Failed to load more:", error);
@@ -160,37 +223,144 @@ export default function DiscoverPage() {
   };
 
   // Fetch backdrop images for both genres and studios
-  const genreNames = ["K-Drama", "Action", "Comedy", "Sci-Fi", "Horror", "Romance", "Drama", "Animation", "Documentary"];
-  const studioNames = ["Marvel", "DC", "Disney", "Pixar", "A24", "HBO", "Universal", "WB", "Star Wars", "James Bond"];
-  const allCategories = [...genreNames, ...studioNames];
+  const genreNames = [
+    "K-Drama", "Action", "Comedy", "Sci-Fi", "Horror", 
+    "Romance", "Drama", "Animation", "Documentary",
+    "Kids", "Mystery", "News", "Reality", 
+    "Sci-Fi & Fantasy", "Soap", "Talk", "War & Politics", "Western"
+  ];
+  
+  const franchises = [
+    { name: "MCU", id: 420, type: "company" },
+    { name: "DCU", id: 229266, type: "keyword" },
+    { name: "Star Wars", id: 1, type: "company" },
+    { name: "Harry Potter", id: "1241,435259", type: "collection" },
+    { name: "The Lord of the Rings", id: "119,121938", type: "collection" },
+    { name: "James Bond", id: 645, type: "collection" },
+    { name: "The Conjuring Universe", id: "313086,402074,968052", type: "collection" },
+    { name: "Fast & Furious Saga", id: "9485", type: "collection" },
+    { name: "Transformers Saga", id: "8650,movie:424783,movie:667538,movie:698687", type: "collection" },
+    { name: "Saw Franchise", id: "656", type: "collection" },
+    { name: "X-Men Universe", id: "748,453993,448150,movie:340102", type: "collection" }
+  ];
+  const allCategories = [...genreNames, ...franchises.map(f => f.name)];
+  
+  const topStudios = [
+    { name: "Warner Bros. Pictures", id: 174 },
+    { name: "Walt Disney Pictures", id: 2 },
+    { name: "Universal Pictures", id: 33 },
+    { name: "Marvel Studios", id: 420 },
+    { name: "Sony Pictures", id: 34 },
+    { name: "Paramount Pictures", id: 4 },
+    { name: "A24", id: 41077 },
+    { name: "Columbia Pictures", id: 5 },
+    { name: "Pixar", id: 3 },
+    { name: "Studio Ghibli", id: 10342 },
+    { name: "DreamWorks Pictures", id: 7 },
+    { name: "Lucasfilm Ltd.", id: 1 },
+    { name: "20th Century Studios", id: 127928 },
+    { name: "New Line Cinema", id: 12 },
+    { name: "TriStar Pictures", id: 559 },
+    { name: "Castle Rock Entertainment", id: 97 },
+    { name: "Focus Features", id: 10146 },
+    { name: "Searchlight Pictures", id: 43 },
+  ];
   
   useEffect(() => {
+    if (Object.keys(globalGenreImagesCache).length > 0 && Object.keys(globalStudioLogosCache).length > 0) {
+      setGenreImages(globalGenreImagesCache);
+      setStudioLogos(globalStudioLogosCache);
+      return;
+    }
+
     const fetchImages = async () => {
       const images: Record<string, string> = {};
+      const logos: Record<string, string> = {};
+      
       await Promise.all(
-        allCategories.map(async (name) => {
+        genreNames.map(async (name) => {
           try {
-            const res = await api.get(`/tmdb/discover/genre/${encodeURIComponent(name)}?type=movie`);
-            const firstWithBackdrop = res.data.results?.find((item: any) => item.backdrop_path);
+            const data = await tmdbService.getGenreBackdrop(name);
+            const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
             if (firstWithBackdrop) {
               images[name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
             }
           } catch {}
         })
       );
+
+      await Promise.all(
+        franchises.map(async (f) => {
+          try {
+            let data;
+            if (f.type === 'collection') {
+              const ids = f.id.toString().split(",");
+              data = await tmdbService.getCollection(ids[0].trim());
+              if (data && data.backdrop_path) {
+                images[f.name] = `https://image.tmdb.org/t/p/w780${data.backdrop_path}`;
+              } else if (data && data.parts && data.parts.length > 0) {
+                const firstWithBackdrop = data.parts.find((item: any) => item.backdrop_path);
+                if (firstWithBackdrop) {
+                  images[f.name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
+                }
+              }
+            } else {
+              data = f.type === 'keyword' 
+                ? await tmdbService.discoverByKeyword(f.id, "type=movie") 
+                : await tmdbService.discoverByCompany(f.id, "type=movie");
+              const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
+              if (firstWithBackdrop) {
+                images[f.name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
+              }
+            }
+          } catch {}
+        })
+      );
+
+      Object.assign(globalGenreImagesCache, images);
       setGenreImages(images);
+
+      await Promise.all(
+        topStudios.map(async (studio) => {
+          try {
+            const data = await tmdbService.getCompany(studio.id);
+            if (data && data.logo_path) {
+              const logoUrl = `https://image.tmdb.org/t/p/w300${data.logo_path}`;
+              globalStudioLogosCache[studio.name] = logoUrl;
+              setStudioLogos(prev => ({ ...prev, [studio.name]: logoUrl }));
+            } else {
+              globalStudioLogosCache[studio.name] = 'error';
+              setStudioLogos(prev => ({ ...prev, [studio.name]: 'error' }));
+            }
+          } catch (error) {
+            globalStudioLogosCache[studio.name] = 'error';
+            setStudioLogos(prev => ({ ...prev, [studio.name]: 'error' }));
+          }
+        })
+      );
     };
     fetchImages();
   }, []);
 
-  const renderItemCard = (item: TmdbItem) => (
-    <div key={item.id} className="group cursor-pointer flex flex-col gap-2" onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}>
+  const renderItemCard = (item: TmdbItem, idx: number = 0) => (
+    <motion.div 
+      key={item.id} 
+      initial={{ opacity: 0, y: 18, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{
+        duration: 0.35,
+        delay: Math.min((idx % 12) * 0.03, 0.35),
+        ease: [0.21, 0.47, 0.32, 0.98]
+      }}
+      className="group cursor-pointer flex flex-col gap-2" 
+      onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}
+    >
       {/* Poster */}
       <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
         <img 
           src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} 
           alt={item.title || item.name} 
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover animate-in fade-in duration-300"
         />
         
         {/* Top Badges */}
@@ -206,18 +376,41 @@ export default function DiscoverPage() {
         </div>
 
         {/* Hover Overlay */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-            }}
-            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 hover:bg-white text-black flex items-center justify-center scale-75 group-hover:scale-100 transition-all duration-300 z-20 shadow-lg"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
+        <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        
+        {/* Add Button - Always visible on mobile, hover-only on desktop */}
+        {(() => {
+          const isShow = item.media_type === 'tv';
+          const watchlist = isShow ? user?.watchlistShows || [] : user?.watchlistMovies || [];
+          const isAdded = watchlist.includes(item.id.toString());
+          const isToggling = togglingId === item.id;
+          
+          return (
+            <button 
+              type="button"
+              disabled={isToggling}
+              onClick={(e) => handleToggleWatchlist(e, item)}
+              className={`absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100 ${
+                isAdded 
+                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+                  : 'bg-white/90 hover:bg-white text-black'
+              }`}
+              title={isAdded ? "Remove from Watchlist" : "Add to Watchlist"}
+            >
+              {isToggling ? (
+                <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-current/40 border-t-current rounded-full animate-spin" />
+              ) : isAdded ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          );
+        })()}
       </div>
 
       {/* Title */}
@@ -226,7 +419,7 @@ export default function DiscoverPage() {
           {item.title || item.name}
         </h3>
         <div className="flex items-center gap-1.5 mt-0.5">
-          {query.trim() && (
+          {urlQuery.trim() && (
             <>
               <span className="text-[9px] sm:text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
                 {item.media_type === 'tv' ? 'TV Show' : 'Movie'}
@@ -239,7 +432,7 @@ export default function DiscoverPage() {
           </span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
   if (isAuthLoading || !user) {
@@ -265,15 +458,15 @@ export default function DiscoverPage() {
             <input
               type="text"
               placeholder="Search TV shows and movies..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
               className="w-full bg-zinc-900/80 border border-zinc-800 text-white rounded-2xl py-3 sm:py-4 pl-11 sm:pl-14 pr-[80px] sm:pr-[100px] focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all text-sm sm:text-lg placeholder:text-zinc-500 shadow-xl backdrop-blur-md"
             />
             
             <div className="absolute inset-y-0 right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1">
-              {query.length > 0 && (
+              {inputValue.length > 0 && (
                 <button 
-                  onClick={() => setQuery("")}
+                  onClick={() => setInputValue("")}
                   className="p-1.5 sm:p-2 text-zinc-500 hover:text-white transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -286,7 +479,7 @@ export default function DiscoverPage() {
               
               <button 
                 onClick={() => router.push("/discover/filter")}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white transition-colors mr-0.5 sm:mr-1"
+                className="cursor-pointer p-1.5 sm:p-2 text-zinc-400 hover:text-white transition-colors mr-0.5 sm:mr-1"
                 title="Advanced Filters"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -302,7 +495,7 @@ export default function DiscoverPage() {
       <div className="w-full max-w-5xl mx-auto px-4 mt-2">
         
         {/* Platforms Section */}
-        {!query.trim() && (
+        {!urlQuery.trim() && (
           <div className="mb-10">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
@@ -314,13 +507,13 @@ export default function DiscoverPage() {
               
               {/* Scroll Controls Pill */}
               <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
-                <button onClick={scrollLeft} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+                <button onClick={scrollLeft} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
                 <div className="w-px h-4 bg-zinc-700/50" />
-                <button onClick={scrollRight} className="w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
+                <button onClick={scrollRight} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                   </svg>
@@ -384,7 +577,7 @@ export default function DiscoverPage() {
 
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold tracking-tight text-white">
-            {query.trim() ? "Search Results" : "Trending Now"}
+            {urlQuery.trim() ? "Search Results" : "Trending Now"}
           </h2>
         </div>
 
@@ -406,15 +599,15 @@ export default function DiscoverPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <h3 className="text-xl font-bold text-white mb-2">No results found</h3>
-            <p className="text-zinc-500">We couldn't find anything matching "{query}".</p>
+            <p className="text-zinc-500">We couldn't find anything matching "{urlQuery}".</p>
           </div>
         ) : (
           <div className="flex flex-col gap-10">
-            {query.trim() ? (
+            {urlQuery.trim() ? (
               // Unified Search Grid
               <div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                  {results.map(renderItemCard)}
+                  {results.map((item, idx) => renderItemCard(item, idx))}
                   
                   {/* Inline Load More Card */}
                   {hasMore && (
@@ -451,12 +644,12 @@ export default function DiscoverPage() {
                         </svg>
                         TV Shows
                       </h3>
-                      <button onClick={() => router.push('/discover/tv')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                      <button onClick={() => router.push('/discover/tv')} className="cursor-pointer text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
                         See All <span aria-hidden="true">&rarr;</span>
                       </button>
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                      {results.filter(item => item.media_type === "tv").slice(0, 6).map(renderItemCard)}
+                      {results.filter(item => item.media_type === "tv").slice(0, 6).map((item, idx) => renderItemCard(item, idx))}
                     </div>
                   </div>
                 )}
@@ -471,12 +664,12 @@ export default function DiscoverPage() {
                         </svg>
                         Movies
                       </h3>
-                      <button onClick={() => router.push('/discover/movies')} className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+                      <button onClick={() => router.push('/discover/movies')} className="cursor-pointer text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
                         See All <span aria-hidden="true">&rarr;</span>
                       </button>
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                      {results.filter(item => item.media_type === "movie").slice(0, 6).map(renderItemCard)}
+                      {results.filter(item => item.media_type === "movie").slice(0, 6).map((item, idx) => renderItemCard(item, idx))}
                     </div>
                   </div>
                 )}
@@ -484,7 +677,7 @@ export default function DiscoverPage() {
             )}
 
             {/* Explore by Genre Section */}
-            {!query.trim() && (
+            {!urlQuery.trim() && (
               <div className="mt-10 mb-10 space-y-10">
                 
                 {/* Genres */}
@@ -498,57 +691,118 @@ export default function DiscoverPage() {
                     </h3>
                   }
                 >
+                  <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
                   {genreNames.map(name => (
                     <button 
                       key={name}
                       onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
-                      className="flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow hover:shadow-xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-500"
+                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow transition-all duration-300 border border-zinc-800/80"
                     >
                       {genreImages[name] && (
                         <img 
                           src={genreImages[name]} 
                           alt={name}
-                          className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 group-hover:scale-110 transition-all duration-500"
+                          className="absolute inset-0 w-full h-full object-cover opacity-60 transition-all duration-500"
                         />
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity duration-300" />
-                      <span className="relative z-10 font-bold text-[13px] sm:text-sm tracking-wide text-zinc-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] group-hover:-translate-y-0.5 transition-transform duration-300">
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-80 transition-opacity duration-300" />
+                      <span className="relative z-10 font-bold text-[13px] sm:text-sm tracking-wide text-zinc-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] transition-transform duration-300">
                         {name}
                       </span>
                     </button>
                   ))}
+                  </div>
                 </Carousel>
 
-                {/* Studios / Universes */}
+                {/* Franchises / Universes */}
                 <Carousel
                   title={
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                       </svg>
-                      Explore by Universe & Studio
+                      Explore by Universe & Franchise
                     </h3>
                   }
                 >
-                  {studioNames.map(name => (
+                  <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
+                  {franchises.map(franchise => (
                     <button 
-                      key={name}
-                      onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
-                      className="flex-shrink-0 snap-start w-32 sm:w-40 group relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg hover:shadow-2xl transition-all duration-300 border border-zinc-800/80 hover:border-zinc-400"
+                      key={franchise.name}
+                      onClick={() => router.push(`/discover/franchise/${franchise.type}/${franchise.id}/${encodeURIComponent(franchise.name)}`)}
+                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg transition-all duration-300 border border-zinc-800/80"
                     >
-                      {genreImages[name] && (
+                      {genreImages[franchise.name] && (
                         <img 
-                          src={genreImages[name]} 
-                          alt={name}
-                          className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-70 group-hover:scale-105 transition-all duration-700"
+                          src={genreImages[franchise.name]} 
+                          alt={franchise.name}
+                          className="absolute inset-0 w-full h-full object-cover opacity-70 transition-all duration-700"
                         />
                       )}
-                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/10 transition-colors duration-300" />
-                      <span className="relative z-10 font-black text-[13px] sm:text-[15px] tracking-wide uppercase text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] group-hover:scale-110 transition-transform duration-300">
-                        {name}
+                      <div className="absolute inset-0 bg-black/30 transition-colors duration-300" />
+                      <span className="relative z-10 font-black text-[13px] sm:text-[15px] tracking-wide uppercase text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] transition-transform duration-300">
+                        {franchise.name}
                       </span>
                     </button>
                   ))}
+                  </div>
+                </Carousel>
+
+                <Carousel
+                  title={
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                      </svg>
+                      Top Studios
+                    </h3>
+                  }
+                >
+                  <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
+                  {topStudios.map(studio => {
+                    const invertLogos = [
+                      "20th Century Studios",
+                      "A24", 
+                      "Castle Rock Entertainment", 
+                      "Columbia Pictures",
+                      "DreamWorks Pictures",
+                      "Focus Features", 
+                      "Lucasfilm Ltd.", 
+                      "New Line Cinema", 
+                      "Paramount Pictures",
+                      "Pixar", 
+                      "Searchlight Pictures",
+                      "Sony Pictures", 
+                      "Studio Ghibli",
+                      "TriStar Pictures",
+                      "Walt Disney Pictures"
+                    ];
+                    const shouldInvert = invertLogos.includes(studio.name);
+                    
+                    return (
+                      <button 
+                        key={studio.name}
+                        onClick={() => router.push(`/discover/studio/${studio.id}/${encodeURIComponent(studio.name)}`)}
+                        className="cursor-pointer flex-shrink-0 snap-start relative flex items-center justify-center w-32 sm:w-40 h-16 sm:h-20 rounded-xl bg-gradient-to-br from-zinc-800/80 to-zinc-950 border border-zinc-700/50 transition-all duration-500 shadow-xl overflow-hidden"
+                        aria-label={studio.name}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity duration-500" />
+                        
+                        {studioLogos[studio.name] === 'error' ? (
+                          <span className="font-bold text-xl text-zinc-500">{studio.name.charAt(0)}</span>
+                        ) : studioLogos[studio.name] ? (
+                          <img 
+                            src={studioLogos[studio.name]} 
+                            alt={studio.name}
+                            className={`relative z-10 w-[75%] h-[65%] object-contain drop-shadow-lg ${shouldInvert ? 'brightness-0 invert' : ''}`}
+                          />
+                        ) : (
+                          <div className="w-5 h-5 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin opacity-50" />
+                        )}
+                      </button>
+                    );
+                  })}
+                  </div>
                 </Carousel>
 
               </div>

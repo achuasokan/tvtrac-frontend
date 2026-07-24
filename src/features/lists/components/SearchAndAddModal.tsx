@@ -184,10 +184,20 @@ export function SearchAndAddModal({ isOpen, onClose, listId }: SearchAndAddModal
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-lg flex flex-col max-h-[75vh] shadow-2xl">
+      <div className="relative isolate bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-lg flex flex-col max-h-[75vh] shadow-2xl overflow-hidden">
+        {/* Sci-Fi Fading Border Glow */}
+        <div 
+          className="absolute inset-0 z-20 pointer-events-none rounded-2xl border-[1.5px] border-transparent"
+          style={{
+            background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
+            WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+            WebkitMaskComposite: 'destination-out',
+            maskComposite: 'exclude'
+          }}
+        />
         
         {/* Header & Search */}
-        <div className="p-4 border-b border-white/5 shrink-0">
+        <div className="relative z-10 p-4 border-b border-white/5 shrink-0">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold text-white">Add to List</h3>
             {hasInteracted ? (
@@ -225,7 +235,7 @@ export function SearchAndAddModal({ isOpen, onClose, listId }: SearchAndAddModal
         </div>
 
         {/* Results */}
-        <div className="flex-1 overflow-y-auto hide-scrollbar p-2 min-h-[350px] relative flex flex-col">
+        <div className="relative z-10 flex-1 overflow-y-auto hide-scrollbar p-2 min-h-[350px] flex flex-col">
           {isLoading ? (
             <div className="flex flex-col gap-1">
               {[...Array(6)].map((_, i) => (

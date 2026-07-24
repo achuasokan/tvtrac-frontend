@@ -169,19 +169,19 @@ export default function PersonDetailsPage() {
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 bg-zinc-900/80 p-1 rounded-lg border border-zinc-800 w-full sm:w-max">
                   <button 
                     onClick={() => setCreditFilter('all')}
-                    className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${creditFilter === 'all' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+                    className={`cursor-pointer flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${creditFilter === 'all' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
                   >
                     All
                   </button>
                   <button 
                     onClick={() => setCreditFilter('movie')}
-                    className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${creditFilter === 'movie' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+                    className={`cursor-pointer flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${creditFilter === 'movie' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
                   >
                     Movies
                   </button>
                   <button 
                     onClick={() => setCreditFilter('tv')}
-                    className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${creditFilter === 'tv' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
+                    className={`cursor-pointer flex-1 sm:flex-none px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${creditFilter === 'tv' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-200'}`}
                   >
                     TV Shows
                   </button>

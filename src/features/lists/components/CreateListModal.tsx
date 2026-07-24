@@ -73,10 +73,19 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
         onClick={(e) => e.stopPropagation()}
       >
         {/* Glass card */}
-        <div className="bg-zinc-950/90 border border-white/10 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden">
-          {/* Accent top bar removed */}
+        <div className="relative bg-zinc-950/90 border border-white/10 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden">
+          {/* Sci-Fi Fading Border Glow */}
+          <div 
+            className="absolute inset-0 z-0 pointer-events-none rounded-3xl border-[1.5px] border-transparent"
+            style={{
+              background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
+              WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'destination-out',
+              maskComposite: 'exclude'
+            }}
+          />
 
-          <div className="p-6">
+          <div className="relative z-10 p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -89,7 +98,7 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
               </div>
               <button 
                 onClick={onClose}
-                className="text-zinc-600 hover:text-zinc-300 transition-colors p-1 rounded-full hover:bg-white/5"
+                className="cursor-pointer text-zinc-600 hover:text-zinc-300 transition-colors p-1 rounded-full hover:bg-white/5"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -140,14 +149,14 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
                   type="button"
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
+                  className="cursor-pointer flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !name.trim()}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white hover:bg-zinc-100 text-black shadow-lg transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+                  className="cursor-pointer flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white hover:bg-zinc-100 text-black shadow-lg transition-all disabled:opacity-40 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
