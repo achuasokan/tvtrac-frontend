@@ -8,57 +8,33 @@ import { useAppSelector } from '@/store';
 import { profileService } from '@/features/profile/api/profile.service';
 import { WatchHistoryItem, ProfileStats } from '@/features/profile/types';
 
-// Global module-level caches for instant 0ms back-navigation
-let globalHistoryCache: WatchHistoryItem[] | null = null;
-let globalStatsCache: ProfileStats | null = null;
+import { useQuery } from '@tanstack/react-query';
 
 export default function ProfilePage() {
     const { user } = useAppSelector(state => state.auth);
-    const [history, setHistory] = useState<WatchHistoryItem[]>(() => globalHistoryCache || []);
-    const [isLoadingHistory, setIsLoadingHistory] = useState<boolean>(() => !globalHistoryCache);
-    const [stats, setStats] = useState<ProfileStats | null>(() => globalStatsCache);
-    const [isLoadingStats, setIsLoadingStats] = useState<boolean>(() => !globalStatsCache);
+    const { data: history = [], isLoading: isLoadingHistory } = useQuery({
+        queryKey: ['profile', 'history'],
+        queryFn: async () => {
+            const data = await profileService.getWatchHistory();
+            return data?.items || [];
+        },
+        enabled: !!user,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
-    useEffect(() => {
-        const fetchHistory = async () => {
-            try {
-                if (!globalHistoryCache) setIsLoadingHistory(true);
-                const data = await profileService.getWatchHistory();
-                const items = data?.items || [];
-                globalHistoryCache = items;
-                setHistory(items);
-            } catch (err) {
-                console.error('Failed to load watch history', err);
-            } finally {
-                setIsLoadingHistory(false);
-            }
-        };
-
-        const fetchStats = async () => {
-            try {
-                if (!globalStatsCache) setIsLoadingStats(true);
-                const data = await profileService.getStats();
-                globalStatsCache = data;
-                setStats(data);
-            } catch (err) {
-                console.error('Failed to load stats', err);
-            } finally {
-                setIsLoadingStats(false);
-            }
-        };
-
-        if (user) {
-            fetchHistory();
-            fetchStats();
-        }
-    }, [user]);
+    const { data: stats = null, isLoading: isLoadingStats } = useQuery({
+        queryKey: ['profile', 'stats'],
+        queryFn: () => profileService.getStats(),
+        enabled: !!user,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
     const favoriteShows = useMemo(() => {
-        return (user?.favoriteShows || []).map(id => ({ tmdbId: String(id), mediaType: 'tv' as const }));
+        return [...(user?.favoriteShows || [])].reverse().map(id => ({ tmdbId: String(id), mediaType: 'tv' as const }));
     }, [user?.favoriteShows]);
 
     const favoriteMovies = useMemo(() => {
-        return (user?.favoriteMovies || []).map(id => ({ tmdbId: String(id), mediaType: 'movie' as const }));
+        return [...(user?.favoriteMovies || [])].reverse().map(id => ({ tmdbId: String(id), mediaType: 'movie' as const }));
     }, [user?.favoriteMovies]);
 
     const historyShows = useMemo(() => {

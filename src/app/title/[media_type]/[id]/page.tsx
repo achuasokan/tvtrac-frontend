@@ -13,6 +13,7 @@ import { extractDominantColor } from "@/utils/colorExtractor";
 import { RatingsBar } from "@/components/ui/RatingsBar";
 import ReactPlayer from "react-player/lazy";
 import { Music, Play, Pause, Ticket } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -57,9 +58,20 @@ function SeasonItem({
     }
     return false;
   });
-  const [episodes, setEpisodes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { data: episodesData, isLoading: loading, isError, refetch } = useQuery({
+    queryKey: ['season-episodes', tvId, season.season_number],
+    queryFn: async () => {
+      const res = await api.get(`/tmdb/tv/${tvId}/season/${season.season_number}`);
+      return res.data.episodes || [];
+    },
+    enabled: expanded,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const episodes = episodesData || [];
+  const error = isError ? "Failed to load episodes. Please try again." : null;
+
   const [isTogglingSeason, setIsTogglingSeason] = useState(false);
   const [togglingEpisodes, setTogglingEpisodes] = useState<Record<number, boolean>>({});
   
@@ -68,57 +80,17 @@ function SeasonItem({
   const [pendingToggleEp, setPendingToggleEp] = useState<number | null>(null);
   const [missingPreviousEps, setMissingPreviousEps] = useState<number[]>([]);
 
-  useEffect(() => {
-    if (expanded && episodes.length === 0) {
-      setLoading(true);
-      setError(null);
-      api.get(`/tmdb/tv/${tvId}/season/${season.season_number}`)
-        .then(res => setEpisodes(res.data.episodes || []))
-        .catch(err => {
-          console.error("Failed to load episodes", err);
-          setError("Failed to load episodes. Please try again.");
-        })
-        .finally(() => setLoading(false));
-    }
-  }, [expanded, tvId, season.season_number]); 
-
-  const handleToggle = async () => {
+  const handleToggle = () => {
     const newState = !expanded;
     if (typeof window !== 'undefined') {
       sessionStorage.setItem(storageKey, String(newState));
     }
-    
-    if (newState) {
-      if (episodes.length === 0) {
-        setLoading(true);
-        setError(null);
-        try {
-          const res = await api.get(`/tmdb/tv/${tvId}/season/${season.season_number}`);
-          setEpisodes(res.data.episodes || []);
-        } catch (err: any) {
-          console.error("Failed to load episodes", err);
-          setError("Failed to load episodes. Please try again.");
-        } finally {
-          setLoading(false);
-        }
-      }
-    }
     setExpanded(newState);
   };
 
-  const handleRetry = async (e: React.MouseEvent) => {
+  const handleRetry = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get(`/tmdb/tv/${tvId}/season/${season.season_number}`);
-      setEpisodes(res.data.episodes || []);
-    } catch (err: any) {
-      console.error("Failed to load episodes", err);
-      setError("Failed to load episodes. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    refetch();
   };
 
   const handleToggleEpisode = async (e: React.MouseEvent, episodeNumber: number) => {
@@ -149,7 +121,7 @@ function SeasonItem({
   };
 
   const getEpisodeRuntimeForToggle = (episodeNumber: number) => {
-    const epData = episodes.find(ep => ep.episode_number === episodeNumber);
+    const epData = episodes.find((ep: any) => ep.episode_number === episodeNumber);
     return epData?.runtime || episodeRuntime || 0;
   };
 
@@ -172,6 +144,8 @@ function SeasonItem({
         runtime: getEpisodeRuntimeForToggle(episodeNumber),
       });
       setWatchedEpisodes(res.data.watchedEpisodes);
+      queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
     } catch (error) {
       console.error("Failed to toggle episode", error);
       // Revert optimistic update
@@ -218,7 +192,7 @@ function SeasonItem({
       
       setTogglingEpisodes(prev => ({ ...prev, [epNum]: true }));
       try {
-        const epData = episodes.find(ep => ep.episode_number === epNum);
+        const epData = episodes.find((ep: any) => ep.episode_number === epNum);
         const res = await api.post("/tracking/watched/season/toggle", {
           tmdbId: tvId,
           season: seasonNum,
@@ -226,6 +200,8 @@ function SeasonItem({
           runtime: epData?.runtime || episodeRuntime || 0,
         });
         setWatchedEpisodes(res.data.watchedEpisodes);
+        queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+        queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
       } catch (err) {
         console.error("Failed to bulk mark episodes", err);
       } finally {
@@ -247,7 +223,6 @@ function SeasonItem({
       try {
         const res = await api.get(`/tmdb/tv/${tvId}/season/${seasonNum}`);
         currentEpisodes = res.data.episodes || [];
-        setEpisodes(currentEpisodes);
       } catch (err) {
         console.error("Failed to fetch episodes to mark season", err);
         setIsTogglingSeason(false);
@@ -256,8 +231,8 @@ function SeasonItem({
     }
     
     const now = new Date();
-    const releasedEpisodes = currentEpisodes.filter(ep => ep.air_date && new Date(ep.air_date) <= now);
-    const epsNumbers = releasedEpisodes.map(ep => ep.episode_number);
+    const releasedEpisodes = currentEpisodes.filter((ep: any) => ep.air_date && new Date(ep.air_date) <= now);
+    const epsNumbers = releasedEpisodes.map((ep: any) => ep.episode_number);
     
     // Optimistic update
     const seasonEps = watchedEpisodes.filter(e => e.season === seasonNum);
@@ -281,6 +256,8 @@ function SeasonItem({
     try {
       const res = await api.post("/tracking/watched/season/toggle", { tmdbId: tvId, season: seasonNum, episodes: epsNumbers, runtime: episodeRuntime || 0 });
       setWatchedEpisodes(res.data.watchedEpisodes);
+      queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
     } catch (error) {
       console.error("Failed to mark season watched", error);
     } finally {
@@ -368,7 +345,7 @@ function SeasonItem({
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {episodes.map(ep => {
+              {episodes.map((ep: any) => {
                 const isEpWatched = watchedEpisodes.some(e => e.season === season.season_number && e.episode === ep.episode_number);
                 const isToggling = togglingEpisodes[ep.episode_number];
                 
@@ -502,10 +479,6 @@ export default function TitleDetailsPage() {
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
   const isFavorite = user ? (mediaType === 'tv' ? user.favoriteShows?.includes(id.toString()) : user.favoriteMovies?.includes(id.toString())) : false;
 
-  const [details, setDetails] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorStatus, setErrorStatus] = useState<number | null>(null);
-  
   const initialTab = (searchParams.get('tab') as any) || 'about';
   const [activeTab, setActiveTab] = useState<'about' | 'episodes' | 'cast' | 'trailers' | 'soundtrack'>(initialTab);
 
@@ -524,6 +497,7 @@ export default function TitleDetailsPage() {
       recommendationsScrollRef.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
     }
   };
+  const queryClient = useQueryClient();
   const [isWatched, setIsWatched] = useState(false);
   const [watchedEpisodes, setWatchedEpisodes] = useState<{season: number, episode: number}[]>([]);
   const [ignorePrompt, setIgnorePrompt] = useState(false);
@@ -546,6 +520,28 @@ export default function TitleDetailsPage() {
 
   const initialMount = useRef(true);
   const prevWatchedCount = useRef(0);
+
+  const { data: titleDetailsQuery, isLoading: isDetailsLoading, isError: isDetailsError, error: detailsError } = useQuery({
+    queryKey: ['title-details', mediaType, id],
+    queryFn: async () => {
+      const [detailsRes, watchedRes] = await Promise.all([
+        api.get(`/tmdb/title/${mediaType}/${id}`),
+        user ? api.get(`/tracking/watched/status/${mediaType}/${id}`).catch(() => ({ data: { watched: false, watchedEpisodes: [] } })) : Promise.resolve({ data: { watched: false, watchedEpisodes: [] } })
+      ]);
+      return {
+        details: detailsRes.data,
+        watchedStatus: watchedRes.data
+      };
+    },
+    enabled: !!(mediaType && id && (!isAuthLoading)),
+    retry: 2,
+    retryDelay: 1500,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const details = titleDetailsQuery?.details || null;
+  const isLoading = isDetailsLoading;
+  const errorStatus = isDetailsError ? (detailsError as any)?.response?.status === 404 ? 404 : 500 : null;
 
   useEffect(() => {
     if (initialMount.current) {
@@ -621,67 +617,36 @@ export default function TitleDetailsPage() {
     }
   }, [user, isAuthLoading, router]);
 
+
+
   useEffect(() => {
-    const fetchDetails = async (retryCount = 0) => {
-      try {
-        if (retryCount === 0) {
-          setIsLoading(true);
-          setErrorStatus(null);
-        }
-        
-        const [detailsRes, watchedRes] = await Promise.all([
-          api.get(`/tmdb/title/${mediaType}/${id}`),
-          user ? api.get(`/tracking/watched/status/${mediaType}/${id}`).catch(() => ({ data: { watched: false, watchedEpisodes: [] } })) : Promise.resolve({ data: { watched: false, watchedEpisodes: [] } })
-        ]);
-        
-        setDetails(detailsRes.data);
-        setIsWatched(watchedRes.data.watched);
-        if (watchedRes.data.watchedEpisodes) {
-          setWatchedEpisodes(watchedRes.data.watchedEpisodes);
-        }
-        if (watchedRes.data.ignorePreviousEpisodesPrompt !== undefined) {
-          setIgnorePrompt(watchedRes.data.ignorePreviousEpisodesPrompt);
-        }
-        
-        setIsLoading(false);
-      } catch (error: any) {
-        if (error.response?.status === 404) {
-          setErrorStatus(404);
-          setIsLoading(false);
-          return;
-        }
-        
-        console.error(`Failed to fetch details (Attempt ${retryCount + 1}):`, error);
-        if (retryCount < 2) {
-          setTimeout(() => fetchDetails(retryCount + 1), 1500);
-        } else {
-          setErrorStatus(500);
-          setIsLoading(false);
-        }
+    if (titleDetailsQuery?.watchedStatus) {
+      setIsWatched(titleDetailsQuery.watchedStatus.watched);
+      if (titleDetailsQuery.watchedStatus.watchedEpisodes) {
+        setWatchedEpisodes(titleDetailsQuery.watchedStatus.watchedEpisodes);
       }
-    };
-
-    if (mediaType && id && (!isAuthLoading || user?.id)) {
-      fetchDetails();
+      if (titleDetailsQuery.watchedStatus.ignorePreviousEpisodesPrompt !== undefined) {
+        setIgnorePrompt(titleDetailsQuery.watchedStatus.ignorePreviousEpisodesPrompt);
+      }
     }
-  }, [mediaType, id, isAuthLoading, user?.id]);
+  }, [titleDetailsQuery?.watchedStatus]);
+
+  const { data: soundtrackData } = useQuery({
+    queryKey: ['soundtrack', details?.title || details?.name],
+    queryFn: async () => {
+      const titleToSearch = details.title || details.name;
+      const res = await api.get(`/youtube/soundtrack?q=${encodeURIComponent(titleToSearch)}`);
+      return res.data?.url || null;
+    },
+    enabled: !!details,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
 
   useEffect(() => {
-    if (details) {
-      const fetchSoundtrack = async () => {
-        try {
-          const titleToSearch = details.title || details.name;
-          const res = await api.get(`/youtube/soundtrack?q=${encodeURIComponent(titleToSearch)}`);
-          if (res.data && res.data.url) {
-            setSoundtrackUrl(res.data.url);
-          }
-        } catch (error) {
-          console.error("Failed to fetch soundtrack", error);
-        }
-      };
-      fetchSoundtrack();
+    if (soundtrackData) {
+      setSoundtrackUrl(soundtrackData);
     }
-  }, [details]);
+  }, [soundtrackData]);
 
   const trailer = details?.videos?.results?.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer') || details?.videos?.results?.find((v: any) => v.site === 'YouTube');
 
@@ -737,6 +702,20 @@ export default function TitleDetailsPage() {
       if (mediaType === 'tv') {
         setWatchedEpisodes(res.data.watchedEpisodes || []);
       }
+      
+      // Update React Query Cache
+      queryClient.setQueryData(['title-details', mediaType, id], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          watchedStatus: {
+            ...oldData.watchedStatus,
+            watched: res.data.watched,
+            watchedEpisodes: res.data.watchedEpisodes || oldData.watchedStatus?.watchedEpisodes || []
+          }
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
     } catch (error) {
       console.error("Failed to toggle watched status", error);
     } finally {

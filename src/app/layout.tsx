@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 
 import { GoogleAuthProvider } from "@/components/auth/GoogleAuthProvider";
 import { ReduxProvider } from "@/components/providers/ReduxProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import { BottomNav } from "@/components/layout/BottomNav";
 
 export default function RootLayout({
@@ -29,8 +30,10 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-50 outline-none">
         <GoogleAuthProvider>
           <ReduxProvider>
-            {children}
-            <BottomNav />
+            <QueryProvider>
+              {children}
+              <BottomNav />
+            </QueryProvider>
           </ReduxProvider>
         </GoogleAuthProvider>
       </body>

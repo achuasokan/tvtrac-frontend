@@ -2,13 +2,14 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { AppDispatch, RootState } from "@/store";
 import { useRouter } from "next/navigation";
 import { tmdbService } from "@/services/tmdb.service";
-import { profileService } from "@/features/profile/api/profile.service";
+import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { setUser } from "@/store/slices/authSlice";
 import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
 import { motion } from "framer-motion";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
 type TmdbItem = {
   id: number;
@@ -44,16 +45,8 @@ export default function AdvancedFilterPage() {
   
   // UI State
   const [showFilters, setShowFilters] = useState(false);
-  
-  // Results State
-  const [results, setResults] = useState<TmdbItem[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalResults, setTotalResults] = useState<number | null>(null);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const toggleWatchlistMutation = useToggleWatchlist();
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -62,25 +55,26 @@ export default function AdvancedFilterPage() {
     }
   }, [user, isAuthLoading, router]);
 
-  const fetchResults = async (currentPage: number, append: boolean, signal?: AbortSignal, retryCount = 0) => {
-    if (retryCount === 0) {
-      if (append) setIsFetchingMore(true);
-      else {
-        setIsLoading(true);
-        setErrorMsg(null);
-      }
-    }
-
-    try {
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage: isFetchingMore,
+    isLoading,
+    isError,
+    refetch
+  } = useInfiniteQuery({
+    queryKey: ['filter-results', type, year, genre, language, provider, status, minRating],
+    queryFn: async ({ pageParam = 1 }) => {
       const params: Record<string, string> = {
         type,
-        page: currentPage.toString(),
-        sort_by: "popularity.desc" // Removed vote_count to allow unrated regional shows
+        page: pageParam.toString(),
+        sort_by: "popularity.desc"
       };
       
       if (minRating !== "0") {
         params["vote_average.gte"] = minRating;
-        params["vote_count.gte"] = "10"; // Only require votes if they actually want a rating filter
+        params["vote_count.gte"] = "10";
       }
 
       if (year) {
@@ -104,42 +98,26 @@ export default function AdvancedFilterPage() {
       }
       if (type === "tv" && status) params["with_status"] = status;
 
-      const data = await tmdbService.discoverAdvanced(params, signal);
-      
-      const filtered = data.results?.filter((item: any) => item.poster_path) || [];
+      const response = await tmdbService.discoverAdvanced(params);
+      const filtered = response.results?.filter((item: any) => item.poster_path) || [];
       const mapped = filtered.map((item: any) => ({ ...item, media_type: type }));
       
-      if (append) {
-        setResults(prev => [...prev, ...mapped]);
-      } else {
-        setResults(mapped);
-      }
-      
-      setTotalPages(data.total_pages || 1);
-      setTotalResults(data.total_results || 0);
-      
-      setIsLoading(false);
-      setIsFetchingMore(false);
-    } catch (error: any) {
-      if (error.name !== "CanceledError" && error.name !== "AbortError") {
-        console.error(`Failed to fetch advanced filter results (Attempt ${retryCount + 1})`, error);
-        
-        if (retryCount < 2) {
-          // Auto-retry up to 2 times if TMDB randomly drops the connection
-          setTimeout(() => {
-            fetchResults(currentPage, append, signal, retryCount + 1);
-          }, 1500);
-        } else {
-          setErrorMsg("TMDB servers are currently overloaded. Please try again in a moment.");
-          setIsLoading(false);
-          setIsFetchingMore(false);
-        }
-      } else {
-        // If aborted, we don't necessarily want to stop loading if another fetch took over,
-        // but typically we can ignore it since the new fetch handles state.
-      }
-    }
-  };
+      return {
+        results: mapped,
+        nextPage: response.page < response.total_pages ? response.page + 1 : undefined,
+        totalResults: response.total_results || 0,
+        totalPages: response.total_pages || 1,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 1,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
+  const results = data?.pages.flatMap((page) => page.results) || [];
+  const totalResults = data?.pages[0]?.totalResults || null;
+  const totalPages = data?.pages[0]?.totalPages || 1;
+  const errorMsg = isError ? "TMDB servers are currently overloaded. Please try again in a moment." : null;
 
   const handleToggleWatchlist = async (e: React.MouseEvent, item: TmdbItem) => {
     e.stopPropagation();
@@ -151,41 +129,17 @@ export default function AdvancedFilterPage() {
     
     setTogglingId(item.id);
     try {
-      const updatedUser = await profileService.toggleWatchlist(
-        { type: isShow ? 'shows' : 'movies', tmdbId: item.id.toString() } as any,
-        !isAdded
-      );
-      dispatch(setUser(updatedUser));
+      await toggleWatchlistMutation.mutateAsync({
+        tmdbId: item.id,
+        mediaType: isShow ? 'tv' : 'movie',
+        isAdded
+      });
     } catch (error) {
       console.error("Failed to toggle watchlist", error);
     } finally {
       setTogglingId(null);
     }
   };
-
-  // Reset page to 1 when filters change
-  useEffect(() => {
-    setPage(1);
-    setResults([]);
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      fetchResults(1, false, controller.signal);
-    }, 400);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [type, year, genre, language, provider, status, minRating]);
-
-  // Fetch more when page changes (but not on initial mount or filter reset)
-  useEffect(() => {
-    if (page > 1) {
-      const controller = new AbortController();
-      fetchResults(page, true, controller.signal);
-      return () => controller.abort();
-    }
-  }, [page]);
 
   // Sync filters to URL without reloading page
   useEffect(() => {
@@ -453,7 +407,7 @@ export default function AdvancedFilterPage() {
             <h3 className="text-xl font-bold text-white mb-2">Connection Failed</h3>
             <p className="text-zinc-400 mb-6">{errorMsg}</p>
             <button 
-              onClick={() => fetchResults(1, false)}
+              onClick={() => refetch()}
               className="bg-white text-black font-bold py-2 px-6 rounded-md hover:bg-zinc-200 transition-colors"
             >
               Retry Connection
@@ -461,7 +415,7 @@ export default function AdvancedFilterPage() {
           </div>
         ) : results.length > 0 ? (
           <div className="pb-10">
-            <InfiniteScroll hasMore={page < totalPages} isLoading={isFetchingMore} onLoadMore={() => setPage(p => p + 1)}>
+            <InfiniteScroll hasMore={!!hasNextPage} isLoading={isFetchingMore} onLoadMore={() => fetchNextPage()}>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 sm:gap-4 mb-8">
                 {results.map((item, idx) => (
                   <motion.div 

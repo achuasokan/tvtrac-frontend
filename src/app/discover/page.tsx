@@ -2,17 +2,14 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { RootState } from "@/store";
+import { AppDispatch, RootState } from "@/store";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { profileService } from "@/features/profile/api/profile.service";
+import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { setUser } from "@/store/slices/authSlice";
 import { tmdbService } from "@/services/tmdb.service";
 import { motion } from "framer-motion";
 
-// Global module-level caches to make Discover page load in 0ms when navigating back
-let globalTrendingCache: TmdbItem[] = [];
-const globalGenreImagesCache: Record<string, string> = {};
-const globalStudioLogosCache: Record<string, string> = {};
+import { useQuery } from "@tanstack/react-query";
 
 interface TmdbItem {
   id: number;
@@ -73,17 +70,30 @@ export default function DiscoverPage() {
   const urlQuery = searchParams.get('q') || "";
   
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  
+  const toggleWatchlistMutation = useToggleWatchlist();
 
   const [inputValue, setInputValue] = useState(urlQuery);
-  const [results, setResults] = useState<TmdbItem[]>(() => !urlQuery.trim() ? globalTrendingCache : []);
-  const [trendingCache, setTrendingCache] = useState<TmdbItem[]>(() => globalTrendingCache);
-  const [isLoading, setIsLoading] = useState<boolean>(() => !urlQuery.trim() && globalTrendingCache.length === 0);
-  const [genreImages, setGenreImages] = useState<Record<string, string>>(() => globalGenreImagesCache);
-  const [studioLogos, setStudioLogos] = useState<Record<string, string>>(() => globalStudioLogosCache);
+  const [searchResults, setSearchResults] = useState<TmdbItem[]>([]);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // --- REACT QUERY FETCHES ---
+  const { data: trendingData, isLoading: isTrendingLoading } = useQuery({
+    queryKey: ['trending'],
+    queryFn: async () => {
+      const [tvData, movieData] = await Promise.all([
+        tmdbService.getTrendingTv().catch(() => ({ results: [] })),
+        tmdbService.getTrendingMovies().catch(() => ({ results: [] }))
+      ]);
+      const tvShows = tvData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'tv' })) || [];
+      const movies = movieData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'movie' })) || [];
+      return [...tvShows, ...movies];
+    }
+  });
 
   const platformsRef = useRef<HTMLDivElement>(null);
 
@@ -109,11 +119,11 @@ export default function DiscoverPage() {
     
     setTogglingId(item.id);
     try {
-      const updatedUser = await profileService.toggleWatchlist(
-        { type: isShow ? 'shows' : 'movies', tmdbId: item.id.toString() } as any,
-        !isAdded
-      );
-      dispatch(setUser(updatedUser));
+      await toggleWatchlistMutation.mutateAsync({
+        tmdbId: item.id,
+        mediaType: isShow ? 'tv' : 'movie',
+        isAdded
+      });
     } catch (error) {
       console.error("Failed to toggle watchlist", error);
     } finally {
@@ -145,17 +155,17 @@ export default function DiscoverPage() {
     return () => clearTimeout(timer);
   }, [inputValue, pathname, router]);
 
-  // Fetch data based on URL query
+  // Fetch data based on URL query (Search)
   useEffect(() => {
     const controller = new AbortController();
     
     if (urlQuery.trim()) {
       const fetchSearch = async () => {
         try {
-          setIsLoading(true);
+          setIsSearchLoading(true);
           const data = await tmdbService.search(urlQuery, 1, controller.signal);
           const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
-          setResults(filtered);
+          setSearchResults(filtered);
           setHasMore(data.page < data.total_pages);
           setPage(1);
         } catch (error: any) {
@@ -163,43 +173,12 @@ export default function DiscoverPage() {
             console.error("Failed to search:", error);
           }
         } finally {
-          setIsLoading(false);
+          setIsSearchLoading(false);
         }
       };
       fetchSearch();
     } else {
-      const fetchTrending = async () => {
-        if (globalTrendingCache.length > 0) {
-          setTrendingCache(globalTrendingCache);
-          setResults(globalTrendingCache);
-          setHasMore(false);
-          setIsLoading(false);
-          return;
-        }
-
-        try {
-          setIsLoading(true);
-          const [tvData, movieData] = await Promise.all([
-            tmdbService.getTrendingTv().catch(() => ({ results: [] })),
-            tmdbService.getTrendingMovies().catch(() => ({ results: [] }))
-          ]);
-          
-          const tvShows = tvData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'tv' })) || [];
-          const movies = movieData.results?.filter((item: any) => item.poster_path).map((item: any) => ({ ...item, media_type: 'movie' })) || [];
-          
-          const combined = [...tvShows, ...movies];
-          globalTrendingCache = combined;
-          setTrendingCache(combined);
-          setResults(combined);
-          setHasMore(false);
-        } catch (error) {
-          console.error("Failed to fetch trending:", error);
-          setResults([]);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-      fetchTrending();
+      setSearchResults([]);
     }
     
     return () => controller.abort();
@@ -212,7 +191,7 @@ export default function DiscoverPage() {
     try {
       const data = await tmdbService.search(urlQuery, nextPage);
       const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
-      setResults(prev => [...prev, ...filtered]);
+      setSearchResults(prev => [...prev, ...filtered]);
       setHasMore(data.page < data.total_pages);
       setPage(nextPage);
     } catch (error) {
@@ -266,19 +245,13 @@ export default function DiscoverPage() {
     { name: "Searchlight Pictures", id: 43 },
   ];
   
-  useEffect(() => {
-    if (Object.keys(globalGenreImagesCache).length > 0 && Object.keys(globalStudioLogosCache).length > 0) {
-      setGenreImages(globalGenreImagesCache);
-      setStudioLogos(globalStudioLogosCache);
-      return;
-    }
-
-    const fetchImages = async () => {
+  const { data: genreImages = {} } = useQuery({
+    queryKey: ['genre-images'],
+    queryFn: async () => {
       const images: Record<string, string> = {};
-      const logos: Record<string, string> = {};
       
-      await Promise.all(
-        genreNames.map(async (name) => {
+      await Promise.all([
+        ...genreNames.map(async (name) => {
           try {
             const data = await tmdbService.getGenreBackdrop(name);
             const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
@@ -286,11 +259,8 @@ export default function DiscoverPage() {
               images[name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
             }
           } catch {}
-        })
-      );
-
-      await Promise.all(
-        franchises.map(async (f) => {
+        }),
+        ...franchises.map(async (f) => {
           try {
             let data;
             if (f.type === 'collection') {
@@ -315,32 +285,37 @@ export default function DiscoverPage() {
             }
           } catch {}
         })
-      );
+      ]);
+      
+      return images;
+    },
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
 
-      Object.assign(globalGenreImagesCache, images);
-      setGenreImages(images);
-
+  const { data: studioLogos = {} } = useQuery({
+    queryKey: ['studio-logos'],
+    queryFn: async () => {
+      const logos: Record<string, string> = {};
       await Promise.all(
         topStudios.map(async (studio) => {
           try {
             const data = await tmdbService.getCompany(studio.id);
             if (data && data.logo_path) {
-              const logoUrl = `https://image.tmdb.org/t/p/w300${data.logo_path}`;
-              globalStudioLogosCache[studio.name] = logoUrl;
-              setStudioLogos(prev => ({ ...prev, [studio.name]: logoUrl }));
+              logos[studio.name] = `https://image.tmdb.org/t/p/w300${data.logo_path}`;
             } else {
-              globalStudioLogosCache[studio.name] = 'error';
-              setStudioLogos(prev => ({ ...prev, [studio.name]: 'error' }));
+              logos[studio.name] = 'error';
             }
           } catch (error) {
-            globalStudioLogosCache[studio.name] = 'error';
-            setStudioLogos(prev => ({ ...prev, [studio.name]: 'error' }));
+            logos[studio.name] = 'error';
           }
         })
       );
-    };
-    fetchImages();
-  }, []);
+      return logos;
+    },
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  // Replaced with React Query above
 
   const renderItemCard = (item: TmdbItem, idx: number = 0) => (
     <motion.div 
@@ -581,7 +556,7 @@ export default function DiscoverPage() {
           </h2>
         </div>
 
-        {isLoading ? (
+        { (urlQuery.trim() ? isSearchLoading : isTrendingLoading) ? (
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
             {[...Array(12)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2 animate-pulse">
@@ -593,7 +568,7 @@ export default function DiscoverPage() {
               </div>
             ))}
           </div>
-        ) : results.length === 0 ? (
+        ) : (urlQuery.trim() ? searchResults : trendingData || []).length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-zinc-700 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -607,7 +582,7 @@ export default function DiscoverPage() {
               // Unified Search Grid
               <div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                  {results.map((item, idx) => renderItemCard(item, idx))}
+                  {searchResults.map((item, idx) => renderItemCard(item, idx))}
                   
                   {/* Inline Load More Card */}
                   {hasMore && (
@@ -635,7 +610,7 @@ export default function DiscoverPage() {
               // Dashboard View (Trending)
               <>
                 {/* TV Shows Section */}
-                {results.filter(item => item.media_type === "tv").length > 0 && (
+                {(trendingData || []).filter(item => item.media_type === "tv").length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-zinc-300 flex items-center gap-2">
@@ -649,13 +624,13 @@ export default function DiscoverPage() {
                       </button>
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                      {results.filter(item => item.media_type === "tv").slice(0, 6).map((item, idx) => renderItemCard(item, idx))}
+                      {(trendingData || []).filter(item => item.media_type === "tv").slice(0, 6).map((item, idx) => renderItemCard(item, idx))}
                     </div>
                   </div>
                 )}
 
                 {/* Movies Section */}
-                {results.filter(item => item.media_type === "movie").length > 0 && (
+                {(trendingData || []).filter(item => item.media_type === "movie").length > 0 && (
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-zinc-300 flex items-center gap-2">
@@ -669,7 +644,7 @@ export default function DiscoverPage() {
                       </button>
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                      {results.filter(item => item.media_type === "movie").slice(0, 6).map((item, idx) => renderItemCard(item, idx))}
+                      {(trendingData || []).filter(item => item.media_type === "movie").slice(0, 6).map((item, idx) => renderItemCard(item, idx))}
                     </div>
                   </div>
                 )}

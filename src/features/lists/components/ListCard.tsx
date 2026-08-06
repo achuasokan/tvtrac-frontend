@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { IList } from "../types";
 import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 interface ListCardProps {
   list: IList;
@@ -9,62 +10,38 @@ interface ListCardProps {
   onEdit?: (list: IList) => void;
 }
 
-// Module-level cover cache to prevent refetching on navigation
-const listCoverCache = new Map<string, string[]>();
-
 export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
-  const [posters, setPosters] = useState<string[]>(() => listCoverCache.get(list.id) || []);
-  const [isLoading, setIsLoading] = useState<boolean>(() => !listCoverCache.has(list.id) && list.items?.length > 0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    
-    if (listCoverCache.has(list.id)) {
-      setPosters(listCoverCache.get(list.id)!);
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchPosters = async () => {
-      if (!list.items || list.items.length === 0) {
-        if (isMounted) setIsLoading(false);
-        return;
-      }
+  const { data: postersData, isLoading } = useQuery({
+    queryKey: ['list-cover', list.id],
+    queryFn: async () => {
+      if (!list.items || list.items.length === 0) return [];
       
-      try {
-        const top3 = list.items.slice(0, 3);
-        const fetchedPosters = await Promise.all(
-          top3.map(async (item) => {
-            try {
-              const res = await api.get(`/tmdb/title/${item.mediaType}/${item.tmdbId}`);
-              if (res.data?.backdrop_path) {
-                return `https://image.tmdb.org/t/p/w780${res.data.backdrop_path}`;
-              } else if (res.data?.poster_path) {
-                return `https://image.tmdb.org/t/p/w500${res.data.poster_path}`;
-              }
-              return null;
-            } catch (err) {
-              return null;
+      const top3 = list.items.slice(0, 3);
+      const fetchedPosters = await Promise.all(
+        top3.map(async (item) => {
+          try {
+            const res = await api.get(`/tmdb/title/${item.mediaType}/${item.tmdbId}`);
+            if (res.data?.backdrop_path) {
+              return `https://image.tmdb.org/t/p/w780${res.data.backdrop_path}`;
+            } else if (res.data?.poster_path) {
+              return `https://image.tmdb.org/t/p/w500${res.data.poster_path}`;
             }
-          })
-        );
-        
-        const validPosters = fetchedPosters.filter(Boolean) as string[];
-        listCoverCache.set(list.id, validPosters);
+            return null;
+          } catch (err) {
+            return null;
+          }
+        })
+      );
+      
+      return fetchedPosters.filter(Boolean) as string[];
+    },
+    enabled: list.items && list.items.length > 0,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-        if (isMounted) {
-          setPosters(validPosters);
-          setIsLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-    
-    fetchPosters();
-    return () => { isMounted = false; };
-  }, [list.items]);
+  const posters = postersData || [];
 
   return (
     <div className="group relative isolate w-full aspect-video rounded-2xl bg-zinc-950 border border-zinc-800/80 shadow-xl hover:shadow-[0_8px_30px_rgba(254,215,184,0.15)] hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-pointer">

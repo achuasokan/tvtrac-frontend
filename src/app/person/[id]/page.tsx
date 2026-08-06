@@ -4,14 +4,23 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 export default function PersonDetailsPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  const [person, setPerson] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: person, isLoading } = useQuery({
+    queryKey: ['person-details', id],
+    queryFn: async () => {
+      const res = await api.get(`/tmdb/person/${id}`);
+      return res.data;
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
   const [isScrolled, setIsScrolled] = useState(false);
   const [creditFilter, setCreditFilter] = useState<'all' | 'movie' | 'tv'>('all');
 
@@ -22,24 +31,6 @@ export default function PersonDetailsPage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => {
-    const fetchPerson = async () => {
-      try {
-        setIsLoading(true);
-        const res = await api.get(`/tmdb/person/${id}`);
-        setPerson(res.data);
-      } catch (error) {
-        console.error("Failed to fetch person details:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchPerson();
-    }
-  }, [id]);
 
   if (isLoading) {
     return (

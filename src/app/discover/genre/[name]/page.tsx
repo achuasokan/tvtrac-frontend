@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { AppDispatch, RootState } from "@/store";
 import { useRouter, useParams, useSearchParams, usePathname } from "next/navigation";
 import { tmdbService } from "@/services/tmdb.service";
-import { profileService } from "@/features/profile/api/profile.service";
-import { setUser } from "@/store/slices/authSlice";
+import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
 import { motion } from "framer-motion";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
 // Global cache for genre discovery results
 const genreResultsCache = new Map<string, TmdbItem[]>();
@@ -166,12 +166,8 @@ export default function DiscoverGenrePage() {
   
   const genreName = decodeURIComponent(params.name as string);
 
-  const [results, setResults] = useState<TmdbItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const toggleWatchlistMutation = useToggleWatchlist();
   const dispatch = useDispatch();
   
   // Initialize state from URL params if they exist
@@ -222,49 +218,39 @@ export default function DiscoverGenrePage() {
     return params.toString();
   };
 
-  const fetchGenreShows = async (pageNumber: number, currentFilter: string, isInitial = false) => {
-    if (!genreName) return;
-
-    try {
-      if (isInitial) setIsLoading(true);
-      else setLoadingMore(true);
-
-      const queryString = buildQueryParams(pageNumber, currentFilter);
-      const data = await tmdbService.discoverByGenre(genreName, queryString);
-      const newResults = data.results?.filter((item: any) => item.poster_path) || [];
-      
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage: hasMore,
+    isFetchingNextPage: loadingMore,
+    isLoading,
+  } = useInfiniteQuery({
+    queryKey: ['genre-results', genreName, filter, sortBy, minRating, year, language],
+    queryFn: async ({ pageParam = 1 }) => {
+      const queryString = buildQueryParams(pageParam, filter);
+      const response = await tmdbService.discoverByGenre(genreName, queryString);
+      const newResults = response.results?.filter((item: any) => item.poster_path) || [];
       const formattedResults = newResults.map((item: any) => ({ 
         ...item, 
-        media_type: currentFilter 
+        media_type: filter 
       }));
 
-      if (isInitial) {
-        setResults(formattedResults);
-      } else {
-        setResults(prev => [...prev, ...formattedResults]);
-      }
+      return {
+        results: formattedResults,
+        nextPage: response.page < response.total_pages && pageParam < 100 ? response.page + 1 : undefined,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 1,
+    enabled: !!genreName,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-      setHasMore(data.page < data.total_pages && pageNumber < 100);
-    } catch (error) {
-      console.error("Failed to fetch genre shows:", error);
-    } finally {
-      setIsLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    if (genreName) {
-      setPage(1);
-      fetchGenreShows(1, filter, true);
-    }
-  }, [genreName, filter, sortBy, minRating, year, language]);
+  const results = data?.pages.flatMap((page) => page.results) || [];
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchGenreShows(nextPage, filter);
+      fetchNextPage();
     }
   };
 
@@ -285,11 +271,11 @@ export default function DiscoverGenrePage() {
     
     setTogglingId(item.id);
     try {
-      const updatedUser = await profileService.toggleWatchlist(
-        { type: isShow ? 'shows' : 'movies', tmdbId: item.id.toString() } as any,
-        !isAdded
-      );
-      dispatch(setUser(updatedUser));
+      await toggleWatchlistMutation.mutateAsync({
+        tmdbId: item.id,
+        mediaType: isShow ? 'tv' : 'movie',
+        isAdded
+      });
     } catch (error) {
       console.error("Failed to toggle watchlist", error);
     } finally {
@@ -410,8 +396,6 @@ export default function DiscoverGenrePage() {
               onClick={() => {
                 if (filter !== f.id) {
                   setFilter(f.id as any);
-                  setPage(1);
-                  setResults([]);
                 }
               }}
               className={`flex-shrink-0 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all border ${

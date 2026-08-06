@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { api } from "@/lib/api";
 import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -26,16 +27,17 @@ export default function EpisodeDetailsPage() {
   const { id, season_number, episode_number } = useParams();
   const { user } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [details, setDetails] = useState<any>(null);
   const [seasonDetails, setSeasonDetails] = useState<any>(null);
   const [showDetails, setShowDetails] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+
   const [isWatched, setIsWatched] = useState(false);
   const [isTogglingWatched, setIsTogglingWatched] = useState(false);
   const [isDescriptionRevealed, setIsDescriptionRevealed] = useState(false);
   const [watchedAt, setWatchedAt] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
   
   const guestStarsRef = useRef<HTMLDivElement>(null);
   const crewRef = useRef<HTMLDivElement>(null);
@@ -87,51 +89,50 @@ export default function EpisodeDetailsPage() {
     }
   }, [user, router]);
 
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        setIsLoading(true);
-        // We fetch the episode details, season details, the tracking status for the entire series, and show details
-        const [detailsRes, seasonRes, watchedRes, showRes] = await Promise.all([
-          api.get(`/tmdb/tv/${id}/season/${season_number}/episode/${episode_number}`),
-          api.get(`/tmdb/tv/${id}/season/${season_number}`),
-          user ? api.get(`/tracking/watched/status/tv/${id}`).catch(() => ({ data: { watchedEpisodes: [] } })) : Promise.resolve({ data: { watchedEpisodes: [] } }),
-          api.get(`/tmdb/title/tv/${id}`).catch(() => ({ data: null }))
-        ]);
-        
-        setDetails(detailsRes.data);
-        setSeasonDetails(seasonRes.data);
-        setShowDetails(showRes.data);
-        
-        // Check if this specific episode is watched
-        if (watchedRes.data.watchedEpisodes) {
-          setWatchedEpisodes(watchedRes.data.watchedEpisodes);
-          const matchedEp = watchedRes.data.watchedEpisodes.find(
-            (ep: any) => ep.season === Number(season_number) && ep.episode === Number(episode_number)
-          );
-          if (matchedEp) {
-            setIsWatched(true);
-            setWatchedAt(matchedEp.watchedAt || null);
-          } else {
-            setIsWatched(false);
-            setWatchedAt(null);
-          }
-        }
-        if (watchedRes.data.ignorePreviousEpisodesPrompt !== undefined) {
-          setIgnorePrompt(watchedRes.data.ignorePreviousEpisodesPrompt);
-        }
-      } catch (err) {
-        console.error("Failed to fetch episode details:", err);
-        setError("Failed to load episode details. Please try again.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const { data: queryData, isLoading, isError: queryError } = useQuery({
+    queryKey: ['episode-details', id, season_number, episode_number],
+    queryFn: async () => {
+      const [detailsRes, seasonRes, watchedRes, showRes] = await Promise.all([
+        api.get(`/tmdb/tv/${id}/season/${season_number}/episode/${episode_number}`),
+        api.get(`/tmdb/tv/${id}/season/${season_number}`),
+        user ? api.get(`/tracking/watched/status/tv/${id}`).catch(() => ({ data: { watchedEpisodes: [] } })) : Promise.resolve({ data: { watchedEpisodes: [] } }),
+        api.get(`/tmdb/title/tv/${id}`).catch(() => ({ data: null }))
+      ]);
 
-    if (id && season_number && episode_number && user) {
-      fetchDetails();
+      return {
+        details: detailsRes.data,
+        seasonDetails: seasonRes.data,
+        watchedData: watchedRes.data,
+        showDetails: showRes.data
+      };
+    },
+    enabled: !!id && !!season_number && !!episode_number && !!user,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  useEffect(() => {
+    if (queryData) {
+      setDetails(queryData.details);
+      setSeasonDetails(queryData.seasonDetails);
+      setShowDetails(queryData.showDetails);
+      if (queryData.watchedData.watchedEpisodes) {
+        setWatchedEpisodes(queryData.watchedData.watchedEpisodes);
+        const matchedEp = queryData.watchedData.watchedEpisodes.find(
+          (ep: any) => ep.season === Number(season_number) && ep.episode === Number(episode_number)
+        );
+        if (matchedEp) {
+          setIsWatched(true);
+          setWatchedAt(matchedEp.watchedAt || null);
+        } else {
+          setIsWatched(false);
+          setWatchedAt(null);
+        }
+      }
+      if (queryData.watchedData.ignorePreviousEpisodesPrompt !== undefined) {
+        setIgnorePrompt(queryData.watchedData.ignorePreviousEpisodesPrompt);
+      }
     }
-  }, [id, season_number, episode_number, user]);
+  }, [queryData, season_number, episode_number]);
 
   const handleToggleWatched = async () => {
     if (!user) return router.push("/login");
@@ -180,6 +181,10 @@ export default function EpisodeDetailsPage() {
         episode: Number(episode_number),
         runtime: getEpisodeRuntime(),
       });
+      // Force the title details page and episode page to refetch so they have fresh watched status
+      queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', id] });
+      queryClient.invalidateQueries({ queryKey: ['episode-details', id, season_number, episode_number] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
     } catch (error) {
       console.error("Failed to toggle episode watched status:", error);
       setIsWatched(prev => !prev); // revert on error
@@ -223,6 +228,8 @@ export default function EpisodeDetailsPage() {
           episodes: allToMark,
           runtime: getEpisodeRuntime(),
         });
+        queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', id] });
+        queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
       } catch (err) {
         console.error("Failed to bulk mark episodes", err);
       } finally {
@@ -239,11 +246,11 @@ export default function EpisodeDetailsPage() {
     );
   }
 
-  if (error) {
+  if (queryError) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white">
         <h1 className="text-2xl font-bold mb-4 text-red-500">Network Error</h1>
-        <p className="text-zinc-400 mb-6">{error}</p>
+        <p className="text-zinc-400 mb-6">Failed to load episode details. Please try again.</p>
         <div className="flex gap-4">
           <button onClick={() => window.location.reload()} className="px-6 py-2 bg-zinc-800 text-white font-bold rounded hover:bg-zinc-700 transition-colors">
             Retry
