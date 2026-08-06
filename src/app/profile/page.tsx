@@ -38,11 +38,11 @@ export default function ProfilePage() {
     }, [user?.favoriteMovies]);
 
     const historyShows = useMemo(() => {
-        return history.filter(h => h.mediaType === 'tv').map(item => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
+        return history.filter((h: WatchHistoryItem) => h.mediaType === 'tv').map((item: WatchHistoryItem) => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
     }, [history]);
 
     const historyMovies = useMemo(() => {
-        return history.filter(h => h.mediaType === 'movie').map(item => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
+        return history.filter((h: WatchHistoryItem) => h.mediaType === 'movie').map((item: WatchHistoryItem) => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
     }, [history]);
 
     // Prevent flashing empty skeletons while logging out / transitioning
