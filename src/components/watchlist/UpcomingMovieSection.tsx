@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { WatchlistMovieItem } from './WatchlistMovieItem';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { InfiniteScroll } from '../InfiniteScroll';
 
 interface UpcomingMovieSectionProps {
@@ -8,44 +9,24 @@ interface UpcomingMovieSectionProps {
 }
 
 export function UpcomingMovieSection({ viewMode }: UpcomingMovieSectionProps) {
-    const [movies, setMovies] = useState<any[]>([]);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const {
+        data,
+        fetchNextPage: loadMore,
+        hasNextPage: hasMore,
+        isFetchingNextPage: isLoadingMore,
+        isLoading
+    } = useInfiniteQuery({
+        queryKey: ['watchlist', 'movies', 'upcoming'],
+        queryFn: async ({ pageParam = 1 }) => {
+            const res = await api.get(`/users/watchlist/movies/categorized?category=upcoming&page=${pageParam}&limit=24`);
+            return res.data.data;
+        },
+        initialPageParam: 1,
+        getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
 
-    useEffect(() => {
-        const fetchFirstPage = async () => {
-            setIsLoading(true);
-            try {
-                const res = await api.get(`/users/watchlist/movies/categorized?category=upcoming&page=1&limit=24`);
-                setMovies(res.data.data.data);
-                setHasMore(res.data.data.hasMore);
-                setPage(1);
-            } catch (err) {
-                console.error('Failed to load upcoming movies', err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchFirstPage();
-    }, []);
-
-    const loadMore = async () => {
-        if (isLoadingMore || !hasMore) return;
-        setIsLoadingMore(true);
-        try {
-            const nextPage = page + 1;
-            const res = await api.get(`/users/watchlist/movies/categorized?category=upcoming&page=${nextPage}&limit=24`);
-            setMovies(prev => [...prev, ...res.data.data.data]);
-            setHasMore(res.data.data.hasMore);
-            setPage(nextPage);
-        } catch (err) {
-            console.error('Failed to load more upcoming movies', err);
-        } finally {
-            setIsLoadingMore(false);
-        }
-    };
+    const movies = data ? data.pages.flatMap(page => page.data) : [];
 
     const groupedMovies = useMemo(() => {
         const grouped: { [dateLabel: string]: any[] } = {};

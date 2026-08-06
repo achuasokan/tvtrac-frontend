@@ -2,63 +2,40 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CuratedListDef } from "../data/curatedLists";
 import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 interface CuratedListCardProps {
   curatedList: CuratedListDef;
 }
 
-// Module-level cover cache to prevent refetching on navigation
-const curatedCoverCache = new Map<string, string[]>();
-
 export function CuratedListCard({ curatedList }: CuratedListCardProps) {
-  const [posters, setPosters] = useState<string[]>(() => curatedCoverCache.get(curatedList.id) || []);
-  const [isLoading, setIsLoading] = useState<boolean>(() => !curatedCoverCache.has(curatedList.id));
+  const { data: postersData, isLoading } = useQuery({
+    queryKey: ['curated-list-cover', curatedList.id],
+    queryFn: async () => {
+      const queryParams = new URLSearchParams({
+        type: curatedList.fetchParams.type,
+        page: "1",
+        ...curatedList.fetchParams.params,
+      }).toString();
 
-  useEffect(() => {
-    let isMounted = true;
+      const res = await api.get(`/tmdb/discover/advanced?${queryParams}`);
+      const results = res.data?.results || [];
 
-    if (curatedCoverCache.has(curatedList.id)) {
-      setPosters(curatedCoverCache.get(curatedList.id)!);
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchCoverItems = async () => {
-      try {
-        const queryParams = new URLSearchParams({
-          type: curatedList.fetchParams.type,
-          page: "1",
-          ...curatedList.fetchParams.params,
-        }).toString();
-
-        const res = await api.get(`/tmdb/discover/advanced?${queryParams}`);
-        const results = res.data?.results || [];
-
-        const coverPosters = results.slice(0, 4).map((item: any) => {
-          if (item.backdrop_path) {
-            return `https://image.tmdb.org/t/p/w500${item.backdrop_path}`;
-          } else if (item.poster_path) {
-            return `https://image.tmdb.org/t/p/w500${item.poster_path}`;
-          }
-          return null;
-        }).filter(Boolean) as string[];
-
-        curatedCoverCache.set(curatedList.id, coverPosters);
-
-        if (isMounted) {
-          setPosters(coverPosters);
-          setIsLoading(false);
+      const coverPosters = results.slice(0, 4).map((item: any) => {
+        if (item.backdrop_path) {
+          return `https://image.tmdb.org/t/p/w500${item.backdrop_path}`;
+        } else if (item.poster_path) {
+          return `https://image.tmdb.org/t/p/w500${item.poster_path}`;
         }
-      } catch (err) {
-        if (isMounted) setIsLoading(false);
-      }
-    };
+        return null;
+      }).filter(Boolean) as string[];
 
-    fetchCoverItems();
-    return () => {
-      isMounted = false;
-    };
-  }, [curatedList]);
+      return coverPosters;
+    },
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  const posters = postersData || [];
 
   return (
     <div className="group relative isolate w-full aspect-video rounded-2xl bg-zinc-950 border border-zinc-800/80 shadow-xl hover:shadow-[0_8px_30px_rgba(254,215,184,0.15)] hover:-translate-y-1 transition-all duration-300 overflow-hidden cursor-pointer">

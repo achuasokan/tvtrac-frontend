@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { RootState, AppDispatch } from "@/store";
 import { useRouter } from "next/navigation";
 import { tmdbService } from "@/services/tmdb.service";
-import { profileService } from "@/features/profile/api/profile.service";
+import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { setUser } from "@/store/slices/authSlice";
 import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
 import { motion } from "framer-motion";
-
-// Global cache for Trending TV page
-let globalDiscoverTvCache: TmdbItem[] = [];
+import { useInfiniteQuery } from "@tanstack/react-query";
 
 interface TmdbItem {
   id: number;
@@ -28,12 +26,9 @@ export default function DiscoverTvPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
 
-  const [results, setResults] = useState<TmdbItem[]>(() => globalDiscoverTvCache);
-  const [isLoading, setIsLoading] = useState<boolean>(() => globalDiscoverTvCache.length === 0);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  
+  const toggleWatchlistMutation = useToggleWatchlist();
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -42,51 +37,35 @@ export default function DiscoverTvPage() {
     }
   }, [user, isAuthLoading, router]);
 
-  const fetchTvShows = async (pageNumber: number, isInitial = false) => {
-    try {
-      if (isInitial) {
-        if (globalDiscoverTvCache.length > 0) {
-          setIsLoading(false);
-        } else {
-          setIsLoading(true);
-        }
-      } else {
-        setLoadingMore(true);
-      }
-
-      const data = await tmdbService.getTrendingTv(pageNumber);
-      const newResults = data.results?.filter((item: any) => item.poster_path) || [];
-      
-      // Inject media_type manually since endpoint might not include it if it's implicitly TV
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage: hasMore,
+    isFetchingNextPage: loadingMore,
+    isLoading,
+    isError
+  } = useInfiniteQuery({
+    queryKey: ['trending-tv'],
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await tmdbService.getTrendingTv(pageParam);
+      const newResults = response.results?.filter((item: any) => item.poster_path) || [];
       const formattedResults = newResults.map((item: any) => ({ ...item, media_type: "tv" }));
+      
+      return {
+        results: formattedResults,
+        nextPage: response.page < response.total_pages && pageParam < 100 ? response.page + 1 : undefined,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 1,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-      if (isInitial) {
-        globalDiscoverTvCache = formattedResults;
-        setResults(formattedResults);
-      } else {
-        setResults(prev => [...prev, ...formattedResults]);
-      }
-
-      setHasMore(data.page < data.total_pages && pageNumber < 100); // cap at 100 pages for safety
-    } catch (error) {
-      console.error("Failed to fetch trending TV shows:", error);
-    } finally {
-      setIsLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    if (globalDiscoverTvCache.length === 0) {
-      fetchTvShows(1, true);
-    }
-  }, []);
+  const results = data?.pages.flatMap((page) => page.results) || [];
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchTvShows(nextPage, false);
+      fetchNextPage();
     }
   };
 
@@ -100,11 +79,11 @@ export default function DiscoverTvPage() {
     
     setTogglingId(item.id);
     try {
-      const updatedUser = await profileService.toggleWatchlist(
-        { type: isShow ? 'shows' : 'movies', tmdbId: item.id.toString() } as any,
-        !isAdded
-      );
-      dispatch(setUser(updatedUser));
+      await toggleWatchlistMutation.mutateAsync({
+        tmdbId: item.id,
+        mediaType: isShow ? 'tv' : 'movie',
+        isAdded
+      });
     } catch (error) {
       console.error("Failed to toggle watchlist", error);
     } finally {
@@ -232,9 +211,14 @@ export default function DiscoverTvPage() {
               <div key={i} className="aspect-[2/3] w-full rounded-xl bg-zinc-900/80 border border-zinc-800/60 animate-pulse" />
             ))}
           </div>
+        ) : isError ? (
+          <div className="text-center py-20 px-4">
+            <h3 className="text-xl font-bold text-white mb-2">Failed to load content</h3>
+            <p className="text-zinc-400 mb-6">There was an error loading the trending TV shows.</p>
+          </div>
         ) : (
           <div className="flex flex-col gap-10">
-            <InfiniteScroll hasMore={hasMore} isLoading={loadingMore} onLoadMore={handleLoadMore}>
+            <InfiniteScroll hasMore={!!hasMore} isLoading={loadingMore} onLoadMore={handleLoadMore}>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
                 {results.map((item, idx) => renderItemCard(item, idx))}
               </div>

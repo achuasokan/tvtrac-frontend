@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { RootState } from "@/store";
+import { AppDispatch, RootState } from "@/store";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { tmdbService } from "@/services/tmdb.service";
-import { profileService } from "@/features/profile/api/profile.service";
-import { setUser } from "@/store/slices/authSlice";
+import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { InfiniteScroll } from "@/components/ui/InfiniteScroll";
 import { motion } from "framer-motion";
+import { useInfiniteQuery } from "@tanstack/react-query";
 
 // Global cache for network/platform discovery results
 const networkResultsCache = new Map<string, TmdbItem[]>();
@@ -33,14 +33,9 @@ export default function DiscoverNetworkPage() {
   const networkId = params.id as string;
   const networkName = searchParams.get("name") || "Network";
 
-  const [results, setResults] = useState<TmdbItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<"tv" | "movies" | "animation" | "anime">("tv");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+  const toggleWatchlistMutation = useToggleWatchlist();
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -49,70 +44,43 @@ export default function DiscoverNetworkPage() {
     }
   }, [user, isAuthLoading, router]);
 
-  const fetchNetworkShows = async (pageNumber: number, currentFilter: string, isInitial = false, retryCount = 0) => {
-    if (!networkId) return;
-
-    try {
-      if (isInitial && retryCount === 0) {
-        setIsLoading(true);
-        setErrorMsg(null);
-      } else if (!isInitial && retryCount === 0) {
-        setLoadingMore(true);
-      }
-
-      // Auto-detect Indian providers (Hotstar, JioCinema, SonyLIV, Zee5, Prime IN)
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage: hasMore,
+    isFetchingNextPage: loadingMore,
+    isLoading,
+    isError
+  } = useInfiniteQuery({
+    queryKey: ['network-results', networkId, filter],
+    queryFn: async ({ pageParam = 1 }) => {
       const indianProviders = ["122", "220", "237", "232", "119"];
       const region = indianProviders.includes(networkId) ? "IN" : "US";
 
-      const data = await tmdbService.discoverByNetwork(networkId, pageNumber, currentFilter, region);
-      const newResults = data.results?.filter((item: any) => item.poster_path) || [];
-      
+      const response = await tmdbService.discoverByNetwork(networkId, pageParam, filter, region);
+      const newResults = response.results?.filter((item: any) => item.poster_path) || [];
       const formattedResults = newResults.map((item: any) => ({ 
         ...item, 
-        media_type: currentFilter === "movies" ? "movie" : "tv" 
+        media_type: filter === "movies" ? "movie" : "tv" 
       }));
 
-      if (isInitial) {
-        setResults(formattedResults);
-      } else {
-        setResults(prev => {
-          const existingIds = new Set(prev.map(p => p.id));
-          const uniqueNew = formattedResults.filter((item: any) => !existingIds.has(item.id));
-          return [...prev, ...uniqueNew];
-        });
-      }
+      return {
+        results: formattedResults,
+        nextPage: response.page < response.total_pages && pageParam < 100 ? response.page + 1 : undefined,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 1,
+    enabled: !!networkId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 2,
+  });
 
-      setHasMore(data.page < data.total_pages && pageNumber < 100);
-      
-      if (isInitial) setIsLoading(false);
-      else setLoadingMore(false);
-      
-    } catch (error) {
-      console.error(`Failed to fetch network shows (Attempt ${retryCount + 1}):`, error);
-      if (retryCount < 2) {
-        setTimeout(() => fetchNetworkShows(pageNumber, currentFilter, isInitial, retryCount + 1), 1500);
-      } else {
-        if (isInitial) {
-          setErrorMsg("Connection Failed. Please try again.");
-          setIsLoading(false);
-        } else {
-          setLoadingMore(false);
-        }
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (networkId) {
-      fetchNetworkShows(1, filter, true);
-    }
-  }, [networkId, filter]);
+  const results = data?.pages.flatMap((page) => page.results) || [];
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchNetworkShows(nextPage, filter);
+      fetchNextPage();
     }
   };
 
@@ -126,11 +94,11 @@ export default function DiscoverNetworkPage() {
     
     setTogglingId(item.id);
     try {
-      const updatedUser = await profileService.toggleWatchlist(
-        { type: isShow ? 'shows' : 'movies', tmdbId: item.id.toString() } as any,
-        !isAdded
-      );
-      dispatch(setUser(updatedUser));
+      await toggleWatchlistMutation.mutateAsync({
+        tmdbId: item.id,
+        mediaType: isShow ? 'tv' : 'movie',
+        isAdded
+      });
     } catch (error) {
       console.error("Failed to toggle watchlist", error);
     } finally {
@@ -259,8 +227,6 @@ export default function DiscoverNetworkPage() {
                 onClick={() => {
                   if (filter !== f.id) {
                     setFilter(f.id as any);
-                    setPage(1);
-                    setResults([]);
                   }
                 }}
                 className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
@@ -284,7 +250,8 @@ export default function DiscoverNetworkPage() {
               <div key={i} className="aspect-[2/3] w-full rounded-xl bg-zinc-900 animate-pulse border border-zinc-800/50" />
             ))}
           </div>
-        ) : errorMsg ? (
+
+        ) : isError ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -292,7 +259,7 @@ export default function DiscoverNetworkPage() {
             <h3 className="text-xl font-bold text-white mb-2">Connection Failed</h3>
             <p className="text-zinc-500 mb-6">Failed to load content for {networkName}.</p>
             <button 
-              onClick={() => fetchNetworkShows(1, filter, true)}
+              onClick={() => fetchNextPage()}
               className="px-6 py-2 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-white rounded-full font-semibold transition-colors"
             >
               Retry Connection

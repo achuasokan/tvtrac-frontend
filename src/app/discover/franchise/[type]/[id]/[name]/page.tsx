@@ -4,9 +4,10 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
 import { useSelector } from "react-redux";
-import { tmdbService } from "@/services/tmdb.service";
-import { api } from "@/lib/api";
 import { RootState } from "@/store";
+import { api } from "@/lib/api";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { tmdbService } from "@/services/tmdb.service";
 
 interface TmdbItem {
   id: number;
@@ -185,26 +186,24 @@ export default function FranchiseTimelinePage() {
   const entityId = params.id as string;
   const franchiseName = decodeURIComponent(params.name as string);
   const { user } = useSelector((state: RootState) => state.auth);
+  const queryClient = useQueryClient();
 
-  const [results, setResults] = useState<TmdbItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [watchedMap, setWatchedMap] = useState<Record<string, boolean>>({});
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const loadingRef = useRef(false);
-  const pageRef = useRef(1);
   const fetchedStatusRef = useRef<Set<string>>(new Set());
 
-  const fetchTimelineContent = async (pageNumber: number, isInitial = false) => {
-    if (!entityId || loadingRef.current) return;
-    loadingRef.current = true;
-    try {
-      if (isInitial) setIsLoading(true);
-      else setLoadingMore(true);
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage: loadingMore,
+    isLoading,
+    isFetching
+  } = useInfiniteQuery({
+    queryKey: ['franchise-timeline', type, entityId, franchiseName],
+    queryFn: async ({ pageParam = 1 }) => {
 
       if (type === "collection") {
         const collectionIds = decodeURIComponent(entityId).split(",");
@@ -243,10 +242,9 @@ export default function FranchiseTimelinePage() {
           new Date(b.release_date || b.first_air_date || 0).getTime()
         );
 
-        setResults(merged);
-        setHasMore(false);
+        return { results: merged, nextPage: undefined };
       } else {
-        const decodedName = decodeURIComponent(params.name);
+        const decodedName = decodeURIComponent(params.name as string);
         
         const isStarWarsValid = (title: string) => {
           if (decodedName !== "Star Wars") return true;
@@ -356,8 +354,8 @@ export default function FranchiseTimelinePage() {
 
         const fetchMethod = type === "company" ? tmdbService.discoverByCompany : tmdbService.discoverByKeyword;
         const [moviesData, tvData] = await Promise.all([
-          fetchMethod(entityId, `page=${pageNumber}&type=movie&sort_by=primary_release_date.asc`),
-          fetchMethod(entityId, `page=${pageNumber}&type=tv&sort_by=first_air_date.asc`)
+          fetchMethod(entityId, `page=${pageParam}&type=movie&sort_by=primary_release_date.asc`),
+          fetchMethod(entityId, `page=${pageParam}&type=tv&sort_by=first_air_date.asc`)
         ]);
 
         const movies = (moviesData.results || [])
@@ -397,40 +395,32 @@ export default function FranchiseTimelinePage() {
           })
         );
 
-        const merged = [...movies, ...expandedShows].sort((a, b) =>
-          new Date(a.release_date || a.first_air_date || 0).getTime() -
-          new Date(b.release_date || b.first_air_date || 0).getTime()
-        );
-
-        if (isInitial) {
-          setResults(merged);
-        } else {
-          setResults(prev => {
-            const ids = new Set(prev.map(i => `${i.media_type}-${i.id}`));
-            const unique = merged.filter(i => !ids.has(`${i.media_type}-${i.id}`));
-            return [...prev, ...unique].sort((a, b) =>
-              new Date(a.release_date || a.first_air_date || 0).getTime() -
-              new Date(b.release_date || b.first_air_date || 0).getTime()
-            );
-          });
-        }
+        const merged = [...movies, ...expandedShows];
 
         const moreMovies = moviesData.page < moviesData.total_pages;
         const moreTv = tvData.page < tvData.total_pages;
-        setHasMore((moreMovies || moreTv) && pageNumber < 10);
+        return { 
+          results: merged, 
+          nextPage: ((moreMovies || moreTv) && pageParam < 10) ? pageParam + 1 : undefined 
+        };
       }
-    } catch (err) {
-      console.error("Failed to fetch timeline:", err);
-    } finally {
-      setIsLoading(false);
-      setLoadingMore(false);
-      loadingRef.current = false;
-    }
-  };
+    },
+    getNextPageParam: (lastPage) => lastPage?.nextPage,
+    initialPageParam: 1,
+    enabled: !!entityId,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
-  useEffect(() => {
-    if (entityId) fetchTimelineContent(1, true);
-  }, [entityId]);
+  const rawResults = data?.pages.flatMap(p => p?.results || []) || [];
+  
+  const results = useMemo(() => {
+    const uniqueMap = new Map<string, TmdbItem>();
+    rawResults.forEach(item => uniqueMap.set(itemKey(item), item));
+    return Array.from(uniqueMap.values()).sort((a, b) =>
+      new Date(a.release_date || a.first_air_date || 0).getTime() -
+      new Date(b.release_date || b.first_air_date || 0).getTime()
+    );
+  }, [rawResults]);
 
   const fetchWatchedStatuses = useCallback(async (items: TmdbItem[]) => {
     if (!user) return;
@@ -471,6 +461,7 @@ export default function FranchiseTimelinePage() {
         mediaType: item.media_type,
       });
       setWatchedMap(prev => ({ ...prev, [key]: res.data.watched }));
+      queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
     } catch (err) {
       console.error("Failed to toggle watched:", err);
     } finally {
@@ -508,16 +499,13 @@ export default function FranchiseTimelinePage() {
     if (!el) return;
     const onScroll = () => {
       const nearEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 400;
-      if (nearEnd && hasMore && !loadingRef.current) {
-        const next = pageRef.current + 1;
-        pageRef.current = next;
-        setPage(next);
-        fetchTimelineContent(next);
+      if (nearEnd && hasNextPage && !isFetching) {
+        fetchNextPage();
       }
     };
     el.addEventListener("scroll", onScroll);
     return () => el.removeEventListener("scroll", onScroll);
-  }, [hasMore, isLoading]);
+  }, [hasNextPage, isFetching, fetchNextPage]);
 
   if (isLoading) {
     return (
@@ -814,14 +802,9 @@ export default function FranchiseTimelinePage() {
             })}
 
             {/* Mobile load more */}
-            {hasMore && !loadingMore && (
+            {hasNextPage && !loadingMore && (
               <button
-                onClick={() => {
-                  const next = pageRef.current + 1;
-                  pageRef.current = next;
-                  setPage(next);
-                  fetchTimelineContent(next);
-                }}
+                onClick={() => fetchNextPage()}
                 className="mx-auto flex w-[calc(50%-20px)] items-center justify-center rounded-2xl border border-white/10 bg-zinc-900 px-4 py-4 text-center text-sm font-bold text-white transition-colors hover:bg-zinc-800"
               >
                 Load More

@@ -17,7 +17,7 @@ export default function FavoritesPage({ params }: { params: Promise<{ mediaType:
 
     const allItems = useMemo(() => {
         const sourceList = mediaType === 'tv' ? user?.favoriteShows : user?.favoriteMovies;
-        return (sourceList || []).map(id => ({ 
+        return [...(sourceList || [])].reverse().map(id => ({ 
             tmdbId: id, 
             mediaType: mediaType as 'tv' | 'movie'
         }));

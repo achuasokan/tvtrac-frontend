@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@/store';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useQueryClient } from '@tanstack/react-query';
 import { WatchlistSection } from '@/components/watchlist/WatchlistSection';
 import { UpcomingSection } from '@/components/watchlist/UpcomingSection';
 
@@ -15,6 +16,7 @@ export default function ShowsPage() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
     const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
     const [refetchTrigger, setRefetchTrigger] = useState(0);
+    const queryClient = useQueryClient();
 
     const handleToggleWatched = async (e: React.MouseEvent, tmdbId: string, season: number, episode: number) => {
         e.stopPropagation();
@@ -30,6 +32,7 @@ export default function ShowsPage() {
                 runtime: 0 // Ideally this is passed if available
             });
             setRefetchTrigger(prev => prev + 1);
+            queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
         } catch (error) {
             console.error("Failed to toggle watch status", error);
         } finally {

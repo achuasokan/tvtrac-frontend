@@ -7,6 +7,7 @@ import { profileService } from '@/features/profile/api/profile.service';
 import { WatchHistoryItem } from '@/features/profile/types';
 import { MediaGrid } from '@/features/profile/components/MediaGrid';
 import { InfiniteScroll } from '@/components/ui/InfiniteScroll';
+import { useInfiniteQuery } from '@tanstack/react-query';
 
 export default function HistoryPage({ params }: { params: Promise<{ mediaType: string }> }) {
     const { user } = useAppSelector(state => state.auth);
@@ -15,45 +16,35 @@ export default function HistoryPage({ params }: { params: Promise<{ mediaType: s
     const mediaType = unwrappedParams.mediaType === 'shows' ? 'tv' : 'movie';
     const otherType = mediaType === 'tv' ? 'movies' : 'shows';
     
-    const [history, setHistory] = useState<WatchHistoryItem[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
-    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const {
+        data,
+        fetchNextPage: loadMore,
+        hasNextPage: hasMore,
+        isFetchingNextPage: isFetchingMore,
+        isLoading
+    } = useInfiniteQuery({
+        queryKey: ['profile', 'history', mediaType],
+        queryFn: async ({ pageParam = 1 }) => {
+            const res = await profileService.getWatchHistory(pageParam as number, 20, mediaType);
+            return res;
+        },
+        enabled: !!user,
+        initialPageParam: 1,
+        getNextPageParam: (lastPage, allPages) => {
+            return (lastPage?.items?.length || 0) === 20 ? allPages.length + 1 : undefined;
+        },
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+
+    const history = useMemo(() => {
+        return data ? data.pages.flatMap(page => page?.items || []) : [];
+    }, [data]);
 
     useEffect(() => {
         if (!user) {
             router.push('/');
-            return;
         }
-
-        const fetchHistory = async () => {
-            try {
-                if (page === 1) setIsLoading(true);
-                else setIsFetchingMore(true);
-
-                const data = await profileService.getWatchHistory(page, 20, mediaType);
-                
-                setHistory(prev => {
-                    const newItems = data?.items || [];
-                    if (page === 1) return newItems;
-                    
-                    const existingIds = new Set(prev.map((i: WatchHistoryItem) => i.id));
-                    const uniqueNewItems = newItems.filter((i: WatchHistoryItem) => !existingIds.has(i.id));
-                    return [...prev, ...uniqueNewItems];
-                });
-                
-                setHasMore((data?.items?.length || 0) === 20);
-            } catch (err) {
-                console.error('Failed to load watch history', err);
-            } finally {
-                setIsLoading(false);
-                setIsFetchingMore(false);
-            }
-        };
-
-        fetchHistory();
-    }, [user, mediaType, router, page]);
+    }, [user, router]);
 
     const items = useMemo(() => {
         return history.map(item => ({ 
@@ -78,12 +69,12 @@ export default function HistoryPage({ params }: { params: Promise<{ mediaType: s
                     <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">Watch History</h1>
                 </div>
 
-                {isLoading && page === 1 ? (
+                {isLoading ? (
                     <div className="flex justify-center py-20">
                         <div className="w-8 h-8 border-4 border-zinc-700 border-t-zinc-400 rounded-full animate-spin"></div>
                     </div>
                 ) : (
-                    <InfiniteScroll hasMore={hasMore} isLoading={isFetchingMore} onLoadMore={() => setPage(prev => prev + 1)}>
+                    <InfiniteScroll hasMore={!!hasMore} isLoading={isFetchingMore} onLoadMore={loadMore}>
                         <MediaGrid items={items} emptyMessage={`You haven't watched any ${unwrappedParams.mediaType} yet.`} />
                     </InfiniteScroll>
                 )}

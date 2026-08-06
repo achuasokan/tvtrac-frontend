@@ -10,6 +10,7 @@ import { SearchAndAddModal } from "@/features/lists/components/SearchAndAddModal
 import { CreateListModal } from "@/features/lists/components/CreateListModal";
 import { FEATURED_LISTS, CuratedListDef } from "@/features/lists/data/curatedLists";
 import { api } from "@/lib/api";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
   DndContext,
   closestCenter,
@@ -105,9 +106,6 @@ function CuratedListItem({ item, idx, detail }: { item: any; idx: number; detail
   );
 }
 
-// Global cache for curated lists to prevent refetching when navigating back
-const curatedListCache = new Map<string, any[]>();
-const curatedDetailsCache = new Map<string, Record<string, any>>();
 const userItemsDetailsCache = new Map<string, any>();
 
 export default function ListDetailsPage() {
@@ -125,7 +123,7 @@ export default function ListDetailsPage() {
     return lists.some(l => l.name.trim() === curatedDef.name.trim() && l.description?.includes("[tvtrac curated copy]"));
   }, [isCurated, curatedDef, lists]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [itemsDetails, setItemsDetails] = useState<Record<string, any>>(() => Object.fromEntries(userItemsDetailsCache));
+  const [itemsDetails, setItemsDetails] = useState<Record<string, any>>({});
   const [sortBy, setSortBy] = useState<"default" | "first_added" | "last_added" | "az" | "za" | "rating_desc" | "rating_asc">("default");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -136,11 +134,6 @@ export default function ListDetailsPage() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   
   // Curated List Specific State
-  const [curatedItems, setCuratedItems] = useState<any[]>([]);
-  const [isCuratedLoading, setIsCuratedLoading] = useState(false);
-  const [curatedPage, setCuratedPage] = useState(1);
-  const [hasMoreCurated, setHasMoreCurated] = useState(false);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [isCloning, setIsCloning] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -155,72 +148,20 @@ export default function ListDetailsPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Fetch items if this is a Curated Featured List
-  useEffect(() => {
-    if (!isCurated || !curatedDef) return;
-
-    const cacheKey = curatedDef.id;
-    if (curatedListCache.has(cacheKey)) {
-      setCuratedItems(curatedListCache.get(cacheKey)!);
-      setItemsDetails(prev => ({ ...prev, ...curatedDetailsCache.get(cacheKey)! }));
-      setCuratedPage(Math.ceil(curatedListCache.get(cacheKey)!.length / 20));
-      setHasMoreCurated(curatedListCache.get(cacheKey)!.length < curatedDef.totalCount);
-      return;
-    }
-
-    let isMounted = true;
-    const fetchCuratedData = async () => {
-      setIsCuratedLoading(true);
-      try {
-        const queryParams = new URLSearchParams({
-          type: curatedDef.fetchParams.type,
-          page: "1",
-          ...curatedDef.fetchParams.params,
-        }).toString();
-        
-        const res = await api.get(`/tmdb/discover/advanced?${queryParams}`);
-        const items = res.data?.results || [];
-        
-        const detailsMap: Record<string, any> = {};
-        const formattedItems = items.map((item: any, index: number) => {
-          const key = `${curatedDef.fetchParams.type}-${item.id}`;
-          detailsMap[key] = item;
-          return {
-            tmdbId: String(item.id),
-            mediaType: curatedDef.fetchParams.type,
-            addedAt: new Date().toISOString(),
-            rank: index + 1
-          };
-        });
-
-        if (isMounted) {
-          curatedListCache.set(cacheKey, formattedItems);
-          curatedDetailsCache.set(cacheKey, detailsMap);
-          
-          setCuratedItems(formattedItems);
-          setItemsDetails((prev) => ({ ...prev, ...detailsMap }));
-          setCuratedPage(1);
-          setHasMoreCurated(formattedItems.length < curatedDef.totalCount && items.length > 0);
-          setIsCuratedLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) setIsCuratedLoading(false);
-      }
-    };
-
-    fetchCuratedData();
-    return () => { isMounted = false; };
-  }, [isCurated, curatedDef]);
-
-  const loadMoreCurated = async () => {
-    if (!isCurated || !curatedDef || isLoadingMore || !hasMoreCurated) return;
-    setIsLoadingMore(true);
-    
-    const nextPage = curatedPage + 1;
-    try {
+  const {
+    data: curatedData,
+    fetchNextPage: loadMoreCurated,
+    hasNextPage: hasMoreCurated,
+    isFetchingNextPage: isLoadingMore,
+    isLoading: isCuratedLoading
+  } = useInfiniteQuery({
+    queryKey: ['curated-list', id],
+    queryFn: async ({ pageParam = 1 }) => {
+      if (!curatedDef) throw new Error("Not a curated list");
+      
       const queryParams = new URLSearchParams({
         type: curatedDef.fetchParams.type,
-        page: String(nextPage),
+        page: String(pageParam),
         ...curatedDef.fetchParams.params,
       }).toString();
       
@@ -228,34 +169,44 @@ export default function ListDetailsPage() {
       const items = res.data?.results || [];
       
       const detailsMap: Record<string, any> = {};
-      const newFormattedItems = items.map((item: any, index: number) => {
+      const formattedItems = items.map((item: any, index: number) => {
         const key = `${curatedDef.fetchParams.type}-${item.id}`;
         detailsMap[key] = item;
         return {
           tmdbId: String(item.id),
           mediaType: curatedDef.fetchParams.type,
           addedAt: new Date().toISOString(),
-          rank: (nextPage - 1) * 20 + index + 1
+          rank: (pageParam - 1) * 20 + index + 1
         };
       });
 
-      const updatedItems = [...curatedItems, ...newFormattedItems].slice(0, curatedDef.totalCount);
-      
-      setCuratedItems(updatedItems);
-      setItemsDetails(prev => ({ ...prev, ...detailsMap }));
-      setCuratedPage(nextPage);
-      setHasMoreCurated(updatedItems.length < curatedDef.totalCount && items.length > 0);
-      
-      const cacheKey = curatedDef.id;
-      curatedListCache.set(cacheKey, updatedItems);
-      curatedDetailsCache.set(cacheKey, { ...curatedDetailsCache.get(cacheKey), ...detailsMap });
-      
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoadingMore(false);
+      return {
+        items: formattedItems,
+        detailsMap,
+        nextPage: items.length > 0 ? pageParam + 1 : undefined,
+      };
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      const currentCount = allPages.reduce((acc, page) => acc + page.items.length, 0);
+      if (curatedDef && currentCount >= curatedDef.totalCount) return undefined;
+      return lastPage.nextPage;
+    },
+    enabled: isCurated && !!curatedDef,
+    staleTime: 1000 * 60 * 60 * 24, // 24 hours
+  });
+
+  const curatedItems = useMemo(() => {
+    if (!curatedData) return [];
+    return curatedData.pages.flatMap(p => p.items).slice(0, curatedDef?.totalCount || 0);
+  }, [curatedData, curatedDef?.totalCount]);
+
+  useEffect(() => {
+    if (curatedData) {
+      const allDetails = curatedData.pages.reduce((acc, page) => ({ ...acc, ...page.detailsMap }), {});
+      setItemsDetails(prev => ({ ...prev, ...allDetails }));
     }
-  };
+  }, [curatedData]);
 
   // Clone curated list to personal account
   const handleCloneList = async () => {
@@ -394,32 +345,42 @@ export default function ListDetailsPage() {
   const [userVisibleLimit, setUserVisibleLimit] = useState(24);
   const [isLoadingUserBatch, setIsLoadingUserBatch] = useState(false);
 
-  // Batch fetch title details for user custom lists
+  const missingItems = useMemo(() => {
+    if (isCurated || !list?.items || list.items.length === 0) return [];
+    const targetItems = isReordering ? list.items : activeItems.slice(0, userVisibleLimit);
+    return targetItems.filter((item) => {
+      const key = `${item.mediaType}-${item.tmdbId}`;
+      return !itemsDetails[key];
+    });
+  }, [isCurated, list?.items, activeItems, userVisibleLimit, isReordering, itemsDetails]);
+
+  // Batch fetch title details for user custom lists using React Query
+  useQuery({
+    queryKey: ['batch-details', missingItems.map(i => `${i.mediaType}-${i.tmdbId}`).join(',')],
+    queryFn: async () => {
+      if (missingItems.length === 0) return {};
+      const res = await api.post("/tmdb/batch", { items: missingItems });
+      return res.data || {};
+    },
+    enabled: missingItems.length > 0,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+
   useEffect(() => {
-    if (!isCurated && list?.items && list.items.length > 0) {
+    if (!isCurated && list?.items && list.items.length > 0 && missingItems.length > 0) {
       const fetchMissingBatch = async () => {
-        const targetItems = isReordering ? list.items : activeItems.slice(0, userVisibleLimit);
-        const missingItems = targetItems.filter((item) => {
-          const key = `${item.mediaType}-${item.tmdbId}`;
-          return !itemsDetails[key];
-        });
-
-        if (missingItems.length === 0) return;
-
         try {
           const res = await api.post("/tmdb/batch", { items: missingItems });
           if (res.data) {
-            Object.entries(res.data).forEach(([k, v]) => userItemsDetailsCache.set(k, v));
             setItemsDetails((prev) => ({ ...prev, ...res.data }));
           }
         } catch (err) {
           console.error("Batch fetch error:", err);
         }
       };
-
       fetchMissingBatch();
     }
-  }, [isCurated, list?.items, activeItems, userVisibleLimit, isReordering]);
+  }, [missingItems, isCurated, list?.items]);
 
   const handleLoadMoreUserList = () => {
     if (isLoadingUserBatch || userVisibleLimit >= filteredAndSortedItems.length) return;

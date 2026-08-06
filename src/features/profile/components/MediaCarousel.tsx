@@ -4,6 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 
 export interface CarouselItem {
   tmdbId: string;
@@ -22,47 +23,29 @@ export interface TmdbItem {
   first_air_date?: string;
 }
 
-// Global in-memory cache for profile media details
-export const globalProfileTmdbCache = new Map<string, TmdbItem>();
-
 export async function fetchProfileMediaBatch(items: CarouselItem[]): Promise<TmdbItem[]> {
   if (!items || items.length === 0) return [];
 
-  const cachedItems: TmdbItem[] = [];
-  const missingItems: { tmdbId: string; mediaType: 'movie' | 'tv' }[] = [];
+  const missingItems = items.map(item => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType }));
 
-  items.forEach((item) => {
-    const cacheKey = `${item.mediaType}-${item.tmdbId}`;
-    if (globalProfileTmdbCache.has(cacheKey)) {
-      cachedItems.push(globalProfileTmdbCache.get(cacheKey)!);
-    } else {
-      missingItems.push({ tmdbId: String(item.tmdbId), mediaType: item.mediaType });
+  try {
+    const res = await api.post("/tmdb/batch", { items: missingItems });
+    if (res.data) {
+      return items.map(item => {
+        const key = `${item.mediaType}-${item.tmdbId}`;
+        const val = res.data[key];
+        if (val) {
+          const mediaType = key.startsWith("tv") ? "tv" : "movie";
+          return { ...(val as any), media_type: mediaType } as TmdbItem;
+        }
+        return null;
+      }).filter(Boolean) as TmdbItem[];
     }
-  });
-
-  if (missingItems.length > 0) {
-    try {
-      const res = await api.post("/tmdb/batch", { items: missingItems });
-      if (res.data) {
-        Object.entries(res.data).forEach(([key, val]) => {
-          if (val) {
-            const mediaType = key.startsWith("tv") ? "tv" : "movie";
-            const formatted = { ...(val as any), media_type: mediaType } as TmdbItem;
-            globalProfileTmdbCache.set(key, formatted);
-          }
-        });
-      }
-    } catch (err) {
-      console.error("Profile batch fetch error:", err);
-    }
+  } catch (err) {
+    console.error("Profile batch fetch error:", err);
   }
 
-  return items
-    .map((item) => {
-      const cacheKey = `${item.mediaType}-${item.tmdbId}`;
-      return globalProfileTmdbCache.get(cacheKey) || null;
-    })
-    .filter(Boolean) as TmdbItem[];
+  return [];
 }
 
 interface MediaCarouselProps {
@@ -75,33 +58,14 @@ interface MediaCarouselProps {
 export function MediaCarousel({ title, items, emptyMessage = "No items to display", viewAllLink }: MediaCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const [results, setResults] = useState<TmdbItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [canScroll, setCanScroll] = useState(false);
 
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadItems = async () => {
-      if (!items || items.length === 0) {
-        if (isMounted) setIsLoading(false);
-        return;
-      }
-      
-      try {
-        const data = await fetchProfileMediaBatch(items);
-        if (isMounted) {
-          setResults(data);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-    
-    loadItems();
-    return () => { isMounted = false; };
-  }, [items]);
+  const { data: results = [], isLoading } = useQuery({
+    queryKey: ['profileMediaBatch', items],
+    queryFn: () => fetchProfileMediaBatch(items),
+    enabled: !!(items && items.length > 0),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
   
   useEffect(() => {
     const checkScroll = () => {

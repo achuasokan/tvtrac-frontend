@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { CarouselItem, TmdbItem, fetchProfileMediaBatch } from './MediaCarousel';
 
 interface MediaGridProps {
@@ -12,35 +13,12 @@ interface MediaGridProps {
 
 export function MediaGrid({ items, emptyMessage = "No items to display" }: MediaGridProps) {
   const router = useRouter();
-  const [results, setResults] = useState<TmdbItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    
-    const loadItems = async () => {
-      if (!items || items.length === 0) {
-        if (isMounted) {
-            setResults([]);
-            setIsLoading(false);
-        }
-        return;
-      }
-      
-      try {
-        const data = await fetchProfileMediaBatch(items);
-        if (isMounted) {
-          setResults(data);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-    
-    loadItems();
-    return () => { isMounted = false; };
-  }, [items]);
+  const { data: results = [], isLoading } = useQuery({
+    queryKey: ['profileMediaBatch', items],
+    queryFn: () => fetchProfileMediaBatch(items),
+    enabled: !!(items && items.length > 0),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
 
   if (!isLoading && results.length === 0) {
       return (
