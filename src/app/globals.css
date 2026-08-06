@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: #020617; /* Slate 950 */
+  --background: #000; /* Slate 950 */
   --foreground: #f8fafc; /* Slate 50 */
   --accent: #38bdf8; /* Light blue accent */
   --accent-glow: rgba(56, 189, 248, 0.15);

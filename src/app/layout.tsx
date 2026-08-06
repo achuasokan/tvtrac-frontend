@@ -10,6 +10,16 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "tvtrac | Track Your Shows Seamlessly",
   description: "tvtrac helps you never lose track of where you left off.",
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png' }
+    ],
+  },
+  manifest: '/site.webmanifest',
 };
 
 import { GoogleAuthProvider } from "@/components/auth/GoogleAuthProvider";
