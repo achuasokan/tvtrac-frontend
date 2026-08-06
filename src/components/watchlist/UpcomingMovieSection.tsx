@@ -1,0 +1,115 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { api } from '@/lib/api';
+import { WatchlistMovieItem } from './WatchlistMovieItem';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import { InfiniteScroll } from '../InfiniteScroll';
+
+interface UpcomingMovieSectionProps {
+    viewMode: 'grid' | 'list';
+}
+
+export function UpcomingMovieSection({ viewMode }: UpcomingMovieSectionProps) {
+    const {
+        data,
+        fetchNextPage: loadMore,
+        hasNextPage: hasMore,
+        isFetchingNextPage: isLoadingMore,
+        isLoading
+    } = useInfiniteQuery({
+        queryKey: ['watchlist', 'movies', 'upcoming'],
+        queryFn: async ({ pageParam = 1 }) => {
+            const res = await api.get(`/users/watchlist/movies/categorized?category=upcoming&page=${pageParam}&limit=24`);
+            return res.data.data;
+        },
+        initialPageParam: 1,
+        getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+
+    const movies = data ? data.pages.flatMap(page => page.data) : [];
+
+    const groupedMovies = useMemo(() => {
+        const grouped: { [dateLabel: string]: any[] } = {};
+        for (const movie of movies) {
+            let dateLabel = "";
+            const daysLeft = movie.daysLeft;
+            
+            if (daysLeft === 0) {
+                dateLabel = "Today";
+            } else if (daysLeft === 1) {
+                dateLabel = "Tomorrow";
+            } else if (daysLeft === -1) {
+                dateLabel = "Yesterday";
+            } else {
+                if (movie.details.release_date) {
+                    const [year, month, day] = movie.details.release_date.split('-').map(Number);
+                    const releaseDate = new Date(year, month - 1, day);
+                    dateLabel = releaseDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                } else {
+                    dateLabel = "TBA";
+                }
+            }
+
+            if (!grouped[dateLabel]) {
+                grouped[dateLabel] = [];
+            }
+            grouped[dateLabel].push(movie);
+        }
+        return grouped;
+    }, [movies]);
+
+    const groupKeys = Object.keys(groupedMovies);
+
+    if (isLoading) {
+        return (
+            <div className="flex justify-center py-20">
+                <div className="w-8 h-8 border-4 border-zinc-700 border-t-zinc-400 rounded-full animate-spin"></div>
+            </div>
+        );
+    }
+
+    if (movies.length === 0) {
+        return (
+            <div className="flex justify-center py-20 text-zinc-500">
+                No upcoming movies found.
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex flex-col gap-10">
+            {groupKeys.map(dateLabel => (
+                <div key={dateLabel}>
+                    <div className="flex items-center gap-3 mb-6 mt-8 first:mt-2">
+                        <div className={`w-2 h-2 rounded-full ${dateLabel === 'Today' ? 'bg-[#4B832B] shadow-[0_0_10px_rgba(75,131,43,0.8)]' : dateLabel === 'Tomorrow' || dateLabel === 'Yesterday' ? 'bg-white' : 'bg-zinc-700'}`} />
+                        <h2 className={`text-sm sm:text-base font-bold tracking-widest ${dateLabel === 'Today' ? 'text-white' : 'text-zinc-300'}`}>
+                            {dateLabel.toUpperCase()}
+                        </h2>
+                        <div className="flex-1 h-px bg-gradient-to-r from-zinc-800 to-transparent ml-2" />
+                    </div>
+                    <div className={viewMode === 'grid' ? "grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 lg:gap-5" : "flex flex-col gap-3"}>
+                        {groupedMovies[dateLabel].map((movie, index) => (
+                            <WatchlistMovieItem 
+                                key={`${movie.tmdbId}-${index}`} 
+                                tmdbId={movie.tmdbId}
+                                details={movie.details}
+                                daysLeft={movie.daysLeft}
+                                isUpcomingItem={true}
+                                viewType={viewMode}
+                                index={index}
+                            />
+                        ))}
+                    </div>
+                </div>
+            ))}
+
+            {hasMore && (
+                <InfiniteScroll 
+                    hasMore={hasMore} 
+                    isLoading={isLoadingMore} 
+                    onLoadMore={loadMore} 
+                />
+            )}
+        </div>
+    );
+}

@@ -20,6 +20,19 @@ body {
   overflow-x: hidden;
 }
 
+* {
+  outline: none !important;
+}
+
+*:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+next-route-announcer {
+  display: none !important;
+}
+
 /* Glassmorphism utility */
 .glass-panel {
   background: rgba(15, 23, 42, 0.4);
@@ -37,6 +50,33 @@ body {
 .animate-fade-in {
   opacity: 0;
   animation: fadeIn 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes gridAppear {
+  from {
+    opacity: 0;
+    transform: translateY(15px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes timeline-card {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-grid-appear {
+  opacity: 0;
+  animation: gridAppear 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
