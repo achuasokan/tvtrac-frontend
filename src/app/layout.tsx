@@ -1,6 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { GoogleAuthProvider } from "@/components/auth/GoogleAuthProvider";
+import { ReduxProvider } from "@/components/providers/ReduxProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
+import { BottomNav } from "@/components/layout/BottomNav";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { RegisterPWA } from "@/components/pwa/RegisterPWA";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -9,15 +15,13 @@ const inter = Inter({
 
 export const viewport: Viewport = {
   themeColor: "#050505",
-  // viewport-fit=cover ensures the app fills the full screen on notched phones (iPhone X+)
-  // and the bottom nav sits correctly above the home indicator
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
-  title: "tvtrac | Track Your Shows Seamlessly",
+  title: "tvtrac",
   description: "tvtrac helps you never lose track of where you left off.",
   manifest: "/site.webmanifest",
   icons: {
@@ -27,27 +31,19 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png" }],
   },
-  // iOS Safari PWA behaviour
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "tvtrac",
     startupImage: ["/apple-touch-icon.png"],
   },
-  // Open Graph for link previews
   openGraph: {
     type: "website",
-    title: "tvtrac | Track Your Shows Seamlessly",
+    title: "tvtrac",
     description: "tvtrac helps you never lose track of where you left off.",
     siteName: "tvtrac",
   },
 };
-
-import { GoogleAuthProvider } from "@/components/auth/GoogleAuthProvider";
-import { ReduxProvider } from "@/components/providers/ReduxProvider";
-import { QueryProvider } from "@/components/providers/QueryProvider";
-import { BottomNav } from "@/components/layout/BottomNav";
-import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
 export default function RootLayout({
   children,
@@ -74,6 +70,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-slate-950 text-slate-50 outline-none">
+        <RegisterPWA />
         <GoogleAuthProvider>
           <ReduxProvider>
             <QueryProvider>
