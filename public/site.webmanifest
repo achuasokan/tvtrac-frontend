@@ -1,21 +1,49 @@
-{
-  "name": "tvtrac",
-  "short_name": "tvtrac",
-  "icons": [
-    {
-      "src": "/web-app-manifest-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/web-app-manifest-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
-  "theme_color": "#000000",
-  "background_color": "#000000",
-  "display": "standalone"
-}
+  {
+    "name": "tvtrac",
+    "short_name": "tvtrac",
+    "description": "",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "theme_color": "#050505",
+    "background_color": "#050505",
+    "categories": ["entertainment", "lifestyle", "utilities"],
+    "lang": "en",
+    "icons": [
+      {
+        "src": "/web-app-manifest-192x192.png",
+        "sizes": "192x192",
+        "type": "image/png",
+        "purpose": "any"
+      },
+      {
+        "src": "/web-app-manifest-512x512.png",
+        "sizes": "512x512",
+        "type": "image/png",
+        "purpose": "any"
+      },
+      {
+        "src": "/favicon-96x96.png",
+        "sizes": "96x96",
+        "type": "image/png",
+        "purpose": "any"
+      }
+    ],
+    "shortcuts": [
+      {
+        "name": "My Shows",
+        "short_name": "Shows",
+        "description": "View your TV show watchlist",
+        "url": "/shows",
+        "icons": [{ "src": "/favicon-96x96.png", "sizes": "96x96" }]
+      },
+      {
+        "name": "Discover",
+        "short_name": "Discover",
+        "description": "Browse and discover new content",
+        "url": "/discover",
+        "icons": [{ "src": "/favicon-96x96.png", "sizes": "96x96" }]
+      }
+    ]
+  }

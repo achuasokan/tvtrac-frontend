@@ -7,10 +7,12 @@ import { profileService } from '../api/profile.service';
 import { ImageCropModal } from '@/components/ui/ImageCropModal';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export const ProfileHeader = () => {
     const { user } = useAppSelector(state => state.auth);
     const dispatch = useAppDispatch();
+    const { isInstallable, promptInstall } = usePWAInstall();
     
     const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
     const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -218,7 +220,7 @@ export const ProfileHeader = () => {
                                     await dispatch(logoutUser());
                                     setIsLoggingOut(false);
                                     setShowLogoutConfirm(false);
-                                    router.push('/');
+                                    router.replace("/");
                                 }}
                                 disabled={isLoggingOut}
                                 className="w-full py-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/30 text-[15px] font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50"
@@ -360,6 +362,32 @@ export const ProfileHeader = () => {
                                 </svg>
                                 Edit Profile
                             </button>
+                            {isInstallable && (
+                                <>
+                                    <div className="h-px bg-zinc-800 mx-3" />
+                                    <button 
+                                        type="button"
+                                        onClick={async (e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsCoverMenuOpen(false);
+                                            await promptInstall();
+                                        }}
+                                        onTouchEnd={async (e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setIsCoverMenuOpen(false);
+                                            await promptInstall();
+                                        }}
+                                        className="px-4 py-3 text-sm text-left hover:bg-zinc-800 transition-colors flex items-center gap-3 text-white"
+                                    >
+                                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                        Install App
+                                    </button>
+                                </>
+                            )}
                             <div className="h-px bg-zinc-800 mx-3" />
                             <button 
                                 type="button"
