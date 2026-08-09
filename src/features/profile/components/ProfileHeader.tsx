@@ -220,7 +220,7 @@ export const ProfileHeader = () => {
                                     await dispatch(logoutUser());
                                     setIsLoggingOut(false);
                                     setShowLogoutConfirm(false);
-                                    router.push('/');
+                                    router.replace("/");
                                 }}
                                 disabled={isLoggingOut}
                                 className="w-full py-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/30 text-[15px] font-medium transition-all flex items-center justify-center gap-2 disabled:opacity-50"
