@@ -77,11 +77,11 @@ export default async function Home() {
           segments={45}
         />
         {/* Cinematic Dark Overlay */}
-        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/95 via-black/70 to-black/40" />
+        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-t from-black/60 via-black/25 to-transparent" />
       </div>
 
       {/* Soft Radial Text Backdrop */}
-      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.6)_0%,transparent_60%)]" />
+      <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.4)_0%,transparent_75%)]" />
 
       {/* Clean Full-Bleed Content Container */}
       <div className="pointer-events-none w-full max-w-2xl mx-auto text-center z-20 flex flex-col items-center px-4">

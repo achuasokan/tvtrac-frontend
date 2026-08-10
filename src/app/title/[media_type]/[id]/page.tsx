@@ -10,6 +10,7 @@ import { AddToListModal } from "@/features/lists/components/AddToListModal";
 import { setUser } from "@/store/slices/authSlice";
 import { profileService } from "@/features/profile/api/profile.service";
 import { extractDominantColor } from "@/utils/colorExtractor";
+import { shouldAutoplayTrailer } from "@/utils/autoplaySettings";
 import { RatingsBar } from "@/components/ui/RatingsBar";
 import ReactPlayer from "react-player/lazy";
 import { Music, Play, Pause, Ticket } from "lucide-react";
@@ -651,7 +652,7 @@ export default function TitleDetailsPage() {
   const trailer = details?.videos?.results?.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer') || details?.videos?.results?.find((v: any) => v.site === 'YouTube');
 
   useEffect(() => {
-    if (trailer && !showVideo) {
+    if (trailer && !showVideo && shouldAutoplayTrailer()) {
       const timer = setTimeout(() => setShowVideo(true), 2500); // 2.5s delay before video starts
       return () => clearTimeout(timer);
     }
@@ -953,6 +954,30 @@ export default function TitleDetailsPage() {
         <div className="absolute inset-0 z-20 bg-gradient-to-t from-[#050505] from-0% via-[#050505]/60 via-30% to-transparent pointer-events-none" />
         {/* Extra bottom block to completely eliminate 1px seam artifacts on some screens */}
         <div className="absolute inset-x-0 bottom-0 h-1 z-20 bg-[#050505] pointer-events-none" />
+        
+        {/* Manual Play / Pause Trailer Button (Centered Icon Only) */}
+        {trailer && (
+          <div className="absolute inset-0 z-25 flex items-center justify-center pointer-events-none">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowVideo(!showVideo);
+              }}
+              title={showVideo ? "Pause Trailer" : "Play Trailer"}
+              className={`pointer-events-auto w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border backdrop-blur-md transition-all duration-300 shadow-[0_0_30px_rgba(0,0,0,0.6)] hover:scale-110 group cursor-pointer ${
+                showVideo 
+                  ? "bg-black/40 opacity-40 hover:opacity-100 hover:bg-black/75 border-white/20 text-white" 
+                  : "bg-black/50 hover:bg-black/75 border-white/30 text-white"
+              }`}
+            >
+              {showVideo ? (
+                <Pause className="w-6 h-6 sm:w-7 sm:h-7 fill-white text-white group-hover:scale-110 transition-transform" />
+              ) : (
+                <Play className="w-6 h-6 sm:w-7 sm:h-7 fill-white text-white translate-x-0.5 group-hover:scale-110 transition-transform" />
+              )}
+            </button>
+          </div>
+        )}
         
         {/* Floating actions moved outside Hero section to fix z-index stacking */}
 

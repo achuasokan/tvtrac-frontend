@@ -8,6 +8,7 @@ import { ImageCropModal } from '@/components/ui/ImageCropModal';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { getAutoplayPreference, setAutoplayPreference, AutoplayPreference } from '@/utils/autoplaySettings';
 
 export const ProfileHeader = () => {
     const { user } = useAppSelector(state => state.auth);
@@ -20,6 +21,8 @@ export const ProfileHeader = () => {
     const [isEditMode, setIsEditMode] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [showAutoplayModal, setShowAutoplayModal] = useState(false);
+    const [currentAutoplayPref, setCurrentAutoplayPref] = useState<AutoplayPreference>(() => getAutoplayPreference());
     const router = useRouter();
 
     // Optimistic preview: show local image immediately before Cloudinary upload finishes
@@ -252,6 +255,157 @@ export const ProfileHeader = () => {
                 </div>
             )}
 
+            {/* ── Autoplay & Data Saver Settings Modal ── */}
+            {showAutoplayModal && (
+                <div 
+                    className="fixed inset-0 z-[999] flex items-center justify-center p-4 pb-28 sm:pb-4"
+                    onClick={() => setShowAutoplayModal(false)}
+                >
+                    {/* Backdrop */}
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+
+                    {/* Modal */}
+                    <div 
+                        className="relative w-full max-w-sm sm:max-w-md z-10 animate-in zoom-in-95 fade-in duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Glass card */}
+                        <div className="relative bg-zinc-950/90 border border-white/10 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden">
+                            {/* Sci-Fi Fading Border Glow */}
+                            <div 
+                                className="absolute inset-0 z-0 pointer-events-none rounded-3xl border-[1.5px] border-transparent"
+                                style={{
+                                    background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
+                                    WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+                                    WebkitMaskComposite: 'destination-out',
+                                    maskComposite: 'exclude'
+                                }}
+                            />
+
+                            <div className="relative z-10 p-6">
+                                {/* Header */}
+                                <div className="flex items-center justify-between mb-5">
+                                    <div>
+                                        <h2 className="text-lg font-bold text-white">
+                                            Trailer Autoplay & Data Saver
+                                        </h2>
+                                        <p className="text-xs text-zinc-500 mt-0.5">
+                                            Control how video trailers play on title detail pages
+                                        </p>
+                                    </div>
+                                    <button 
+                                        onClick={() => setShowAutoplayModal(false)}
+                                        className="cursor-pointer text-zinc-600 hover:text-zinc-300 transition-colors p-1 rounded-full hover:bg-white/5"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div className="flex flex-col gap-3 mb-6">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAutoplayPreference('auto');
+                                            setCurrentAutoplayPref('auto');
+                                        }}
+                                        className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer ${
+                                            currentAutoplayPref === 'auto'
+                                                ? 'bg-white/10 border-white/30 text-white shadow-lg ring-1 ring-white/20'
+                                                : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                        }`}
+                                    >
+                                        <span className="text-lg mt-0.5">📱</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold text-xs sm:text-sm text-white">Smart (Recommended)</span>
+                                                {currentAutoplayPref === 'auto' && (
+                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 font-bold border border-green-500/30">Active</span>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
+                                                Paused on mobile devices & data saver networks. Autoplays on desktop Wi-Fi.
+                                            </p>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAutoplayPreference('always');
+                                            setCurrentAutoplayPref('always');
+                                        }}
+                                        className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer ${
+                                            currentAutoplayPref === 'always'
+                                                ? 'bg-white/10 border-white/30 text-white shadow-lg ring-1 ring-white/20'
+                                                : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                        }`}
+                                    >
+                                        <span className="text-lg mt-0.5">⚡</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold text-xs sm:text-sm text-white">Always Autoplay</span>
+                                                {currentAutoplayPref === 'always' && (
+                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 font-bold border border-green-500/30">Active</span>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
+                                                Always autoplays trailers on all devices after 2.5 seconds.
+                                            </p>
+                                        </div>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setAutoplayPreference('never');
+                                            setCurrentAutoplayPref('never');
+                                        }}
+                                        className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer ${
+                                            currentAutoplayPref === 'never'
+                                                ? 'bg-white/10 border-white/30 text-white shadow-lg ring-1 ring-white/20'
+                                                : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                        }`}
+                                    >
+                                        <span className="text-lg mt-0.5">🚫</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-bold text-xs sm:text-sm text-white">Never Autoplay (Data Saver)</span>
+                                                {currentAutoplayPref === 'never' && (
+                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 font-bold border border-green-500/30">Active</span>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
+                                                Saves maximum data. Trailers will only play when you tap "Play Trailer".
+                                            </p>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-3 pt-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAutoplayModal(false)}
+                                        className="cursor-pointer flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAutoplayModal(false)}
+                                        className="cursor-pointer flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white hover:bg-zinc-100 text-black shadow-lg transition-all"
+                                    >
+                                        Done
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         <div className="w-full relative min-h-[160px] sm:min-h-[300px] md:min-h-[450px] lg:min-h-[600px] flex flex-col justify-end pb-6 md:pb-8">
             {cropImageSrc && cropType && (
                 <ImageCropModal
@@ -361,6 +515,29 @@ export const ProfileHeader = () => {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                 </svg>
                                 Edit Profile
+                            </button>
+                            <div className="h-px bg-zinc-800 mx-3" />
+                            <button 
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsCoverMenuOpen(false);
+                                    setShowAutoplayModal(true);
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsCoverMenuOpen(false);
+                                    setShowAutoplayModal(true);
+                                }}
+                                className="px-4 py-3 text-sm text-left hover:bg-zinc-800 transition-colors flex items-center gap-3 text-white"
+                            >
+                                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Data Saver
                             </button>
                             {isInstallable && (
                                 <>
