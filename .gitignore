@@ -43,3 +43,8 @@ next-env.d.ts
 # AI Assistant configs
 AGENTS.md
 CLAUDE.md
+
+
+# PWA Service Worker output
+public/sw.js
+public/sw.js.map
