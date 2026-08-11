@@ -5,7 +5,7 @@ const withSerwist = withSerwistInit({
   swSrc: "src/app/sw.ts",
   swDest: "public/sw.js",
   register: false,
-  disable: process.env.NODE_ENV !== "production",
+  disable: false, // Force build on Vercel
 });
 
 const nextConfig: NextConfig = {
