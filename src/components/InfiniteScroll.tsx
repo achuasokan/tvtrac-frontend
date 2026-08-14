@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
+import { IconLoader } from "@/components/ui/IconLoader";
 
 interface InfiniteScrollProps {
     onLoadMore: () => void;
@@ -37,7 +38,7 @@ export function InfiniteScroll({ onLoadMore, hasMore, isLoading }: InfiniteScrol
     return (
         <div ref={observerTarget} className="w-full flex justify-center py-8">
             {isLoading && (
-                <div className="w-8 h-8 border-4 border-zinc-700 border-t-zinc-400 rounded-full animate-spin"></div>
+                <IconLoader size={32} />
             )}
         </div>
     );

@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState, AppDispatch } from "@/store";
 import { fetchCurrentUser } from "@/store/slices/authSlice";
+import { IconLoader } from "@/components/ui/IconLoader";
 
 const PUBLIC_PATHS = ["/", "/offline"];
 
@@ -38,11 +39,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   // Show a full-screen sleek loader while checking authentication state
   if (isLoading && !isPublicPath) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-slate-50">
-        <div className="flex flex-col items-center gap-3">
-          <div className="h-8 w-8 rounded-full border-2 border-emerald-500 border-t-transparent animate-spin" />
-          <p className="text-sm text-slate-400 font-medium">Verifying session...</p>
-        </div>
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-black">
+        <IconLoader size={64} />
       </div>
     );
   }
