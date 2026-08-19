@@ -1,6 +1,7 @@
 import { GoogleLoginButton } from "@/components/auth/GoogleLoginButton";
 import DomeGallery from "@/components/ui/DomeGallery";
 import { FALLBACK_POSTERS } from "@/lib/constants/posters";
+import { siteConfig } from "@/lib/constants/site";
 
 export const dynamic = 'force-dynamic';
 
@@ -87,12 +88,12 @@ export default async function Home() {
       <div className="pointer-events-none w-full max-w-2xl mx-auto text-center z-20 flex flex-col items-center px-4">
         <div className="mb-6 animate-fade-in-up">
           <span className="text-6xl md:text-7xl font-black tracking-tighter text-white drop-shadow-2xl" style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,1)' }}>
-            tvtrac.
+            {siteConfig.name}
           </span>
         </div>
         
         <p className="text-xl md:text-2xl text-slate-200 font-medium mb-12 max-w-md mx-auto tracking-wide leading-relaxed" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,1)' }}>
-          Your universe of shows and movies, perfectly organized.
+          {siteConfig.tagline}
         </p>
 
         <div className="pointer-events-auto w-full flex justify-center">
