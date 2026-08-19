@@ -406,7 +406,7 @@ export const ProfileHeader = () => {
                 </div>
             )}
 
-        <div className="w-full relative min-h-[160px] sm:min-h-[300px] md:min-h-[450px] lg:min-h-[600px] flex flex-col justify-end pb-6 md:pb-8">
+        <div className="w-full relative min-h-[320px] sm:min-h-[450px] md:min-h-[450px] lg:min-h-[600px] flex flex-col justify-end pb-6 md:pb-8">
             {cropImageSrc && cropType && (
                 <ImageCropModal
                     imageSrc={cropImageSrc}
