@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getAutoplayPreference, setAutoplayPreference, AutoplayPreference } from '@/utils/autoplaySettings';
 import { extractDominantColor } from '@/utils/colorExtractor';
+import { useProfileTheme } from '@/features/profile/context/ProfileThemeContext';
 
 export const ProfileHeader = () => {
     const { user } = useAppSelector(state => state.auth);
@@ -48,7 +49,7 @@ export const ProfileHeader = () => {
 
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const coverInputRef = useRef<HTMLInputElement>(null);
-    const [dominantColor, setDominantColor] = useState<string | null>(null);
+    const { dominantColor, setDominantColor } = useProfileTheme();
 
     useEffect(() => {
         const coverUrl = optimisticCover || user?.coverPhoto;

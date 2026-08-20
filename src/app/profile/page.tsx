@@ -7,6 +7,7 @@ import { StatsSection } from '@/features/profile/components/StatsSection';
 import { useAppSelector } from '@/store';
 import { profileService } from '@/features/profile/api/profile.service';
 import { WatchHistoryItem, ProfileStats } from '@/features/profile/types';
+import { ProfileThemeProvider } from '@/features/profile/context/ProfileThemeContext';
 
 import { useQuery } from '@tanstack/react-query';
 
@@ -51,7 +52,8 @@ export default function ProfilePage() {
     }
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white">
+        <ProfileThemeProvider>
+            <div className="min-h-screen bg-[#0a0a0a] text-white">
             <ProfileHeader />
             <div className="w-full pb-20 mt-8">
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-12">
@@ -97,5 +99,6 @@ export default function ProfilePage() {
                 </div>
             </div>
         </div>
+        </ProfileThemeProvider>
     );
 }

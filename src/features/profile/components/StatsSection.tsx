@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { ProfileStats } from '../types';
+import { useProfileTheme } from '@/features/profile/context/ProfileThemeContext';
 
 // Convert total minutes to { months, days, hours, minutes }
 function minutesToTime(totalMinutes: number) {
@@ -52,6 +53,7 @@ function useCountUp(target: number, duration = 1200, start = false) {
 
 // Time display sub-component (Months / Days / Hours / Minutes)
 function TimeDisplay({ totalMinutes, animate }: { totalMinutes: number; animate: boolean }) {
+    const { dominantColor } = useProfileTheme();
     const { months, days, hours, minutes } = minutesToTime(totalMinutes);
     const animMonths = useCountUp(months, 1000, animate);
     const animDays = useCountUp(days, 1100, animate);
@@ -67,13 +69,16 @@ function TimeDisplay({ totalMinutes, animate }: { totalMinutes: number; animate:
     if (units.length === 0) units.push({ value: 0, label: 'Mins', anim: 0 });
 
     return (
-        <div className="flex items-center justify-center gap-1 sm:gap-3 md:gap-4 lg:gap-5">
+        <div className="flex items-center justify-center gap-2 sm:gap-4 md:gap-5 lg:gap-6 w-full">
             {units.map((u, i) => (
-                <div key={i} className="flex flex-col items-center group cursor-default">
-                    <span className="text-xl sm:text-3xl lg:text-4xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                <div key={i} className="flex flex-col items-center justify-end group cursor-default min-w-[36px] sm:min-w-[48px] md:min-w-[56px]">
+                    <span 
+                        className={`text-xl sm:text-3xl md:text-4xl lg:text-5xl font-light tracking-wider group-hover:scale-110 transition-all duration-500 ${!dominantColor ? 'bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent' : ''}`}
+                        style={dominantColor ? { color: dominantColor, filter: `drop-shadow(0 0 10px ${dominantColor}66)` } : undefined}
+                    >
                         {animate ? u.anim : u.value}
                     </span>
-                    <span className="text-[6px] sm:text-[9px] md:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-1.5 group-hover:text-zinc-300 transition-colors duration-300">
+                    <span className="text-[6.5px] sm:text-[9px] md:text-[10px] text-zinc-500 uppercase tracking-[0.2em] mt-1 sm:mt-1.5 group-hover:text-zinc-300 transition-colors duration-300 whitespace-nowrap">
                         {u.label}
                     </span>
                 </div>
@@ -93,10 +98,16 @@ function StatCard({
     children: React.ReactNode;
     animate: boolean;
 }) {
+    const { dominantColor } = useProfileTheme();
     return (
         <div className="flex flex-col items-center justify-center gap-1.5 sm:gap-4 w-full p-0 sm:p-2 group">
             <div className="flex items-center justify-center gap-1 sm:gap-2 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-500">
-                <div className="opacity-70 w-3 h-3 sm:w-4 sm:h-4 group-hover:scale-110 transition-transform duration-500">{icon}</div>
+                <div 
+                    className="opacity-70 w-3 h-3 sm:w-4 sm:h-4 group-hover:scale-110 transition-all duration-500"
+                    style={dominantColor ? { color: dominantColor, filter: `drop-shadow(0 0 8px ${dominantColor})` } : undefined}
+                >
+                    {icon}
+                </div>
                 <span className="text-[7px] sm:text-[10px] font-medium tracking-[0.2em] uppercase line-clamp-1 text-center">
                     {label}
                 </span>
@@ -125,6 +136,7 @@ interface StatsSectionProps {
 }
 
 export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
+    const { dominantColor } = useProfileTheme();
     const [animate, setAnimate] = useState(false);
     const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -145,26 +157,26 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
     }, [stats]);
 
     const tvIcon = (
-        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-full h-full shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
     );
 
     const movieIcon = (
-        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-full h-full shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
         </svg>
     );
 
     const episodeIcon = (
-        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-full h-full shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
     );
 
     const moviesCountIcon = (
-        <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-full h-full shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
         </svg>
     );
@@ -197,7 +209,10 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
                     {/* Episodes Watched */}
                     <StatCard icon={episodeIcon} label="Episodes" animate={animate}>
                         <div className="flex flex-col items-center group cursor-default">
-                            <span className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                            <span 
+                                className={`text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-wider group-hover:scale-110 transition-all duration-500 ${!dominantColor ? 'bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent' : ''}`}
+                                style={dominantColor ? { color: dominantColor, filter: `drop-shadow(0 0 15px ${dominantColor}66)` } : undefined}
+                            >
                                 {animate
                                     ? animEpisodes.toLocaleString()
                                     : stats.totalEpisodes.toLocaleString()}
@@ -220,7 +235,10 @@ export const StatsSection = ({ stats, isLoading }: StatsSectionProps) => {
                     {/* Movies Watched */}
                     <StatCard icon={moviesCountIcon} label="Movies" animate={animate}>
                         <div className="flex flex-col items-center group cursor-default">
-                            <span className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-wider bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent group-hover:scale-110 transition-transform duration-500">
+                            <span 
+                                className={`text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-light tracking-wider group-hover:scale-110 transition-all duration-500 ${!dominantColor ? 'bg-gradient-to-b from-white via-zinc-200 to-zinc-500 bg-clip-text text-transparent' : ''}`}
+                                style={dominantColor ? { color: dominantColor, filter: `drop-shadow(0 0 15px ${dominantColor}66)` } : undefined}
+                            >
                                 {animate
                                     ? animMovies.toLocaleString()
                                     : stats.totalMovies.toLocaleString()}
