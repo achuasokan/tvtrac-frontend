@@ -16,13 +16,13 @@ export const extractDominantColor = (
           return;
         }
 
-        // Don't process the full-size image
+        
         const size = 50;
 
         canvas.width = size;
         canvas.height = size;
 
-        // Resize the image before processing
+        
         ctx.drawImage(img, 0, 0, size, size);
 
         const imageData = ctx.getImageData(
@@ -67,7 +67,7 @@ export const extractDominantColor = (
         g = Math.floor(g / count);
         b = Math.floor(b / count);
 
-        // Force a high minimum brightness
+        
         const max = Math.max(r, g, b);
 
         if (max > 0) {
