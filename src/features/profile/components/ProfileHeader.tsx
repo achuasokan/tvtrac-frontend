@@ -664,7 +664,7 @@ export const ProfileHeader = () => {
                         >
                             {/* Sketch/Hand-drawn SVG Border */}
                             <div className="absolute -inset-[12%] z-0 pointer-events-none opacity-90 transition-colors duration-700" style={{ color: dominantColor || '#52525b' }}>
-                                <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full animate-[spin_25s_linear_infinite]">
+                                <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full animate-[spin_20s_linear_infinite]">
                                     {/* Layer 1: Base wobbly circle */}
                                     <path d="M 100 15 C 60 10 20 40 18 95 C 15 150 45 185 100 185 C 150 185 185 145 185 95 C 185 45 145 20 100 15 Z" stroke="currentColor" strokeWidth="2.5" className="opacity-70" />
                                     {/* Layer 2: Offset messy loop */}
