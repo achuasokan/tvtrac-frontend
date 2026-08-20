@@ -25,6 +25,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tvtrac-frontend.vercel.app"),
   title: siteConfig.name,
   description: siteConfig.description,
+  verification: {
+    google: "tI5BK4hwKuMmhx0NqXCBpW7Atpc8_1WtCFwmYSPGXLQ",
+  },
   manifest: "/site.webmanifest",
   icons: {
     icon: [
