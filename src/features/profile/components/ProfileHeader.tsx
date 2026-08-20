@@ -1,6 +1,6 @@
 /*  */'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '@/store';
 import { setUser, logoutUser } from '@/store/slices/authSlice';
 import { profileService } from '../api/profile.service';
@@ -9,6 +9,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getAutoplayPreference, setAutoplayPreference, AutoplayPreference } from '@/utils/autoplaySettings';
+import { extractDominantColor } from '@/utils/colorExtractor';
 
 export const ProfileHeader = () => {
     const { user } = useAppSelector(state => state.auth);
@@ -47,6 +48,18 @@ export const ProfileHeader = () => {
 
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const coverInputRef = useRef<HTMLInputElement>(null);
+    const [dominantColor, setDominantColor] = useState<string | null>(null);
+
+    useEffect(() => {
+        const coverUrl = optimisticCover || user?.coverPhoto;
+        if (coverUrl) {
+            extractDominantColor(coverUrl).then(color => {
+                setDominantColor(color);
+            });
+        } else {
+            setDominantColor(null);
+        }
+    }, [optimisticCover, user?.coverPhoto]);
 
     if (!user) return null;
 
@@ -641,21 +654,59 @@ export const ProfileHeader = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="flex items-center gap-5 md:gap-8">
                         {/* Avatar */}
-                        <div className="relative group/avatar shrink-0 w-24 h-24 md:w-32 md:h-32 rounded-full border-2 border-zinc-800 bg-zinc-900 shadow-xl">
-                            {optimisticAvatar || user.avatar ? (
-                                <Image
-                                    src={optimisticAvatar || user.avatar!}
-                                    alt={user.username || user.name || 'Avatar'}
-                                    fill
-                                    priority
-                                    sizes="(max-width: 768px) 96px, 128px"
-                                    className="object-cover rounded-full" 
-                                    unoptimized
-                                />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-4xl text-zinc-500 font-bold rounded-full">
-                                    {(user.username || user.name).charAt(0).toUpperCase()}
-                                </div>
+                        {/* Avatar */}
+                        <div 
+                            className="relative group/avatar shrink-0 w-24 h-24 md:w-32 md:h-32 rounded-full shadow-xl transition-all duration-700 p-0"
+                            style={dominantColor ? {
+                                boxShadow: `0 4px 40px -10px ${dominantColor}`
+                            } : {}}
+                        >
+                            {/* Sketch/Hand-drawn SVG Border */}
+                            <div className="absolute -inset-[12%] z-0 pointer-events-none opacity-90 transition-colors duration-700" style={{ color: dominantColor || '#52525b' }}>
+                                <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full h-full animate-[spin_25s_linear_infinite]">
+                                    {/* Layer 1: Base wobbly circle */}
+                                    <path d="M 100 15 C 60 10 20 40 18 95 C 15 150 45 185 100 185 C 150 185 185 145 185 95 C 185 45 145 20 100 15 Z" stroke="currentColor" strokeWidth="2.5" className="opacity-70" />
+                                    {/* Layer 2: Offset messy loop */}
+                                    <path d="M 95 10 C 45 15 10 60 15 110 C 20 160 65 190 105 185 C 160 180 185 140 180 90 C 175 35 135 5 95 10 Z" stroke="currentColor" strokeWidth="1.5" className="opacity-90" />
+                                    {/* Layer 3: Another offset loop */}
+                                    <path d="M 105 20 C 70 15 25 35 22 85 C 18 135 35 175 90 178 C 145 180 180 135 178 85 C 175 35 145 25 105 20 Z" stroke="currentColor" strokeWidth="3" className="opacity-50" />
+                                    {/* Layer 4: Tight inner wobbly circle */}
+                                    <path d="M 100 25 C 55 20 30 55 28 100 C 25 145 55 175 100 175 C 145 175 175 140 172 95 C 170 45 145 30 100 25 Z" stroke="currentColor" strokeWidth="1" className="opacity-80" />
+                                    {/* Accent sketchy lines */}
+                                    <path d="M 100 10 Q 80 5 60 15 M 15 100 Q 10 130 30 160 M 190 100 Q 195 70 170 40 M 100 190 Q 130 195 150 175" stroke="currentColor" strokeWidth="4" className="opacity-60" strokeLinecap="round"/>
+                                    <path d="M 90 12 Q 110 8 130 18 M 20 90 Q 15 70 25 50 M 185 110 Q 180 140 160 160 M 70 185 Q 50 180 35 160" stroke="currentColor" strokeWidth="2" className="opacity-80" strokeLinecap="round"/>
+                                </svg>
+                            </div>
+                            
+                            {/* Inner Image Container */}
+                            <div className="relative w-full h-full rounded-full bg-[#0a0a0a] overflow-hidden z-10">
+                                {optimisticAvatar || user.avatar ? (
+                                    <Image
+                                        src={optimisticAvatar || user.avatar!}
+                                        alt={user.username || user.name || 'Avatar'}
+                                        fill
+                                        priority
+                                        sizes="(max-width: 768px) 96px, 128px"
+                                        className="object-cover" 
+                                        unoptimized
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-4xl text-zinc-500 font-bold">
+                                        {(user.username || user.name).charAt(0).toUpperCase()}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Particles (Sparkles) */}
+                            {dominantColor && (
+                                <>
+                                    <svg className="absolute -top-1 -right-2 w-4 h-4 md:w-5 md:h-5 animate-pulse z-20 rotate-12" style={{ color: dominantColor, filter: `drop-shadow(0 0 5px ${dominantColor})` }} viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" />
+                                    </svg>
+                                    <svg className="absolute bottom-1 -left-2 w-3 h-3 md:w-4 md:h-4 animate-[pulse_3s_ease-in-out_infinite] z-20 -rotate-12" style={{ color: dominantColor, filter: `drop-shadow(0 0 3px ${dominantColor})` }} viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" />
+                                    </svg>
+                                </>
                             )}
 
                             {/* Spinner Overlay */}
