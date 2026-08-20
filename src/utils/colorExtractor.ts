@@ -90,7 +90,6 @@ export const extractDominantColor = (
       resolve(null);
     };
 
-    // Don't add Date.now() or cors=true
     img.src = imgUrl;
   });
 };
