@@ -7,6 +7,7 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RegisterPWA } from "@/components/pwa/RegisterPWA";
+import { siteConfig } from "@/lib/constants/site";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -21,8 +22,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "tvtrac",
-  description: "tvtrac helps you never lose track of where you left off.",
+  title: siteConfig.name,
+  description: siteConfig.description,
   manifest: "/site.webmanifest",
   icons: {
     icon: [
@@ -34,14 +35,14 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "tvtrac",
+    title: siteConfig.name,
     startupImage: ["/apple-touch-icon.png"],
   },
   openGraph: {
     type: "website",
-    title: "tvtrac",
-    description: "tvtrac helps you never lose track of where you left off.",
-    siteName: "tvtrac",
+    title: siteConfig.name,
+    description: siteConfig.description,
+    siteName: siteConfig.name,
   },
 };
 
