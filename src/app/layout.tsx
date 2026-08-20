@@ -22,6 +22,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://tvtrac-frontend.vercel.app"),
   title: siteConfig.name,
   description: siteConfig.description,
   manifest: "/site.webmanifest",
