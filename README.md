@@ -19,7 +19,7 @@ TVTrac is a modern Next.js application designed to help you keep track of your T
 - 🎥 **Discover** trending movies and TV shows
 - 📚 **Manage** your personal watchlist and collections
 - 📱 **Responsive** design for mobile and desktop
-- 🚀 Built with **Next.js 15+** and **React 19**
+- 🚀 Built with **Next.js 16+** and **React 19**
 - 🎨 Styled with **Tailwind CSS**
 - 🔒 Authentication and state management (Redux, React Query)
 - 🖥️ **PWA Support** with Serwist
