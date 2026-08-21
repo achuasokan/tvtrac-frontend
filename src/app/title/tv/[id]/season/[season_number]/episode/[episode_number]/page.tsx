@@ -185,6 +185,7 @@ export default function EpisodeDetailsPage() {
       queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', id] });
       queryClient.invalidateQueries({ queryKey: ['episode-details', id, season_number, episode_number] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
     } catch (error) {
       console.error("Failed to toggle episode watched status:", error);
       setIsWatched(prev => !prev); // revert on error
@@ -230,6 +231,7 @@ export default function EpisodeDetailsPage() {
         });
         queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', id] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
+        queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
       } catch (err) {
         console.error("Failed to bulk mark episodes", err);
       } finally {

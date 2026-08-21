@@ -147,6 +147,7 @@ function SeasonItem({
       setWatchedEpisodes(res.data.watchedEpisodes);
       queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
     } catch (error) {
       console.error("Failed to toggle episode", error);
       // Revert optimistic update
@@ -203,6 +204,7 @@ function SeasonItem({
         setWatchedEpisodes(res.data.watchedEpisodes);
         queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
+        queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
       } catch (err) {
         console.error("Failed to bulk mark episodes", err);
       } finally {
@@ -259,6 +261,7 @@ function SeasonItem({
       setWatchedEpisodes(res.data.watchedEpisodes);
       queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
     } catch (error) {
       console.error("Failed to mark season watched", error);
     } finally {
@@ -717,6 +720,7 @@ export default function TitleDetailsPage() {
         };
       });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
     } catch (error) {
       console.error("Failed to toggle watched status", error);
     } finally {
