@@ -3,7 +3,7 @@ import DomeGallery from "@/components/ui/DomeGallery";
 import { FALLBACK_POSTERS } from "@/lib/constants/posters";
 import { siteConfig } from "@/lib/constants/site";
 
-export const dynamic = 'force-dynamic';
+export const revalidate = 3600;
 
 const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -65,7 +65,7 @@ export default async function Home() {
       {/* Real Movie Poster Grid Background & Overlay */}
       <div className="absolute inset-0 z-0 overflow-hidden scale-105 md:scale-110">
         <DomeGallery 
-          images={posterGrid.map((url: string) => ({ src: url, alt: "Show Poster" }))}
+          images={posterGrid.map((url: string) => ({ src: url, alt: "" }))}
           autoRotateSpeed={0.08}
           grayscale={false}
           overlayBlurColor="#0A0A0A"
@@ -87,9 +87,9 @@ export default async function Home() {
       {/* Clean Full-Bleed Content Container */}
       <div className="pointer-events-none w-full max-w-2xl mx-auto text-center z-20 flex flex-col items-center px-4">
         <div className="mb-6 animate-fade-in-up">
-          <span className="text-6xl md:text-7xl font-black tracking-tighter text-white drop-shadow-2xl" style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,1)' }}>
+          <h1 className="text-6xl md:text-7xl font-black tracking-tighter text-white drop-shadow-2xl" style={{ textShadow: '0 4px 30px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,1)' }}>
             {siteConfig.name}
-          </span>
+          </h1>
         </div>
         
         <p className="text-xl md:text-2xl text-slate-200 font-medium mb-12 max-w-md mx-auto tracking-wide leading-relaxed" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,1)' }}>
