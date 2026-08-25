@@ -16,6 +16,6 @@ export default function robots(): MetadataRoute.Robots {
         "/lists",
       ],
     },
-    sitemap: "https://tvtrac-frontend.vercel.app/sitemap.xml",
+    sitemap: "https://tvtrac.fun/sitemap.xml",
   };
 }

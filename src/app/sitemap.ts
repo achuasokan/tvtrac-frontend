@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const BASE_URL = "https://tvtrac-frontend.vercel.app";
+const BASE_URL = "https://tvtrac.fun";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
