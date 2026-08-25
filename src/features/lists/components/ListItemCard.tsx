@@ -188,8 +188,8 @@ export function SortableListItemCard(props: any & { id: string }) {
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{
-          duration: 0.35,
-          delay: Math.min(((props.index || 0) % 24) * 0.03, 0.35),
+          duration: 0.25,
+          delay: Math.min(((props.index || 0) % 24) * 0.015, 0.2),
           ease: [0.21, 0.47, 0.32, 0.98]
         }}
       >

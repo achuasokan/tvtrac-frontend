@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { RootState, AppDispatch } from "@/store";
 import { fetchLists, removeMovieFromList, reorderListItems, createNewList, addMovieToList } from "@/features/lists/store/listSlice";
@@ -10,7 +10,7 @@ import { SearchAndAddModal } from "@/features/lists/components/SearchAndAddModal
 import { CreateListModal } from "@/features/lists/components/CreateListModal";
 import { FEATURED_LISTS, CuratedListDef } from "@/features/lists/data/curatedLists";
 import { api } from "@/lib/api";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import {
   DndContext,
   closestCenter,
@@ -43,8 +43,8 @@ function CuratedListItem({ item, idx, detail }: { item: any; idx: number; detail
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
-        duration: 0.35,
-        delay: Math.min((idx % 24) * 0.03, 0.35),
+        duration: 0.25,
+        delay: Math.min((idx % 24) * 0.015, 0.2),
         ease: [0.21, 0.47, 0.32, 0.98]
       }}
     >
@@ -111,6 +111,8 @@ const userItemsDetailsCache = new Map<string, any>();
 export default function ListDetailsPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const dispatch = useDispatch<AppDispatch>();
   
   const isCurated = id?.startsWith("curated-");
@@ -123,7 +125,9 @@ export default function ListDetailsPage() {
     return lists.some(l => l.name.trim() === curatedDef.name.trim() && l.description?.includes("[tvtrac curated copy]"));
   }, [isCurated, curatedDef, lists]);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  const [itemsDetails, setItemsDetails] = useState<Record<string, any>>({});
+  const [itemsDetails, setItemsDetails] = useState<Record<string, any>>(() => {
+    return Object.fromEntries(userItemsDetailsCache);
+  });
   const [sortBy, setSortBy] = useState<"default" | "first_added" | "last_added" | "az" | "za" | "rating_desc" | "rating_asc">("default");
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -342,36 +346,44 @@ export default function ListDetailsPage() {
   }, [activeItems, sortBy, itemsDetails, searchQuery]);
 
   // User List Specific Batch Pagination State
-  const [userVisibleLimit, setUserVisibleLimit] = useState(24);
+  const initialLimit = searchParams ? parseInt(searchParams.get("limit") || "24", 10) : 24;
+  const [userVisibleLimit, setUserVisibleLimit] = useState<number>(!isNaN(initialLimit) && initialLimit >= 24 ? initialLimit : 24);
   const [isLoadingUserBatch, setIsLoadingUserBatch] = useState(false);
+
+  // Sync the limit to URL
+  useEffect(() => {
+    if (typeof window === "undefined" || isCurated) return;
+    const currentLimit = searchParams ? searchParams.get("limit") : null;
+    
+    if (userVisibleLimit > 24 && currentLimit !== String(userVisibleLimit)) {
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      params.set("limit", String(userVisibleLimit));
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    } else if (userVisibleLimit <= 24 && currentLimit !== null) {
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      params.delete("limit");
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [userVisibleLimit, isCurated, searchParams, pathname, router]);
 
   const missingItems = useMemo(() => {
     if (isCurated || !list?.items || list.items.length === 0) return [];
-    const targetItems = isReordering ? list.items : activeItems.slice(0, userVisibleLimit);
+    // Pre-fetch 48 items ahead so they are instantly ready when the user scrolls down
+    const targetItems = isReordering ? list.items : activeItems.slice(0, userVisibleLimit + 48);
     return targetItems.filter((item) => {
       const key = `${item.mediaType}-${item.tmdbId}`;
       return !itemsDetails[key];
     });
   }, [isCurated, list?.items, activeItems, userVisibleLimit, isReordering, itemsDetails]);
 
-  // Batch fetch title details for user custom lists using React Query
-  useQuery({
-    queryKey: ['batch-details', missingItems.map(i => `${i.mediaType}-${i.tmdbId}`).join(',')],
-    queryFn: async () => {
-      if (missingItems.length === 0) return {};
-      const res = await api.post("/tmdb/batch", { items: missingItems });
-      return res.data || {};
-    },
-    enabled: missingItems.length > 0,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
+  // Batch fetch title details for user custom lists
   useEffect(() => {
     if (!isCurated && list?.items && list.items.length > 0 && missingItems.length > 0) {
       const fetchMissingBatch = async () => {
         try {
           const res = await api.post("/tmdb/batch", { items: missingItems });
           if (res.data) {
+            Object.entries(res.data).forEach(([k, v]) => userItemsDetailsCache.set(k, v));
             setItemsDetails((prev) => ({ ...prev, ...res.data }));
           }
         } catch (err) {
