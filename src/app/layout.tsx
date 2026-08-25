@@ -25,6 +25,9 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://tvtrac.fun"),
   title: siteConfig.name,
   description: siteConfig.description,
+   alternates: {
+    canonical: "/",
+  },
   verification: {
     google: "tI5BK4hwKuMmhx0NqXCBpW7Atpc8_1WtCFwmYSPGXLQ",
   },
@@ -47,6 +50,7 @@ export const metadata: Metadata = {
     title: siteConfig.name,
     description: siteConfig.description,
     siteName: siteConfig.name,
+    url: "https://tvtrac.fun/",
   },
 };
 
