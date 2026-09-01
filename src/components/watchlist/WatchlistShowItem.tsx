@@ -19,13 +19,13 @@ interface WatchlistShowItemProps {
     networkName?: string;
     onToggleWatched?: (e: React.MouseEvent, season: number, episode: number) => void;
     isToggling?: boolean;
+    _optimisticWatched?: boolean;
     viewType?: 'grid' | 'list';
     index?: number;
 }
 
-export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr, nextEpisodeTitle, nextSeason, nextEpisode, isHistoryItem, isUpcomingItem, daysLeft, airDate, networkName, onToggleWatched, isToggling, viewType = 'list', index }: WatchlistShowItemProps) {
+export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr, nextEpisodeTitle, nextSeason, nextEpisode, isHistoryItem, isUpcomingItem, daysLeft, airDate, networkName, onToggleWatched, isToggling, _optimisticWatched, viewType = 'list', index }: WatchlistShowItemProps) {
     const router = useRouter();
-    const [optimisticMarked, setOptimisticMarked] = React.useState(false);
 
     const isNew = React.useMemo(() => {
         if (isUpcomingItem || isHistoryItem) return false;
@@ -44,10 +44,6 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
         
         return daysSince >= 0 && daysSince <= 7;
     }, [details, nextSeason, nextEpisode, isUpcomingItem, isHistoryItem]);
-
-    React.useEffect(() => {
-        setOptimisticMarked(false);
-    }, [nextSeason, nextEpisode]);
 
     if (!details) return null;
 
@@ -127,10 +123,10 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
                     router.push(`/title/tv/${tmdbId}`);
                 }
             }}
-            className={`flex items-center justify-between gap-4 py-3 px-4 rounded-xl transition-all duration-500 cursor-pointer group ${
-                optimisticMarked 
-                    ? 'bg-[#4B832B]/30 border border-[#4B832B] opacity-50 scale-[0.98]' 
-                    : ''
+            className={`flex items-center justify-between gap-4 py-3 px-4 rounded-xl transition-all duration-300 cursor-pointer group select-none border-0 outline-none ${
+                _optimisticWatched 
+                    ? 'bg-[#4B832B]/20 scale-[0.99]' 
+                    : 'hover:bg-white/[0.02]'
             }`}
         >
             <div className="flex items-center gap-4 min-w-0">
@@ -157,7 +153,7 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
                                 e.stopPropagation();
                                 router.push(`/title/tv/${tmdbId}`);
                             }}
-                            className="text-[10px] font-bold tracking-widest text-white uppercase border border-zinc-700 hover:border-white rounded-full px-2 py-0.5 truncate cursor-pointer transition-colors"
+                            className="text-[10px] font-bold tracking-widest text-zinc-300 uppercase border border-zinc-800/80 hover:border-zinc-700 bg-zinc-900/50 rounded-full px-2 py-0.5 truncate cursor-pointer transition-colors"
                         >
                             {details.name}
                         </div>
@@ -209,28 +205,21 @@ export function WatchlistShowItem({ tmdbId, details, trackedData, nextEpisodeStr
                     </span>
                 ) : (
                     <button 
-                        disabled={isToggling || optimisticMarked || nextSeason === undefined || nextEpisode === undefined}
+                        disabled={isToggling || _optimisticWatched || nextSeason === undefined || nextEpisode === undefined}
                         onClick={(e) => {
                             e.stopPropagation();
                             if (onToggleWatched && nextSeason !== undefined && nextEpisode !== undefined) {
-                                if (!isHistoryItem) {
-                                    setOptimisticMarked(true);
-                                    setTimeout(() => {
-                                        onToggleWatched(e, nextSeason, nextEpisode);
-                                    }, 500); // Let the animation play before removing
-                                } else {
-                                    onToggleWatched(e, nextSeason, nextEpisode);
-                                }
+                                onToggleWatched(e, nextSeason, nextEpisode);
                             }
                         }}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                            isHistoryItem || optimisticMarked
+                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors outline-none focus:outline-none focus-visible:outline-none ${
+                            isHistoryItem || _optimisticWatched
                                 ? 'bg-[#4B832B] text-white hover:bg-[#3D6E21]' 
                                 : 'bg-white text-black hover:bg-zinc-200'
                         }`}
                     >
-                        {isToggling ? (
-                            <div className={`w-4 h-4 border-2 rounded-full border-t-transparent animate-spin ${isHistoryItem || optimisticMarked ? 'border-white' : 'border-black'}`}></div>
+                        {_optimisticWatched ? (
+                            <div className={`w-4 h-4 border-2 rounded-full border-t-transparent animate-spin ${isHistoryItem || _optimisticWatched ? 'border-white' : 'border-black'}`}></div>
                         ) : (
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />

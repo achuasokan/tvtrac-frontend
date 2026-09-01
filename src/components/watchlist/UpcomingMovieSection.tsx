@@ -19,14 +19,26 @@ export function UpcomingMovieSection({ viewMode }: UpcomingMovieSectionProps) {
         queryKey: ['watchlist', 'movies', 'upcoming'],
         queryFn: async ({ pageParam = 1 }) => {
             const res = await api.get(`/users/watchlist/movies/categorized?category=upcoming&page=${pageParam}&limit=24`);
-            return res.data.data;
+            return {
+                data: res.data.data.data || [],
+                hasMore: res.data.data.hasMore || false,
+                nextPage: pageParam + 1,
+            };
         },
         initialPageParam: 1,
-        getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
+        getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextPage : undefined,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
 
-    const movies = data ? data.pages.flatMap(page => page.data) : [];
+    const movies = useMemo(() => {
+        const raw = data?.pages.flatMap(page => page.data) || [];
+        const seen = new Set<string>();
+        return raw.filter(item => {
+            if (!item?.tmdbId || seen.has(item.tmdbId)) return false;
+            seen.add(item.tmdbId);
+            return true;
+        });
+    }, [data]);
 
     const groupedMovies = useMemo(() => {
         const grouped: { [dateLabel: string]: any[] } = {};

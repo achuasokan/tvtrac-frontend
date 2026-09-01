@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { api } from '@/lib/api';
 import { WatchlistMovieItem } from './WatchlistMovieItem';
 import { useInfiniteQuery } from '@tanstack/react-query';
@@ -20,14 +20,26 @@ export function WatchlistMovieSection({ viewMode, refetchTrigger = 0 }: Watchlis
         queryKey: ['watchlist', 'movies', 'watchlist', refetchTrigger],
         queryFn: async ({ pageParam = 1 }) => {
             const res = await api.get(`/users/watchlist/movies/categorized?category=watchlist&page=${pageParam}&limit=24`);
-            return res.data.data;
+            return {
+                data: res.data.data.data || [],
+                hasMore: res.data.data.hasMore || false,
+                nextPage: pageParam + 1,
+            };
         },
         initialPageParam: 1,
-        getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.page + 1 : undefined,
+        getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextPage : undefined,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
 
-    const movies = data ? data.pages.flatMap(page => page.data) : [];
+    const movies = useMemo(() => {
+        const raw = data?.pages.flatMap(page => page.data) || [];
+        const seen = new Set<string>();
+        return raw.filter(item => {
+            if (!item?.tmdbId || seen.has(item.tmdbId)) return false;
+            seen.add(item.tmdbId);
+            return true;
+        });
+    }, [data]);
 
     if (isLoading) {
         return (

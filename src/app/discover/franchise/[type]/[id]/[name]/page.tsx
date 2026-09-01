@@ -462,6 +462,9 @@ export default function FranchiseTimelinePage() {
       });
       setWatchedMap(prev => ({ ...prev, [key]: res.data.watched }));
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
+      queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
+      queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+      queryClient.invalidateQueries({ queryKey: ['title-details', item.media_type, String(item.id)] });
     } catch (err) {
       console.error("Failed to toggle watched:", err);
     } finally {

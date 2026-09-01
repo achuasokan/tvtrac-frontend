@@ -22,9 +22,12 @@ body {
 
 * {
   outline: none !important;
+  -webkit-tap-highlight-color: transparent;
 }
 
-*:focus {
+*:focus,
+*:focus-visible,
+*:active {
   outline: none !important;
   box-shadow: none !important;
 }
@@ -79,13 +82,30 @@ next-route-announcer {
   animation: gridAppear 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-/* Hide scrollbar for Chrome, Safari and Opera */
-.hide-scrollbar::-webkit-scrollbar {
+/* Hide scrollbar utility classes */
+.hide-scrollbar::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 
-/* Hide scrollbar for IE, Edge and Firefox */
-.hide-scrollbar {
+.hide-scrollbar,
+.no-scrollbar {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }

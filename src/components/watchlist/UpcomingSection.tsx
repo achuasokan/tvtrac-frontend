@@ -1,51 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { api } from '@/lib/api';
+import React, { useMemo } from 'react';
 import { WatchlistShowItem } from './WatchlistShowItem';
 import { InfiniteScroll } from '../InfiniteScroll';
+import { useWatchlistCategory } from '@/features/watchlist/api/useWatchlist';
 
 interface UpcomingSectionProps {
     viewMode: 'grid' | 'list';
 }
 
 export function UpcomingSection({ viewMode }: UpcomingSectionProps) {
-    const [shows, setShows] = useState<any[]>([]);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const {
+        data,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+        isLoading
+    } = useWatchlistCategory('upcoming', 20);
 
-    useEffect(() => {
-        const fetchFirstPage = async () => {
-            setIsLoading(true);
-            try {
-                const res = await api.get(`/users/watchlist/shows/categorized?category=upcoming&page=1&limit=20`);
-                setShows(res.data.data.data);
-                setHasMore(res.data.data.hasMore);
-                setPage(1);
-            } catch (err) {
-                console.error('Failed to load upcoming shows', err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchFirstPage();
-    }, []);
-
-    const loadMore = async () => {
-        if (isLoadingMore || !hasMore) return;
-        setIsLoadingMore(true);
-        try {
-            const nextPage = page + 1;
-            const res = await api.get(`/users/watchlist/shows/categorized?category=upcoming&page=${nextPage}&limit=20`);
-            setShows(prev => [...prev, ...res.data.data.data]);
-            setHasMore(res.data.data.hasMore);
-            setPage(nextPage);
-        } catch (err) {
-            console.error('Failed to load more upcoming shows', err);
-        } finally {
-            setIsLoadingMore(false);
-        }
-    };
+    const shows = useMemo(() => {
+        return data?.pages.flatMap(page => page.data) || [];
+    }, [data]);
 
     const groupedShows = useMemo(() => {
         const grouped: { [dateLabel: string]: any[] } = {};
@@ -114,11 +87,11 @@ export function UpcomingSection({ viewMode }: UpcomingSectionProps) {
                 </div>
             ))}
 
-            {hasMore && (
+            {hasNextPage && (
                 <InfiniteScroll 
-                    hasMore={hasMore} 
-                    isLoading={isLoadingMore} 
-                    onLoadMore={loadMore} 
+                    hasMore={!!hasNextPage} 
+                    isLoading={isFetchingNextPage} 
+                    onLoadMore={() => fetchNextPage()} 
                 />
             )}
         </div>
