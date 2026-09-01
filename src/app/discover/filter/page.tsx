@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { useRouter } from "next/navigation";
@@ -20,7 +20,7 @@ type TmdbItem = {
   vote_average: number;
   release_date?: string;
   first_air_date?: string;
-  media_type: string;
+  media_type: "movie" | "tv";
 };
 
 export default function AdvancedFilterPage() {
@@ -109,12 +109,21 @@ export default function AdvancedFilterPage() {
         totalPages: response.total_pages || 1,
       };
     },
-    getNextPageParam: (lastPage) => lastPage.nextPage,
+    getNextPageParam: (lastPage) => lastPage?.nextPage,
     initialPageParam: 1,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  const results = data?.pages.flatMap((page) => page.results) || [];
+  const results = useMemo(() => {
+    const raw = data?.pages.flatMap((page) => page?.results || []) || [];
+    const seen = new Set<string>();
+    return raw.filter((item: TmdbItem) => {
+      const key = `${item?.media_type || 'item'}-${item?.id}`;
+      if (!item?.id || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [data]);
   const totalResults = data?.pages[0]?.totalResults || null;
   const totalPages = data?.pages[0]?.totalPages || 1;
   const errorMsg = isError ? "TMDB servers are currently overloaded. Please try again in a moment." : null;

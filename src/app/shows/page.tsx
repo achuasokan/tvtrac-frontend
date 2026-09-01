@@ -6,6 +6,7 @@ import { RootState } from '@/store';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { useToggleWatched } from '@/features/watchlist/api/useWatchlist';
 import { WatchlistSection } from '@/components/watchlist/WatchlistSection';
 import { UpcomingSection } from '@/components/watchlist/UpcomingSection';
 
@@ -13,35 +14,14 @@ export default function ShowsPage() {
     const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<'watchlist' | 'upcoming'>('watchlist');
+    const [activeSubCategory, setActiveSubCategory] = useState<'watch-next' | 'havent-watched-for-a-while' | 'havent-started' | 'history'>('watch-next');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-    const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set());
-    const [refetchTrigger, setRefetchTrigger] = useState(0);
     const queryClient = useQueryClient();
+    const { mutate: toggleWatched, isPending: isTogglingGlobal } = useToggleWatched();
 
-    const handleToggleWatched = async (e: React.MouseEvent, tmdbId: string, season: number, episode: number) => {
+    const handleToggleWatched = (e: React.MouseEvent, tmdbId: string, season: number, episode: number) => {
         e.stopPropagation();
-        
-        const toggleKey = `${tmdbId}-${season}-${episode}`;
-        setTogglingIds(prev => new Set(prev).add(toggleKey));
-
-        try {
-            await api.post('/tracking/watched/episode/toggle', {
-                tmdbId,
-                season,
-                episode,
-                runtime: 0 // Ideally this is passed if available
-            });
-            setRefetchTrigger(prev => prev + 1);
-            queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
-        } catch (error) {
-            console.error("Failed to toggle watch status", error);
-        } finally {
-            setTogglingIds(prev => {
-                const next = new Set(prev);
-                next.delete(toggleKey);
-                return next;
-            });
-        }
+        toggleWatched({ tmdbId, season, episode });
     };
 
     if (isAuthLoading) {
@@ -63,9 +43,9 @@ export default function ShowsPage() {
         <div className="min-h-screen bg-[#050505] text-white pb-32">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12">
                 
-                {/* Tabs */}
-                <div className="sticky top-0 z-40 bg-[#050505] flex justify-center pt-4 pb-4 mb-4">
-                    <div className="flex gap-8">
+                {/* Tabs & Sub-Nav Header */}
+                <div className="sticky top-0 z-40 bg-[#050505] flex flex-col items-center pt-4 pb-2 mb-4">
+                    <div className="flex gap-8 mb-4">
                         <button 
                             onClick={() => setActiveTab('watchlist')}
                             className={`flex flex-col items-center gap-1 transition-opacity ${activeTab === 'watchlist' ? 'opacity-100' : 'opacity-50 hover:opacity-100'}`}
@@ -81,10 +61,50 @@ export default function ShowsPage() {
                             {activeTab === 'upcoming' && <div className="w-1.5 h-1.5 rounded-full bg-white mt-1"></div>}
                         </button>
                     </div>
+
+                    {/* Sub-Nav for Watchlist */}
+                    {activeTab === 'watchlist' && hasShows && (
+                        <div className="flex gap-2 overflow-x-auto max-w-full px-4 pb-2 no-scrollbar hide-scrollbar [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                            {[
+                                { id: 'watch-next', label: 'Watch Next' },
+                                { id: 'havent-watched-for-a-while', label: "Haven't Watched" },
+                                { id: 'havent-started', label: "Haven't Started" },
+                                { id: 'history', label: 'History' },
+                            ].map(sub => (
+                                <button
+                                    key={sub.id}
+                                    onClick={() => setActiveSubCategory(sub.id as any)}
+                                    onMouseEnter={() => {
+                                        // Prefetch/revalidate the category if it is stale/inactive
+                                        queryClient.prefetchInfiniteQuery({
+                                            queryKey: ['watchlist', sub.id],
+                                            queryFn: async ({ pageParam = 1 }) => {
+                                                const res = await api.get(`/users/watchlist/shows/categorized?category=${sub.id}&page=${pageParam}&limit=10`);
+                                                return {
+                                                    data: res.data.data.data || [],
+                                                    hasMore: res.data.data.hasMore || false,
+                                                    nextPage: pageParam + 1,
+                                                };
+                                            },
+                                            initialPageParam: 1,
+                                            staleTime: 1000 * 60 * 5,
+                                        });
+                                    }}
+                                    className={`whitespace-nowrap px-4 py-1.5 rounded-full text-[11px] font-bold tracking-wider uppercase transition-colors ${
+                                        activeSubCategory === sub.id 
+                                            ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]' 
+                                            : 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800'
+                                    }`}
+                                >
+                                    {sub.label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {/* Header Area */}
-                <div className="flex justify-end mb-8 gap-4 sticky top-[72px] z-30">
+                <div className="flex justify-end mb-8 gap-4 sticky top-[108px] z-30">
                     {/* View Toggle */}
                     {hasShows && (
                         <div className="flex bg-[#111111] rounded p-0.5 border border-zinc-800/60 self-start sm:self-auto shrink-0 shadow-sm">
@@ -114,38 +134,34 @@ export default function ShowsPage() {
                 {activeTab === 'watchlist' ? (
                     hasShows ? (
                         <div className="flex flex-col gap-12">
-                            <WatchlistSection 
-                                title="Watch Next" 
-                                category="watch-next" 
-                                viewMode={viewMode} 
-                                onToggleWatched={handleToggleWatched} 
-                                togglingIds={togglingIds} 
-                                refetchTrigger={refetchTrigger}
-                            />
-                            <WatchlistSection 
-                                title="Haven't Watched For A While" 
-                                category="havent-watched-for-a-while" 
-                                viewMode={viewMode} 
-                                onToggleWatched={handleToggleWatched} 
-                                togglingIds={togglingIds} 
-                                refetchTrigger={refetchTrigger}
-                            />
-                            <WatchlistSection 
-                                title="Haven't Started" 
-                                category="havent-started" 
-                                viewMode={viewMode} 
-                                onToggleWatched={handleToggleWatched} 
-                                togglingIds={togglingIds} 
-                                refetchTrigger={refetchTrigger}
-                            />
-                            <WatchlistSection 
-                                title="History" 
-                                category="history" 
-                                viewMode={viewMode} 
-                                onToggleWatched={handleToggleWatched} 
-                                togglingIds={togglingIds} 
-                                refetchTrigger={refetchTrigger}
-                            />
+                            {activeSubCategory === 'watch-next' && (
+                                <WatchlistSection 
+                                    category="watch-next" 
+                                    viewMode={viewMode} 
+                                    onToggleWatched={handleToggleWatched} 
+                                />
+                            )}
+                            {activeSubCategory === 'havent-watched-for-a-while' && (
+                                <WatchlistSection 
+                                    category="havent-watched-for-a-while" 
+                                    viewMode={viewMode} 
+                                    onToggleWatched={handleToggleWatched} 
+                                />
+                            )}
+                            {activeSubCategory === 'havent-started' && (
+                                <WatchlistSection 
+                                    category="havent-started" 
+                                    viewMode={viewMode} 
+                                    onToggleWatched={handleToggleWatched} 
+                                />
+                            )}
+                            {activeSubCategory === 'history' && (
+                                <WatchlistSection 
+                                    category="history" 
+                                    viewMode={viewMode} 
+                                    onToggleWatched={handleToggleWatched} 
+                                />
+                            )}
                         </div>
                     ) : (
                         <div className="bg-[#0a0a0a] rounded-2xl p-10 flex flex-col items-center text-center border border-zinc-800/50 mt-10">

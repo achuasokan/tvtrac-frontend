@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { useRouter, useParams, useSearchParams, usePathname } from "next/navigation";
@@ -214,13 +214,22 @@ export default function DiscoverStudioPage() {
         nextPage: response.page < response.total_pages && pageParam < 100 ? response.page + 1 : undefined,
       };
     },
-    getNextPageParam: (lastPage) => lastPage.nextPage,
+    getNextPageParam: (lastPage) => lastPage?.nextPage,
     initialPageParam: 1,
     enabled: !!companyId,
     staleTime: 1000 * 60 * 5,
   });
 
-  const results = data?.pages.flatMap((page) => page.results) || [];
+  const results = useMemo(() => {
+    const raw = data?.pages.flatMap((page) => page?.results || []) || [];
+    const seen = new Set<string>();
+    return raw.filter((item: TmdbItem) => {
+      const key = `${item?.media_type || 'item'}-${item?.id}`;
+      if (!item?.id || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [data]);
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {
@@ -259,7 +268,7 @@ export default function DiscoverStudioPage() {
 
   const renderItemCard = (item: TmdbItem, idx: number = 0) => (
     <motion.div 
-      key={item.id} 
+      key={`${item.media_type || 'item'}-${item.id}-${idx}`} 
       initial={{ opacity: 0, y: 18, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
