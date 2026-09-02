@@ -146,6 +146,9 @@ function SeasonItem({
       });
       setWatchedEpisodes(res.data.watchedEpisodes);
       queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['watched-status', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+      queryClient.invalidateQueries({ queryKey: ['episode-summary'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
       queryClient.invalidateQueries({ queryKey: ['watchlist'] });
@@ -204,6 +207,9 @@ function SeasonItem({
         });
         setWatchedEpisodes(res.data.watchedEpisodes);
         queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+        queryClient.invalidateQueries({ queryKey: ['watched-status', 'tv', tvId] });
+        queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+        queryClient.invalidateQueries({ queryKey: ['episode-summary'] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
         queryClient.invalidateQueries({ queryKey: ['watchlist'] });
@@ -262,6 +268,9 @@ function SeasonItem({
       const res = await api.post("/tracking/watched/season/toggle", { tmdbId: tvId, season: seasonNum, episodes: epsNumbers, runtime: episodeRuntime || 0 });
       setWatchedEpisodes(res.data.watchedEpisodes);
       queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['watched-status', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+      queryClient.invalidateQueries({ queryKey: ['episode-summary'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
       queryClient.invalidateQueries({ queryKey: ['watchlist'] });
