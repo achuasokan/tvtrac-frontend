@@ -9,8 +9,18 @@ export function GlobalCacheInvalidator() {
     const user = useSelector((state: RootState) => state.auth.user);
     const queryClient = useQueryClient();
     
+    const currentUserId = user?.id || user?._id || null;
+    const prevUserId = useRef(currentUserId);
     const prevWatchlistMovies = useRef(user?.watchlistMovies?.length);
     const prevWatchlistShows = useRef(user?.watchlistShows?.length);
+
+    useEffect(() => {
+        if (prevUserId.current !== currentUserId) {
+            // User identity changed (login, logout, or account switch): clear all cached user data
+            queryClient.clear();
+            prevUserId.current = currentUserId;
+        }
+    }, [currentUserId, queryClient]);
 
     useEffect(() => {
         if (user && prevWatchlistMovies.current !== undefined) {

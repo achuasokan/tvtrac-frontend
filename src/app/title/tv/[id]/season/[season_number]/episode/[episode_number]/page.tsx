@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { api } from "@/lib/api";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { EpisodeDiscussionSection } from "@/features/discussions/components/EpisodeDiscussionSection";
+import { PostWatchReactionDrawer } from "@/features/discussions/components/PostWatchReactionDrawer";
+import { CastMember } from "@/features/discussions/types/discussion.types";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -59,6 +62,36 @@ export default function EpisodeDetailsPage() {
   const [pendingProviderName, setPendingProviderName] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [playingVideos, setPlayingVideos] = useState<Record<string, boolean>>({});
+  const [isReactionDrawerOpen, setIsReactionDrawerOpen] = useState(false);
+
+  const episodeCast: CastMember[] = useMemo(() => {
+    const map = new Map<number, CastMember>();
+    if (details?.guest_stars && Array.isArray(details.guest_stars)) {
+      for (const star of details.guest_stars) {
+        if (star.id && star.character) {
+          map.set(star.id, {
+            id: star.id,
+            name: star.character,
+            actorName: star.name || star.original_name,
+            profilePath: star.profile_path || null,
+          });
+        }
+      }
+    }
+    if (showDetails?.credits?.cast && Array.isArray(showDetails.credits.cast)) {
+      for (const member of showDetails.credits.cast) {
+        if (member.id && member.character && !map.has(member.id)) {
+          map.set(member.id, {
+            id: member.id,
+            name: member.character,
+            actorName: member.name || member.original_name,
+            profilePath: member.profile_path || null,
+          });
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, [details, showDetails]);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -92,17 +125,15 @@ export default function EpisodeDetailsPage() {
   const { data: queryData, isLoading, isError: queryError } = useQuery({
     queryKey: ['episode-details', id, season_number, episode_number],
     queryFn: async () => {
-      const [detailsRes, seasonRes, watchedRes, showRes] = await Promise.all([
+      const [detailsRes, seasonRes, showRes] = await Promise.all([
         api.get(`/tmdb/tv/${id}/season/${season_number}/episode/${episode_number}`),
         api.get(`/tmdb/tv/${id}/season/${season_number}`),
-        user ? api.get(`/tracking/watched/status/tv/${id}`).catch(() => ({ data: { watchedEpisodes: [] } })) : Promise.resolve({ data: { watchedEpisodes: [] } }),
         api.get(`/tmdb/title/tv/${id}`).catch(() => ({ data: null }))
       ]);
 
       return {
         details: detailsRes.data,
         seasonDetails: seasonRes.data,
-        watchedData: watchedRes.data,
         showDetails: showRes.data
       };
     },
@@ -110,14 +141,34 @@ export default function EpisodeDetailsPage() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // Dedicated real-time watched status query (always refetches fresh on mount)
+  const { data: watchedStatusData } = useQuery({
+    queryKey: ['watched-status', 'tv', id],
+    queryFn: async () => {
+      if (!user) return { watchedEpisodes: [] };
+      const res = await api.get(`/tracking/watched/status/tv/${id}`).catch(() => ({ data: { watchedEpisodes: [] } }));
+      return res.data;
+    },
+    enabled: !!id && !!user,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+
+  // Sync TMDB metadata
   useEffect(() => {
     if (queryData) {
       setDetails(queryData.details);
       setSeasonDetails(queryData.seasonDetails);
       setShowDetails(queryData.showDetails);
-      if (queryData.watchedData.watchedEpisodes) {
-        setWatchedEpisodes(queryData.watchedData.watchedEpisodes);
-        const matchedEp = queryData.watchedData.watchedEpisodes.find(
+    }
+  }, [queryData]);
+
+  // Sync watched status immediately whenever watchedStatusData updates
+  useEffect(() => {
+    if (watchedStatusData) {
+      if (watchedStatusData.watchedEpisodes) {
+        setWatchedEpisodes(watchedStatusData.watchedEpisodes);
+        const matchedEp = watchedStatusData.watchedEpisodes.find(
           (ep: any) => ep.season === Number(season_number) && ep.episode === Number(episode_number)
         );
         if (matchedEp) {
@@ -128,11 +179,11 @@ export default function EpisodeDetailsPage() {
           setWatchedAt(null);
         }
       }
-      if (queryData.watchedData.ignorePreviousEpisodesPrompt !== undefined) {
-        setIgnorePrompt(queryData.watchedData.ignorePreviousEpisodesPrompt);
+      if (watchedStatusData.ignorePreviousEpisodesPrompt !== undefined) {
+        setIgnorePrompt(watchedStatusData.ignorePreviousEpisodesPrompt);
       }
     }
-  }, [queryData, season_number, episode_number]);
+  }, [watchedStatusData, season_number, episode_number]);
 
   const handleToggleWatched = async () => {
     if (!user) return router.push("/login");
@@ -168,10 +219,12 @@ export default function EpisodeDetailsPage() {
     try {
       setIsTogglingWatched(true);
       // Optimistic update
-      setIsWatched(!isWatched);
-      if (!isWatched) {
+      const willBeWatched = !isWatched;
+      setIsWatched(willBeWatched);
+      if (willBeWatched) {
         setIsDescriptionRevealed(true); // Reveal description if marked watched
         setWatchedAt(new Date().toISOString());
+        setIsReactionDrawerOpen(true); // Open bottom-to-top curved sheet
       } else {
         setWatchedAt(null);
       }
@@ -182,8 +235,10 @@ export default function EpisodeDetailsPage() {
         runtime: getEpisodeRuntime(),
       });
       // Force the title details page and episode page to refetch so they have fresh watched status
+      queryClient.invalidateQueries({ queryKey: ['watched-status', 'tv', id] });
       queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', id] });
-      queryClient.invalidateQueries({ queryKey: ['episode-details', id, season_number, episode_number] });
+      queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+      queryClient.invalidateQueries({ queryKey: ['episode-summary', id, Number(season_number), Number(episode_number)] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
       queryClient.invalidateQueries({ queryKey: ['watchlist'] });
@@ -213,6 +268,7 @@ export default function EpisodeDetailsPage() {
       setIsTogglingWatched(true);
       setIsWatched(true);
       setIsDescriptionRevealed(true);
+      setIsReactionDrawerOpen(true);
       setWatchedEpisodes(prev => {
         const newEps = [...prev];
         for (const ep of allToMark) {
@@ -230,7 +286,10 @@ export default function EpisodeDetailsPage() {
           episodes: allToMark,
           runtime: getEpisodeRuntime(),
         });
+        queryClient.invalidateQueries({ queryKey: ['watched-status', 'tv', id] });
         queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', id] });
+        queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+        queryClient.invalidateQueries({ queryKey: ['episode-summary', id, sNum, eNum] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
         queryClient.invalidateQueries({ queryKey: ['watchlist'] });
@@ -535,6 +594,23 @@ export default function EpisodeDetailsPage() {
         </div>
       </div>
 
+      {/* Episode Community Ribbon & Discussion Drawer */}
+      <EpisodeDiscussionSection
+        tmdbId={String(id)}
+        seasonNumber={Number(season_number)}
+        episodeNumber={Number(episode_number)}
+        episodeTitle={details?.name}
+        isWatched={isWatched}
+        onToggleWatched={handleToggleWatched}
+        isLoggedIn={Boolean(user)}
+        currentUserId={user?.id || user?._id}
+        currentUserAvatar={user?.avatar || user?.profileImage}
+        cast={episodeCast}
+        onRequireAuth={() => router.push("/login")}
+        watchProviders={showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate || []}
+        networks={showDetails?.networks || []}
+      />
+
       {/* Guest Stars Section */}
       {guestStars.length > 0 && (
         <div className="max-w-4xl mx-auto px-4 w-full mb-12">
@@ -695,6 +771,21 @@ export default function EpisodeDetailsPage() {
           </div>
         </div>
       )}
+
+
+
+      {/* Post-Watch Reaction Drawer Modal */}
+      <PostWatchReactionDrawer
+        isOpen={isReactionDrawerOpen}
+        onClose={() => setIsReactionDrawerOpen(false)}
+        tmdbId={String(id)}
+        seasonNumber={Number(season_number)}
+        episodeNumber={Number(episode_number)}
+        episodeTitle={details?.name}
+        cast={episodeCast}
+        watchProviders={showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate || []}
+        networks={showDetails?.networks || []}
+      />
 
 
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
@@ -15,6 +15,8 @@ import { RatingsBar } from "@/components/ui/RatingsBar";
 import ReactPlayer from "react-player/lazy";
 import { Music, Play, Pause, Ticket } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PostWatchMovieReactionDrawer } from "@/features/discussions/components/PostWatchMovieReactionDrawer";
+import { MovieDiscussionSection } from "@/features/discussions/components/MovieDiscussionSection";
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -146,6 +148,9 @@ function SeasonItem({
       });
       setWatchedEpisodes(res.data.watchedEpisodes);
       queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['watched-status', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+      queryClient.invalidateQueries({ queryKey: ['episode-summary'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
       queryClient.invalidateQueries({ queryKey: ['watchlist'] });
@@ -204,6 +209,9 @@ function SeasonItem({
         });
         setWatchedEpisodes(res.data.watchedEpisodes);
         queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+        queryClient.invalidateQueries({ queryKey: ['watched-status', 'tv', tvId] });
+        queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+        queryClient.invalidateQueries({ queryKey: ['episode-summary'] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
         queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
         queryClient.invalidateQueries({ queryKey: ['watchlist'] });
@@ -262,6 +270,9 @@ function SeasonItem({
       const res = await api.post("/tracking/watched/season/toggle", { tmdbId: tvId, season: seasonNum, episodes: epsNumbers, runtime: episodeRuntime || 0 });
       setWatchedEpisodes(res.data.watchedEpisodes);
       queryClient.invalidateQueries({ queryKey: ['title-details', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['watched-status', 'tv', tvId] });
+      queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+      queryClient.invalidateQueries({ queryKey: ['episode-summary'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
       queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
       queryClient.invalidateQueries({ queryKey: ['watchlist'] });
@@ -549,6 +560,17 @@ export default function TitleDetailsPage() {
   const details = titleDetailsQuery?.details || null;
   const isLoading = isDetailsLoading;
   const errorStatus = isDetailsError ? (detailsError as any)?.response?.status === 404 ? 404 : 500 : null;
+  const [isMovieReactionDrawerOpen, setIsMovieReactionDrawerOpen] = useState(false);
+
+  const movieCast = useMemo(() => {
+    if (!details?.credits?.cast || !Array.isArray(details.credits.cast)) return [];
+    return details.credits.cast.map((c: any) => ({
+      id: c.id,
+      name: c.character || c.name,
+      actorName: c.name || c.original_name,
+      profilePath: c.profile_path || null,
+    }));
+  }, [details?.credits?.cast]);
 
   useEffect(() => {
     if (initialMount.current) {
@@ -708,6 +730,8 @@ export default function TitleDetailsPage() {
       setIsWatched(res.data.watched);
       if (mediaType === 'tv') {
         setWatchedEpisodes(res.data.watchedEpisodes || []);
+      } else if (mediaType === 'movie' && res.data.watched) {
+        setIsMovieReactionDrawerOpen(true);
       }
       
       // Update React Query Cache
@@ -1335,6 +1359,22 @@ export default function TitleDetailsPage() {
                   )}
                 </div>
 
+                {mediaType === 'movie' && (
+                  <MovieDiscussionSection
+                    tmdbId={String(id)}
+                    movieTitle={title}
+                    releaseYear={details?.release_date?.substring(0, 4)}
+                    isWatched={isWatched}
+                    onToggleWatched={handleToggleWatched}
+                    isLoggedIn={Boolean(user)}
+                    currentUserId={user?.id || (user as any)?._id}
+                    currentUserAvatar={user?.avatar || (user as any)?.profileImage}
+                    cast={movieCast}
+                    onRequireAuth={() => router.push("/login")}
+                    watchProviders={details?.['watch/providers']?.results?.[userCountry]?.flatrate || []}
+                  />
+                )}
+
                 {(() => {
                   const recommendationItems = details.recommendations?.results?.length > 0 
                     ? details.recommendations.results 
@@ -1800,6 +1840,19 @@ export default function TitleDetailsPage() {
         tmdbId={id}
         mediaType={mediaType as 'movie' | 'tv'}
       />
+
+      {/* Movie Post-Watch Reaction Drawer */}
+      {mediaType === 'movie' && (
+        <PostWatchMovieReactionDrawer
+          isOpen={isMovieReactionDrawerOpen}
+          onClose={() => setIsMovieReactionDrawerOpen(false)}
+          tmdbId={String(id)}
+          movieTitle={title}
+          releaseYear={details?.release_date?.substring(0, 4)}
+          cast={movieCast}
+          watchProviders={details?.['watch/providers']?.results?.[userCountry]?.flatrate || []}
+        />
+      )}
 
       {/* Image Lightbox */}
       {isLightboxOpen && allImages.length > 0 && (

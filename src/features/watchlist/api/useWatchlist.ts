@@ -67,6 +67,10 @@ export function useToggleWatched() {
             // Safe authoritative invalidation (React Query v5 natively handles refetching loaded pages)
             // Active queries will refetch immediately. Inactive queries will be marked stale.
             queryClient.invalidateQueries({ queryKey: ['watchlist'] });
+            queryClient.invalidateQueries({ queryKey: ['title-details'] });
+            queryClient.invalidateQueries({ queryKey: ['watched-status'] });
+            queryClient.invalidateQueries({ queryKey: ['episode-details'] });
+            queryClient.invalidateQueries({ queryKey: ['episode-summary'] });
             queryClient.invalidateQueries({ queryKey: ['profile', 'history'] });
             queryClient.invalidateQueries({ queryKey: ['profile', 'stats'] });
         }
