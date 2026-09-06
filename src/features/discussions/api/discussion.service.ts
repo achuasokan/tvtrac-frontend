@@ -1,6 +1,7 @@
 import { api } from '@/lib/api';
 import {
   EpisodeSummary,
+  MovieSummary,
   CommentsResponse,
   DiscussionComment,
   EmotionType,
@@ -11,6 +12,11 @@ import {
 export const discussionService = {
   getSummary: async (tmdbId: string, season: number, episode: number): Promise<EpisodeSummary> => {
     const res = await api.get(`/discussions/tv/${tmdbId}/season/${season}/episode/${episode}/summary`);
+    return res.data.data;
+  },
+
+  getMovieSummary: async (tmdbId: string): Promise<MovieSummary> => {
+    const res = await api.get(`/discussions/movie/${tmdbId}/summary`);
     return res.data.data;
   },
 
@@ -32,6 +38,22 @@ export const discussionService = {
     return res.data.data;
   },
 
+  getMovieComments: async (
+    tmdbId: string,
+    params?: {
+      sort?: 'top' | 'newest';
+      cursor?: string;
+      limit?: number;
+      hideSpoilers?: boolean;
+      reveal?: boolean;
+    }
+  ): Promise<CommentsResponse> => {
+    const res = await api.get(`/discussions/movie/${tmdbId}/comments`, {
+      params,
+    });
+    return res.data.data;
+  },
+
   upsertReaction: async (
     tmdbId: string,
     season: number,
@@ -44,6 +66,18 @@ export const discussionService = {
     }
   ) => {
     const res = await api.post(`/discussions/tv/${tmdbId}/season/${season}/episode/${episode}/reaction`, body);
+    return res.data.data;
+  },
+
+  upsertMovieReaction: async (
+    tmdbId: string,
+    body: {
+      characterId?: number | null;
+      rating?: number | null;
+      platform?: string | null;
+    }
+  ) => {
+    const res = await api.post(`/discussions/movie/${tmdbId}/reaction`, body);
     return res.data.data;
   },
 
@@ -70,6 +104,14 @@ export const discussionService = {
     body: CreateCommentPayload
   ): Promise<DiscussionComment> => {
     const res = await api.post(`/discussions/tv/${tmdbId}/season/${season}/episode/${episode}/comments`, body);
+    return res.data.data;
+  },
+
+  createMovieComment: async (
+    tmdbId: string,
+    body: CreateCommentPayload
+  ): Promise<DiscussionComment> => {
+    const res = await api.post(`/discussions/movie/${tmdbId}/comments`, body);
     return res.data.data;
   },
 

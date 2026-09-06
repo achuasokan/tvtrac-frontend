@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo } from 'react';
-import { Tv, Film, Check } from 'lucide-react';
+import { Tv, Film, Check, Ticket } from 'lucide-react';
 
 export interface WatchProviderItem {
   provider_id?: number | string;
@@ -22,6 +22,7 @@ interface EpisodePlatformSelectorProps {
   selectedPlatform: string | null;
   onSelect: (platform: string | null) => void;
   className?: string;
+  isMovie?: boolean;
 }
 
 interface NormalizedPlatform {
@@ -42,6 +43,13 @@ function getCanonicalPlatform(rawName: string): { canonicalKey: string; displayN
 
   const lower = cleaned.toLowerCase();
 
+  if (
+    lower.includes('theater') ||
+    lower.includes('theatre') ||
+    lower.includes('cinema')
+  ) {
+    return { canonicalKey: 'in-theaters', displayName: 'In Theaters' };
+  }
   if (
     lower.includes('amazon') ||
     lower.includes('prime video') ||
@@ -78,12 +86,12 @@ function getCanonicalPlatform(rawName: string): { canonicalKey: string; displayN
 }
 
 const DEFAULT_POPULAR_PLATFORMS = [
-  { id: 'Netflix', canonicalKey: 'netflix', displayName: 'Netflix', logoUrl: 'https://image.tmdb.org/t/p/w92/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg' },
-  { id: 'Prime Video', canonicalKey: 'prime-video', displayName: 'Prime Video', logoUrl: 'https://image.tmdb.org/t/p/w92/pvsGq0z4WjbeJ6y55i0d3wFj24.jpg' },
-  { id: 'Apple TV+', canonicalKey: 'apple-tv-plus', displayName: 'Apple TV+', logoUrl: 'https://image.tmdb.org/t/p/w92/6uhKBfmtzFqOcLousHwZuzcrScK.jpg' },
-  { id: 'Max', canonicalKey: 'max', displayName: 'Max', logoUrl: 'https://image.tmdb.org/t/p/w92/7eqf2hJ3k4a5Y7mI12J34z0.jpg' },
-  { id: 'Disney+', canonicalKey: 'disney-plus', displayName: 'Disney+', logoUrl: 'https://image.tmdb.org/t/p/w92/97yvRBw1GzX7fMzH6Z12Y3.jpg' },
-  { id: 'Hulu', canonicalKey: 'hulu', displayName: 'Hulu', logoUrl: 'https://image.tmdb.org/t/p/w92/zxrVdFjPBqikq25Ejw6gY4k0.jpg' },
+  { id: 'Netflix', canonicalKey: 'netflix', displayName: 'Netflix', logoUrl: 'https://image.tmdb.org/t/p/w92/rK1KljqmbvO9HQa1PBFLILWah72.png' },
+  { id: 'Prime Video', canonicalKey: 'prime-video', displayName: 'Prime Video', logoUrl: 'https://image.tmdb.org/t/p/w92/gMZdpavHmxFNnLpMHwVxfqeux2g.png' },
+  { id: 'Apple TV+', canonicalKey: 'apple-tv-plus', displayName: 'Apple TV+', logoUrl: 'https://image.tmdb.org/t/p/w92/9icYBfYFcwgCbky5VdGUIKJ4C5i.png' },
+  { id: 'Max', canonicalKey: 'max', displayName: 'Max', logoUrl: 'https://image.tmdb.org/t/p/w92/skypuy7SXuugIQeYg0IglmzoKaS.png' },
+  { id: 'Disney+', canonicalKey: 'disney-plus', displayName: 'Disney+', logoUrl: 'https://image.tmdb.org/t/p/w92/5eZ872CghnHFLB1j8grszbrx0dx.png' },
+  { id: 'Hulu', canonicalKey: 'hulu', displayName: 'Hulu', logoUrl: 'https://image.tmdb.org/t/p/w92/44uAnmSqvA4yBOdbPWN8YgQHjWm.png' },
 ];
 
 export function EpisodePlatformSelector({
@@ -92,10 +100,21 @@ export function EpisodePlatformSelector({
   selectedPlatform,
   onSelect,
   className = '',
+  isMovie = false,
 }: EpisodePlatformSelectorProps) {
   const platforms = useMemo(() => {
     const list: NormalizedPlatform[] = [];
     const seenKeys = new Set<string>();
+
+    // 0. For movies, "In Theaters" is top priority
+    if (isMovie) {
+      list.push({
+        id: 'In Theaters',
+        canonicalKey: 'in-theaters',
+        displayName: 'In Theaters',
+      });
+      seenKeys.add('in-theaters');
+    }
 
     // 1. Official streaming providers for this title & country from TMDB/JustWatch
     watchProviders.forEach((wp) => {
@@ -130,7 +149,7 @@ export function EpisodePlatformSelector({
     });
 
     // If no real providers were discovered, provide top popular fallbacks
-    if (list.length === 0) {
+    if (list.length === 0 || (isMovie && list.length === 1)) {
       DEFAULT_POPULAR_PLATFORMS.forEach((p) => {
         if (!seenKeys.has(p.canonicalKey)) {
           seenKeys.add(p.canonicalKey);
@@ -140,11 +159,13 @@ export function EpisodePlatformSelector({
     }
 
     // 3. Universal broadcast and other fallbacks
-    list.push({ id: 'TV / Cable', canonicalKey: 'tv-cable', displayName: 'TV / Cable', isFallback: true });
+    if (!isMovie) {
+      list.push({ id: 'TV / Cable', canonicalKey: 'tv-cable', displayName: 'TV / Cable', isFallback: true });
+    }
     list.push({ id: 'Other', canonicalKey: 'other', displayName: 'Other', isFallback: true });
 
     return list;
-  }, [watchProviders, networks]);
+  }, [watchProviders, networks, isMovie]);
 
   const selectedCanonicalKey = selectedPlatform ? getCanonicalPlatform(selectedPlatform).canonicalKey : null;
 
@@ -173,7 +194,12 @@ export function EpisodePlatformSelector({
                 alt={platform.displayName}
                 className="w-4 h-4 rounded-md object-cover shrink-0 shadow-sm"
                 loading="lazy"
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                }}
               />
+            ) : platform.canonicalKey === 'in-theaters' ? (
+              <Ticket className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-[#2dd4bf]' : 'text-amber-400'}`} />
             ) : platform.canonicalKey === 'tv-cable' ? (
               <Tv className={`w-3.5 h-3.5 shrink-0 ${isSelected ? 'text-[#2dd4bf]' : 'text-zinc-400'}`} />
             ) : (

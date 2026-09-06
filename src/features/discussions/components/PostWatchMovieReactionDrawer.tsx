@@ -1,31 +1,27 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Send, Check, MessageSquare, ShieldAlert, Image as ImageIcon, Loader2, Tv } from 'lucide-react';
+import { X, Sparkles, Send, Check, MessageSquare, ShieldAlert, Image as ImageIcon, Loader2, Film, Star } from 'lucide-react';
 import { StarRatingPicker } from './StarRatingPicker';
-import { EpisodeVibeSelector } from './EpisodeVibeSelector';
-import { EpisodeCharacterPicker } from './EpisodeCharacterPicker';
 import { EpisodePlatformSelector } from './EpisodePlatformSelector';
-import { CastMember, EmotionType, PendingMediaAttachment } from '../types/discussion.types';
-import { useSubmitReaction } from '../api/useSubmitReaction';
-import { useCreateComment } from '../api/useCreateComment';
-import { useEpisodeSummary } from '../api/useEpisodeSummary';
+import { EpisodeCharacterPicker } from './EpisodeCharacterPicker';
+import { CastMember, PendingMediaAttachment } from '../types/discussion.types';
+import { useSubmitMovieReaction } from '../api/useSubmitMovieReaction';
+import { useCreateMovieComment } from '../api/useCreateMovieComment';
+import { useMovieSummary } from '../api/useMovieSummary';
 import { discussionService } from '../api/discussion.service';
 import { GifPickerModal } from './GifPickerModal';
 
-interface PostWatchReactionDrawerProps {
+interface PostWatchMovieReactionDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   tmdbId: string;
-  seasonNumber: number;
-  episodeNumber: number;
-  episodeTitle?: string;
+  movieTitle?: string;
+  releaseYear?: string | number;
   cast: CastMember[];
   watchProviders?: any[];
-  networks?: any[];
   initialReaction?: {
-    emotion?: EmotionType | null;
     characterId?: number | null;
     rating?: number | null;
     platform?: string | null;
@@ -33,12 +29,12 @@ interface PostWatchReactionDrawerProps {
 }
 
 const QUICK_PROMPTS = [
-  '🤯 Insane ending!',
-  '😱 Didn\'t expect that twist',
-  '🔥 Peak cinema',
+  '🔥 Masterpiece',
+  '🍿 Peak cinema',
+  '👏 Incredible acting',
+  '🎬 Visual spectacle',
   '❤️ Loved every minute',
-  '😭 My heart hurts',
-  '🤔 So many questions...',
+  '🤔 Overrated',
 ];
 
 function GifIcon({ className }: { className?: string }) {
@@ -62,20 +58,17 @@ function GifIcon({ className }: { className?: string }) {
   );
 }
 
-export function PostWatchReactionDrawer({
+export function PostWatchMovieReactionDrawer({
   isOpen,
   onClose,
   tmdbId,
-  seasonNumber,
-  episodeNumber,
-  episodeTitle,
+  movieTitle,
+  releaseYear,
   cast,
   watchProviders = [],
-  networks = [],
   initialReaction,
-}: PostWatchReactionDrawerProps) {
+}: PostWatchMovieReactionDrawerProps) {
   const [rating, setRating] = useState<number | null>(initialReaction?.rating || null);
-  const [emotion, setEmotion] = useState<EmotionType | null>(initialReaction?.emotion || null);
   const [characterId, setCharacterId] = useState<number | null>(initialReaction?.characterId || null);
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(initialReaction?.platform || null);
   const [commentText, setCommentText] = useState('');
@@ -88,17 +81,16 @@ export function PostWatchReactionDrawer({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: summary } = useEpisodeSummary(tmdbId, seasonNumber, episodeNumber);
-  const { mutateAsync: submitReaction } = useSubmitReaction();
-  const { mutateAsync: createComment } = useCreateComment();
+  const { data: summary } = useMovieSummary(tmdbId);
+  const { mutateAsync: submitReaction } = useSubmitMovieReaction();
+  const { mutateAsync: createComment } = useCreateMovieComment();
 
-  // Sync existing user reactions when drawer opens
-  React.useEffect(() => {
+  // Sync existing reactions when drawer opens
+  useEffect(() => {
     if (isOpen) {
       const existing = initialReaction || summary?.userReaction;
       if (existing) {
         if (existing.rating !== undefined && rating === null) setRating(existing.rating ?? null);
-        if (existing.emotion !== undefined && emotion === null) setEmotion(existing.emotion ?? null);
         if (existing.characterId !== undefined && characterId === null) setCharacterId(existing.characterId ?? null);
         if (existing.platform !== undefined && selectedPlatform === null) setSelectedPlatform(existing.platform ?? null);
       }
@@ -140,30 +132,28 @@ export function PostWatchReactionDrawer({
     }
   };
 
-  const handleSave = async () => {
-    setIsSaving(true);
+  const handleSaveAll = async () => {
     try {
-      if (rating !== null || emotion !== null || characterId !== null || selectedPlatform !== null) {
+      setIsSaving(true);
+
+      // 1. Submit reactions (rating, platform, cast MVP)
+      if (rating !== null || characterId !== null || selectedPlatform !== null) {
         await submitReaction({
           tmdbId,
-          season: seasonNumber,
-          episode: episodeNumber,
           rating,
-          emotion,
           characterId,
           platform: selectedPlatform,
         });
       }
 
-      const hasComment = commentText.trim().length > 0;
-      const hasMedia = pendingMedia !== null;
+      // 2. Submit optional review comment
+      const hasText = commentText.trim().length > 0;
+      const hasMedia = Boolean(pendingMedia);
 
-      if (hasComment || hasMedia) {
+      if (hasText || hasMedia) {
         await createComment({
           tmdbId,
-          season: seasonNumber,
-          episode: episodeNumber,
-          content: commentText.trim(),
+          content: hasText ? commentText.trim() : undefined,
           isSpoiler,
           mediaId: pendingMedia?.mediaId,
         });
@@ -177,8 +167,9 @@ export function PostWatchReactionDrawer({
         setPendingMedia(null);
         onClose();
       }, 600);
-    } catch (err) {
-      console.error('Failed to submit post-watch reaction:', err);
+    } catch (err: any) {
+      console.error("Failed to save post-movie reaction:", err);
+      alert(err.response?.data?.message || "Failed to save reaction. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -200,7 +191,7 @@ export function PostWatchReactionDrawer({
             className="fixed inset-0 bg-black/75 backdrop-blur-md"
           />
 
-          {/* Curved Bottom Sheet (Fully Responsive across all mobile & desktop breakpoints) */}
+          {/* Curved Bottom Sheet (Matching episode drawer design and structure) */}
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
@@ -216,14 +207,14 @@ export function PostWatchReactionDrawer({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                    <Sparkles className="w-3 h-3" />
-                    Episode Watched
+                  <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#2dd4bf] bg-[#2dd4bf]/10 px-2.5 py-0.5 rounded-full border border-[#2dd4bf]/20">
+                    <Film className="w-3 h-3" />
+                    Movie Watched
                   </span>
                 </div>
                 <h3 className="text-base sm:text-xl font-extrabold text-white tracking-tight truncate">
-                  S{String(seasonNumber).padStart(2, '0')}E{String(episodeNumber).padStart(2, '0')}
-                  {episodeTitle ? ` · ${episodeTitle}` : ''}
+                  {movieTitle || 'Movie Watched'}
+                  {releaseYear ? ` (${releaseYear})` : ''}
                 </h3>
                 <p className="text-xs text-zinc-400 mt-0.5 truncate">
                   How was it? Rate, react, and share your hot take.
@@ -232,17 +223,17 @@ export function PostWatchReactionDrawer({
 
               <button
                 onClick={onClose}
-                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white rounded-full bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors shrink-0"
+                className="p-1.5 sm:p-2 text-zinc-400 hover:text-white rounded-full bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 transition-colors shrink-0 cursor-pointer"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Section 1: Rate the Episode (Clean open layout without clunky heavy box) */}
+            {/* Section 1: Rate the Movie (Clean open layout matching episode drawer) */}
             <div className="flex flex-col items-center gap-2.5 py-1 w-full max-w-full overflow-visible">
               <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-zinc-400 text-center">
-                Rate This Episode
+                Rate This Movie
               </span>
               <StarRatingPicker value={rating} onChange={(r) => setRating(r)} size="md" />
             </div>
@@ -251,36 +242,28 @@ export function PostWatchReactionDrawer({
             <div className="flex flex-col gap-2.5">
               <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-zinc-400 px-1 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <Tv className="w-3.5 h-3.5 text-[#2dd4bf]" />
+                  <Film className="w-3.5 h-3.5 text-[#2dd4bf]" />
                   <span>Where Did You Watch It?</span>
                 </span>
                 {selectedPlatform && (
                   <button
                     type="button"
                     onClick={() => setSelectedPlatform(null)}
-                    className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                    className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
                   >
                     Clear
                   </button>
                 )}
               </span>
               <EpisodePlatformSelector
+                isMovie={true}
                 watchProviders={watchProviders}
-                networks={networks}
                 selectedPlatform={selectedPlatform}
                 onSelect={(p) => setSelectedPlatform(p)}
               />
             </div>
 
-            {/* Section 3: Vibe Reaction */}
-            <div className="flex flex-col gap-2.5">
-              <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-zinc-400 px-1">
-                Episode Vibe
-              </span>
-              <EpisodeVibeSelector selectedEmotion={emotion} onSelect={(e) => setEmotion(emotion === e ? null : e)} />
-            </div>
-
-            {/* Section 4: Favorite Character (MVP) */}
+            {/* Section 3: MVP Character (Matching EpisodeCharacterPicker) */}
             {cast && cast.length > 0 && (
               <div className="flex flex-col gap-2.5">
                 <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-zinc-400 px-1 flex items-center justify-between">
@@ -288,7 +271,7 @@ export function PostWatchReactionDrawer({
                   {characterId && (
                     <button
                       onClick={() => setCharacterId(null)}
-                      className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors"
+                      className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
                     >
                       Clear
                     </button>
@@ -302,11 +285,11 @@ export function PostWatchReactionDrawer({
               </div>
             )}
 
-            {/* Section 5: Quick Hot Take / Instant Discussion Comment */}
+            {/* Section 4: Quick Hot Take / Instant Discussion Comment */}
             <div className="flex flex-col gap-2.5">
               <div className="flex items-center justify-between px-1">
                 <span className="text-[10px] sm:text-[11px] font-bold tracking-widest uppercase text-zinc-400 flex items-center gap-1.5">
-                  <MessageSquare className="w-3.5 h-3.5 text-amber-400" />
+                  <MessageSquare className="w-3.5 h-3.5 text-[#2dd4bf]" />
                   <span>Quick Hot Take</span>
                 </span>
                 <span className="text-[10px] text-zinc-500 font-medium">
@@ -323,7 +306,7 @@ export function PostWatchReactionDrawer({
                     onClick={() => {
                       setCommentText((prev) => (prev ? `${prev} ${prompt}` : prompt));
                     }}
-                    className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 border border-zinc-800/80 hover:border-zinc-700 transition-all shrink-0 active:scale-95 select-none"
+                    className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 border border-zinc-800/80 hover:border-zinc-700 transition-all shrink-0 active:scale-95 select-none cursor-pointer"
                   >
                     {prompt}
                   </button>
@@ -339,63 +322,47 @@ export function PostWatchReactionDrawer({
                 onChange={handleFileChange}
               />
 
-              {/* Comment Textarea Card */}
-              <div className="flex flex-col gap-2 p-2.5 sm:p-3 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 focus-within:border-zinc-700 focus-within:ring-1 focus-within:ring-zinc-700/50 transition-all duration-200">
+              {/* Input Box with Integrated Toolbar */}
+              <div className="relative rounded-2xl bg-zinc-900/70 border border-zinc-800/80 p-2.5 flex flex-col gap-2 focus-within:border-[#2dd4bf]/60 focus-within:ring-1 focus-within:ring-[#2dd4bf]/40 transition-all">
                 <textarea
                   value={commentText}
                   onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Share your thoughts..."
+                  placeholder="Drop a thought, review, or scene reaction..."
+                  maxLength={2000}
                   rows={2}
-                  maxLength={500}
-                  disabled={isSaving || isUploadingMedia}
-                  className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none leading-relaxed min-h-[50px] py-0.5"
+                  className="w-full bg-transparent border-0 resize-none text-xs sm:text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none scrollbar-none"
                 />
 
-                {/* Attached Media Preview (Photo / GIF) */}
-                {(pendingMedia || isUploadingMedia) && (
-                  <div className="relative inline-flex items-center gap-2 sm:gap-2.5 p-1.5 pr-2.5 sm:pr-3 rounded-xl bg-zinc-900/90 border border-zinc-700/80 shadow-inner max-w-full sm:max-w-fit animate-in fade-in zoom-in-95 duration-150 my-1">
-                    {isUploadingMedia ? (
-                      <div className="flex items-center gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs text-amber-400 font-medium">
-                        <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-amber-400" />
-                        <span>Processing media...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-lg overflow-hidden bg-black/60 shrink-0 border border-zinc-800">
-                          <img src={pendingMedia!.previewUrl} alt="Attached media" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="flex flex-col min-w-0 pr-1">
-                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider truncate">
-                            {pendingMedia!.type === 'gif' ? 'GIF Attached' : 'Photo Attached'}
-                          </span>
-                          <span className="text-[9px] text-zinc-400">Ready to post</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setPendingMedia(null)}
-                          className="p-1 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full transition-colors ml-auto sm:ml-1 shrink-0"
-                          title="Remove attachment"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </>
-                    )}
+                {/* Media Preview if attached */}
+                {pendingMedia && (
+                  <div className="relative inline-block w-24 h-24 rounded-xl overflow-hidden border border-zinc-700 group my-1">
+                    <img
+                      src={pendingMedia.previewUrl}
+                      alt="Attachment preview"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPendingMedia(null)}
+                      className="absolute top-1 right-1 p-1 rounded-full bg-black/70 hover:bg-black text-white transition-all cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 )}
 
-                {/* Textarea Bottom Toolbar: Photo, GIF, Spoiler Chip & Counter */}
-                <div className="flex items-center justify-between pt-1.5 border-t border-zinc-800/50 gap-2 flex-wrap">
-                  <div className="flex items-center gap-1.5 flex-wrap">
+                {/* Toolbar */}
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-zinc-800/60">
+                  <div className="flex items-center gap-1 sm:gap-1.5">
                     {/* Attach Photo */}
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      disabled={isUploadingMedia || isSaving || pendingMedia !== null}
-                      className="inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/70 bg-zinc-900/80 border border-zinc-800/80 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0"
-                      title="Upload photo (max 10MB)"
+                      disabled={isUploadingMedia || pendingMedia !== null}
+                      className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      title="Attach Image"
                     >
-                      <ImageIcon className="w-3.5 h-3.5 text-zinc-400" />
-                      <span>Photo</span>
+                      <ImageIcon className="w-4 h-4" />
                     </button>
 
                     {/* Attach GIF */}
@@ -407,55 +374,57 @@ export function PostWatchReactionDrawer({
                         }
                         setIsGifModalOpen(true);
                       }}
-                      disabled={isUploadingMedia || isSaving || pendingMedia !== null}
-                      className="inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/70 bg-zinc-900/80 border border-zinc-800/80 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0 cursor-pointer"
-                      title="Search & attach GIF"
+                      disabled={isUploadingMedia || pendingMedia !== null}
+                      className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      title="Attach GIF"
                     >
-                      <GifIcon className="w-3.5 h-3.5 text-zinc-400" />
-                      <span>GIF</span>
+                      <GifIcon className="w-4 h-4" />
                     </button>
 
-                    {/* Spoiler Toggle Chip */}
-                    <button
-                      type="button"
-                      onClick={() => setIsSpoiler(!isSpoiler)}
-                      className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-lg text-xs font-medium transition-all select-none border active:scale-95 shrink-0 ${
-                        isSpoiler
-                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 font-semibold shadow-[0_0_12px_rgba(245,158,11,0.15)]'
-                          : 'bg-zinc-900/80 border-zinc-800 text-zinc-400 hover:text-zinc-200'
-                      }`}
-                    >
-                      <ShieldAlert className="w-3 h-3 text-amber-400" />
-                      <span>Spoiler</span>
-                    </button>
+                    {isUploadingMedia && (
+                      <span className="flex items-center gap-1 text-[11px] text-zinc-400">
+                        <Loader2 className="w-3 h-3 animate-spin text-[#2dd4bf]" />
+                        <span>Uploading...</span>
+                      </span>
+                    )}
                   </div>
 
-                  <span className="text-[10px] text-zinc-500 ml-auto">
-                    {commentText.length}/500
-                  </span>
+                  {/* Spoiler Toggle Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsSpoiler(!isSpoiler)}
+                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] sm:text-[11px] font-bold transition-all cursor-pointer ${
+                      isSpoiler
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                        : 'bg-zinc-800/60 text-zinc-400 hover:text-zinc-200 border border-transparent'
+                    }`}
+                  >
+                    <ShieldAlert className="w-3 h-3" />
+                    <span>Spoiler</span>
+                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Footer Buttons */}
+            {/* Footer Buttons (Matching episode drawer footer) */}
             <div className="flex items-center justify-end gap-2.5 sm:gap-3 pt-2 border-t border-zinc-800/60">
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isSaving || isUploadingMedia}
-                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold text-zinc-400 hover:text-white transition-colors"
+                className="px-4 sm:px-5 py-2 sm:py-2.5 rounded-full text-xs font-bold text-zinc-400 hover:text-white transition-colors cursor-pointer"
               >
                 Skip
               </button>
               <button
                 type="button"
-                onClick={handleSave}
+                onClick={handleSaveAll}
                 disabled={isSaving || isUploadingMedia}
-                className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-white text-black font-bold text-xs tracking-wider uppercase hover:bg-zinc-200 transition-all active:scale-95 disabled:opacity-50 shadow-[0_0_25px_rgba(255,255,255,0.2)]"
+                className="flex items-center gap-2 px-5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#2dd4bf] hover:bg-[#20b8a4] text-black font-bold text-xs tracking-wider uppercase transition-all active:scale-95 disabled:opacity-50 shadow-[0_0_25px_rgba(45,212,191,0.3)] cursor-pointer"
               >
                 {isSaved ? (
                   <>
-                    <Check className="w-4 h-4 text-emerald-600" />
+                    <Check className="w-4 h-4 stroke-[3]" />
                     <span>Saved!</span>
                   </>
                 ) : isSaving ? (
@@ -486,4 +455,3 @@ export function PostWatchReactionDrawer({
     </AnimatePresence>
   );
 }
-

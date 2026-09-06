@@ -221,9 +221,14 @@ export function DiscussionCommentInput({
                 {/* Attach GIF Button */}
                 <button
                   type="button"
-                  onClick={() => setIsGifModalOpen(true)}
+                  onClick={() => {
+                    if (document.activeElement instanceof HTMLElement) {
+                      document.activeElement.blur();
+                    }
+                    setIsGifModalOpen(true);
+                  }}
                   disabled={isUploadingMedia || isSubmitting || pendingMedia !== null}
-                  className="inline-flex items-center justify-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/70 bg-zinc-900/60 border border-zinc-800/80 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0"
+                  className="inline-flex items-center justify-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/70 bg-zinc-900/60 border border-zinc-800/80 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0 cursor-pointer"
                   title="Search and attach a GIF"
                 >
                   <GifIcon className="w-3.5 h-3.5 text-zinc-400" />

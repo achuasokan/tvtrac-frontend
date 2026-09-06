@@ -46,6 +46,17 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus search input whenever modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
 
   // Lock body scroll when modal is open on all devices
   useEffect(() => {
@@ -126,6 +137,7 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
               <input
+                ref={searchInputRef}
                 type="text"
                 value={searchQuery}
                 onChange={(e) => {

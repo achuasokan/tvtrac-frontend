@@ -38,6 +38,21 @@ export interface EpisodeSummary {
   isWatchedByMe: boolean;
 }
 
+export interface MovieSummary {
+  ratingStats: {
+    averageRating: number | null;
+    totalRatings: number;
+  };
+  mvpLeaderboard: MvpCharacter[];
+  totalComments: number;
+  userReaction: {
+    characterId?: number | null;
+    rating?: number | null;
+    platform?: string | null;
+  } | null;
+  isWatchedByMe: boolean;
+}
+
 export interface CommentMedia {
   type: 'image' | 'gif';
   url: string;

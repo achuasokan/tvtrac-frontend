@@ -1,27 +1,26 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { MessageSquare, Flame, Clock, Filter, ChevronRight, ArrowRight, Tv } from 'lucide-react';
-import { useEpisodeSummary } from '../api/useEpisodeSummary';
-import { useEpisodeComments } from '../api/useEpisodeComments';
-import { useSubmitReaction } from '../api/useSubmitReaction';
-import { useCreateComment } from '../api/useCreateComment';
-import { useDeleteComment } from '../api/useDeleteComment';
-import { useToggleCommentLike } from '../api/useToggleCommentLike';
+import { MessageSquare, Flame, Clock, Filter, ChevronRight, Film } from 'lucide-react';
+import { useMovieSummary } from '../api/useMovieSummary';
+import { useMovieComments } from '../api/useMovieComments';
+import { useSubmitMovieReaction } from '../api/useSubmitMovieReaction';
+import { useCreateMovieComment } from '../api/useCreateMovieComment';
+import { useDeleteMovieComment } from '../api/useDeleteMovieComment';
+import { useToggleMovieCommentLike } from '../api/useToggleMovieCommentLike';
 import { TvTimeRatingCard } from './TvTimeRatingCard';
-import { TvTimeVibeSelector } from './TvTimeVibeSelector';
 import { TvTimeMvpCarousel } from './TvTimeMvpCarousel';
 import { EpisodePlatformSelector } from './EpisodePlatformSelector';
 import { DiscussionCommentItem } from './DiscussionCommentItem';
 import { DiscussionCommentInput } from './DiscussionCommentInput';
-import { EpisodeDiscussionDrawer } from './EpisodeDiscussionDrawer';
-import { CastMember, EmotionType } from '../types/discussion.types';
+import { CastMember } from '../types/discussion.types';
+import { PostWatchMovieReactionDrawer } from './PostWatchMovieReactionDrawer';
+import { MovieDiscussionDrawer } from './MovieDiscussionDrawer';
 
-interface EpisodeDiscussionSectionProps {
+interface MovieDiscussionSectionProps {
   tmdbId: string;
-  seasonNumber: number;
-  episodeNumber: number;
-  episodeTitle?: string;
+  movieTitle?: string;
+  releaseYear?: string | number;
   isWatched: boolean;
   onToggleWatched?: () => void;
   isLoggedIn: boolean;
@@ -30,14 +29,12 @@ interface EpisodeDiscussionSectionProps {
   cast: CastMember[];
   onRequireAuth?: () => void;
   watchProviders?: any[];
-  networks?: any[];
 }
 
-export function EpisodeDiscussionSection({
+export function MovieDiscussionSection({
   tmdbId,
-  seasonNumber,
-  episodeNumber,
-  episodeTitle,
+  movieTitle,
+  releaseYear,
   isWatched,
   onToggleWatched,
   isLoggedIn,
@@ -46,19 +43,14 @@ export function EpisodeDiscussionSection({
   cast,
   onRequireAuth,
   watchProviders = [],
-  networks = [],
-}: EpisodeDiscussionSectionProps) {
+}: MovieDiscussionSectionProps) {
   const [sort, setSort] = useState<'top' | 'newest'>('top');
   const [hideSpoilers, setHideSpoilers] = useState(false);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isReactionDrawerOpen, setIsReactionDrawerOpen] = useState(false);
+  const [isCommentsDrawerOpen, setIsCommentsDrawerOpen] = useState(false);
 
-  // Queries (Only enabled when watched or explicitly requested)
-  const { data: summary } = useEpisodeSummary(
-    tmdbId,
-    seasonNumber,
-    episodeNumber,
-    currentUserId
-  );
+  // Queries
+  const { data: summary } = useMovieSummary(tmdbId, currentUserId);
 
   const {
     data: commentsData,
@@ -66,23 +58,29 @@ export function EpisodeDiscussionSection({
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useEpisodeComments(tmdbId, seasonNumber, episodeNumber, {
+  } = useMovieComments(tmdbId, {
     sort,
     hideSpoilers,
     reveal: isWatched,
   });
 
   // Mutations
-  const { mutateAsync: submitReaction, isPending: isSubmittingReaction } = useSubmitReaction();
-  const { mutateAsync: createComment, isPending: isCreatingComment } = useCreateComment();
-  const { mutateAsync: deleteComment, isPending: isDeletingComment } = useDeleteComment();
-  const { mutate: toggleLike } = useToggleCommentLike();
+  const { mutateAsync: submitReaction, isPending: isSubmittingReaction } = useSubmitMovieReaction();
+  const { mutateAsync: createComment, isPending: isCreatingComment } = useCreateMovieComment();
+  const { mutateAsync: deleteComment, isPending: isDeletingComment } = useDeleteMovieComment();
+  const { mutate: toggleLike } = useToggleMovieCommentLike();
 
   const allComments = useMemo(() => {
     return commentsData?.pages.flatMap((page) => page.comments) || [];
   }, [commentsData]);
 
-  // Handlers for interactive TV Time widgets
+  const totalCommentCount = summary?.totalComments ?? allComments.length;
+
+  if (!isWatched) {
+    return null;
+  }
+
+  // Handlers
   const handleRate = async (rating: number) => {
     if (!isLoggedIn && onRequireAuth) {
       onRequireAuth();
@@ -90,27 +88,7 @@ export function EpisodeDiscussionSection({
     }
     await submitReaction({
       tmdbId,
-      season: seasonNumber,
-      episode: episodeNumber,
       rating,
-      emotion: summary?.userReaction?.emotion,
-      characterId: summary?.userReaction?.characterId,
-      platform: summary?.userReaction?.platform,
-    });
-  };
-
-  const handleSelectEmotion = async (emotion: EmotionType) => {
-    if (!isLoggedIn && onRequireAuth) {
-      onRequireAuth();
-      return;
-    }
-    const nextEmotion = summary?.userReaction?.emotion === emotion ? null : emotion;
-    await submitReaction({
-      tmdbId,
-      season: seasonNumber,
-      episode: episodeNumber,
-      rating: summary?.userReaction?.rating,
-      emotion: nextEmotion,
       characterId: summary?.userReaction?.characterId,
       platform: summary?.userReaction?.platform,
     });
@@ -121,14 +99,11 @@ export function EpisodeDiscussionSection({
       onRequireAuth();
       return;
     }
-    const nextCharacter = summary?.userReaction?.characterId === characterId ? null : characterId;
+    const nextChar = summary?.userReaction?.characterId === characterId ? null : characterId;
     await submitReaction({
       tmdbId,
-      season: seasonNumber,
-      episode: episodeNumber,
       rating: summary?.userReaction?.rating,
-      emotion: summary?.userReaction?.emotion,
-      characterId: nextCharacter,
+      characterId: nextChar,
       platform: summary?.userReaction?.platform,
     });
   };
@@ -140,10 +115,7 @@ export function EpisodeDiscussionSection({
     }
     await submitReaction({
       tmdbId,
-      season: seasonNumber,
-      episode: episodeNumber,
       rating: summary?.userReaction?.rating,
-      emotion: summary?.userReaction?.emotion,
       characterId: summary?.userReaction?.characterId,
       platform,
     });
@@ -156,25 +128,27 @@ export function EpisodeDiscussionSection({
     }
     await createComment({
       tmdbId,
-      season: seasonNumber,
-      episode: episodeNumber,
       content,
       isSpoiler,
       mediaId,
     });
   };
 
-  const totalCommentCount = summary?.totalComments ?? 0;
+  const handleDeleteComment = async (commentId: string) => {
+    await deleteComment({ commentId, tmdbId });
+  };
 
-  // If user has NOT watched this episode yet, hide the entire section completely
-  if (!isWatched) {
-    return null;
-  }
+  const handleToggleLike = (commentId: string) => {
+    if (!isLoggedIn && onRequireAuth) {
+      onRequireAuth();
+      return;
+    }
+    toggleLike({ commentId, tmdbId });
+  };
 
-  // When episode IS watched: Full TV Time Visual Layout
   return (
-    <div className="w-full max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8 flex flex-col gap-5 sm:gap-8 font-sans animate-in fade-in duration-300 overflow-visible">
-      {/* 1. Episode Star Rating Card */}
+    <div className="w-full max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-8 flex flex-col gap-5 sm:gap-8 font-sans animate-in fade-in duration-300 overflow-visible text-left">
+      {/* 1. Movie Star Rating Card */}
       <TvTimeRatingCard
         averageRating={summary?.ratingStats?.averageRating ?? null}
         totalRatings={summary?.ratingStats?.totalRatings ?? 0}
@@ -188,7 +162,7 @@ export function EpisodeDiscussionSection({
         <div className="flex items-center justify-between px-0.5">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-[#2dd4bf]/10 border border-[#2dd4bf]/25 flex items-center justify-center text-[#2dd4bf] shrink-0">
-              <Tv className="w-4 h-4" />
+              <Film className="w-4 h-4" />
             </div>
             <div className="flex flex-col">
               <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-300">
@@ -201,7 +175,7 @@ export function EpisodeDiscussionSection({
                   </span>
                 ) : (
                   <span className="text-zinc-500">
-                    Select where you watched this episode
+                    Select where you watched this movie
                   </span>
                 )}
               </span>
@@ -211,32 +185,25 @@ export function EpisodeDiscussionSection({
             <button
               type="button"
               onClick={() => handleSelectPlatform(null)}
-              className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800"
+              className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 cursor-pointer"
             >
               Clear
             </button>
           )}
         </div>
         <EpisodePlatformSelector
+          isMovie={true}
           watchProviders={watchProviders}
-          networks={networks}
           selectedPlatform={summary?.userReaction?.platform || null}
           onSelect={handleSelectPlatform}
         />
       </div>
 
-      {/* 3. Interactive TV Time Vibe Reaction Selector */}
-      <TvTimeVibeSelector
-        selectedEmotion={summary?.userReaction?.emotion}
-        emotionStats={summary?.emotionStats}
-        onSelectEmotion={handleSelectEmotion}
-        isSubmitting={isSubmittingReaction}
-      />
-
-      {/* 4. Character of the Episode (MVP) Carousel */}
+      {/* 3. Character of the Movie (MVP) Carousel */}
       {cast && cast.length > 0 && (
         <TvTimeMvpCarousel
           cast={cast}
+          title="Character of the Movie (MVP)"
           selectedCharacterId={summary?.userReaction?.characterId}
           mvpLeaderboard={summary?.mvpLeaderboard}
           onSelectCharacter={handleSelectCharacter}
@@ -244,14 +211,14 @@ export function EpisodeDiscussionSection({
         />
       )}
 
-      {/* 4. Fan Discussion Feed Section */}
+      {/* 4. Movie Discussion Feed Section */}
       <div className="flex flex-col gap-4 pt-4 border-t border-zinc-800/80">
         {/* Discussion Header & Filters */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-5 h-5 text-zinc-400" />
             <h3 className="text-base sm:text-lg font-extrabold text-white">
-              Episode Discussion ({totalCommentCount})
+              Movie Discussion ({totalCommentCount})
             </h3>
           </div>
 
@@ -259,8 +226,9 @@ export function EpisodeDiscussionSection({
             {/* Sort Tabs */}
             <div className="flex items-center bg-[#101014] p-1 rounded-xl border border-zinc-800">
               <button
+                type="button"
                 onClick={() => setSort('top')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   sort === 'top'
                     ? 'bg-white text-black shadow-sm'
                     : 'text-zinc-400 hover:text-white'
@@ -270,8 +238,9 @@ export function EpisodeDiscussionSection({
                 Top
               </button>
               <button
+                type="button"
                 onClick={() => setSort('newest')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   sort === 'newest'
                     ? 'bg-white text-black shadow-sm'
                     : 'text-zinc-400 hover:text-white'
@@ -284,8 +253,9 @@ export function EpisodeDiscussionSection({
 
             {/* Spoiler Filter Toggle */}
             <button
+              type="button"
               onClick={() => setHideSpoilers((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
                 hideSpoilers
                   ? 'bg-amber-500/10 border-amber-500/40 text-amber-400'
                   : 'bg-[#101014] border-zinc-800 text-zinc-400 hover:text-zinc-200'
@@ -307,7 +277,7 @@ export function EpisodeDiscussionSection({
           isSubmitting={isCreatingComment}
         />
 
-        {/* Comments Feed List (Top 3 Preview + View All in Bottom-to-Top Drawer) */}
+        {/* Comments Feed List */}
         <div className="pt-2">
           {isCommentsLoading ? (
             <div className="flex justify-center py-12">
@@ -315,32 +285,18 @@ export function EpisodeDiscussionSection({
             </div>
           ) : allComments.length === 0 ? (
             <div className="text-center py-10 text-zinc-500 text-xs sm:text-sm bg-[#0e0e11]/60 border border-zinc-800/60 rounded-2xl">
-              No comments yet for this episode. Start the conversation!
+              No comments yet for this movie. Start the conversation!
             </div>
           ) : (
             <>
-              <div className="rounded-2xl bg-[#0e0e12]/60 border border-zinc-800/70 p-3 sm:p-4 divide-y divide-zinc-800/50 shadow-sm">
+              <div className="rounded-2xl bg-[#0e0e12]/60 border border-zinc-800/70 p-3 sm:p-4 divide-y divide-zinc-800/50 shadow-sm flex flex-col gap-1 text-left">
                 {allComments.slice(0, 3).map((comment) => (
                   <DiscussionCommentItem
                     key={comment._id}
                     comment={comment}
                     currentUserId={currentUserId}
-                    onToggleLike={() =>
-                      toggleLike({
-                        commentId: comment._id,
-                        tmdbId,
-                        season: seasonNumber,
-                        episode: episodeNumber,
-                      })
-                    }
-                    onDelete={() =>
-                      deleteComment({
-                        commentId: comment._id,
-                        tmdbId,
-                        season: seasonNumber,
-                        episode: episodeNumber,
-                      })
-                    }
+                    onToggleLike={() => handleToggleLike(comment._id)}
+                    onDelete={() => handleDeleteComment(comment._id)}
                     isDeleting={isDeletingComment}
                   />
                 ))}
@@ -349,7 +305,7 @@ export function EpisodeDiscussionSection({
               {/* View All Comments Button (Opens Bottom-to-Top Discussion Modal) */}
               <button
                 type="button"
-                onClick={() => setIsDrawerOpen(true)}
+                onClick={() => setIsCommentsDrawerOpen(true)}
                 className="group flex items-center justify-between w-full p-2.5 sm:p-3.5 md:p-4 rounded-2xl bg-gradient-to-r from-zinc-900/90 via-zinc-900/60 to-zinc-900/90 hover:from-zinc-800 hover:to-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 transition-all duration-200 mt-2.5 shadow-lg active:scale-[0.99] text-left cursor-pointer gap-2 sm:gap-3 overflow-hidden"
               >
                 <div className="flex items-center gap-2.5 sm:gap-3 text-left min-w-0 flex-1">
@@ -384,14 +340,25 @@ export function EpisodeDiscussionSection({
         </div>
       </div>
 
-      {/* Bottom-to-Top Discussion Modal (Slides up from bottom) */}
-      <EpisodeDiscussionDrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+      {/* Integrated Post-Watch Reaction Drawer Modal */}
+      <PostWatchMovieReactionDrawer
+        isOpen={isReactionDrawerOpen}
+        onClose={() => setIsReactionDrawerOpen(false)}
         tmdbId={tmdbId}
-        seasonNumber={seasonNumber}
-        episodeNumber={episodeNumber}
-        episodeTitle={episodeTitle}
+        movieTitle={movieTitle}
+        releaseYear={releaseYear}
+        cast={cast}
+        watchProviders={watchProviders}
+        initialReaction={summary?.userReaction}
+      />
+
+      {/* Bottom-to-Top Discussion Modal (Slides up from bottom) */}
+      <MovieDiscussionDrawer
+        isOpen={isCommentsDrawerOpen}
+        onClose={() => setIsCommentsDrawerOpen(false)}
+        tmdbId={tmdbId}
+        movieTitle={movieTitle}
+        releaseYear={releaseYear}
         isWatched={isWatched}
         isLoggedIn={isLoggedIn}
         currentUserId={currentUserId}

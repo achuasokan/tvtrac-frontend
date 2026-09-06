@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store';
 import { DiscussionComment, CommentMedia } from '../types/discussion.types';
 import { Heart, Trash2, ShieldAlert, Eye, User, Loader2, MessageSquare } from 'lucide-react';
 import { discussionService } from '../api/discussion.service';
@@ -9,7 +11,8 @@ import { MediaLightboxModal } from './MediaLightboxModal';
 interface DiscussionCommentItemProps {
   comment: DiscussionComment;
   currentUserId?: string;
-  onToggleLike: () => void;
+  onToggleLike?: () => void;
+  onLike?: () => void;
   onDelete?: () => void;
   isDeleting?: boolean;
 }
@@ -18,6 +21,7 @@ export function DiscussionCommentItem({
   comment,
   currentUserId,
   onToggleLike,
+  onLike,
   onDelete,
   isDeleting = false,
 }: DiscussionCommentItemProps) {
@@ -26,7 +30,12 @@ export function DiscussionCommentItem({
   const [isRevealing, setIsRevealing] = useState(false);
   const [activeLightboxMedia, setActiveLightboxMedia] = useState<CommentMedia | null>(null);
 
-  const isAuthor = Boolean(currentUserId && comment.user?._id === currentUserId);
+  const reduxUser = useSelector((state: RootState) => state.auth.user);
+  const effectiveUserId = currentUserId || reduxUser?.id || (reduxUser as any)?._id;
+  const commentUserId = comment.user?._id || (comment.user as any)?.id;
+  const isAuthor = Boolean(
+    effectiveUserId && commentUserId && String(commentUserId) === String(effectiveUserId)
+  );
   const isSpoiler = Boolean(comment.isSpoiler);
   const isServerMasked = comment.content === null;
   const isMediaMasked = Boolean(comment.isMediaMasked);
@@ -78,7 +87,7 @@ export function DiscussionCommentItem({
 
   return (
     <>
-      <div className="group relative flex gap-2.5 sm:gap-3 py-3 sm:py-2.5 border-b border-zinc-800/50 last:border-b-0 hover:bg-zinc-900/20 -mx-2 px-2 sm:-mx-3 sm:px-3 rounded-xl transition-colors">
+      <div className="group relative flex gap-2.5 sm:gap-3 py-3 sm:py-2.5 border-b border-zinc-800/50 last:border-b-0 hover:bg-zinc-900/20 -mx-2 px-2 sm:-mx-3 sm:px-3 rounded-xl transition-colors text-left">
         {/* Left: User Avatar */}
         <div className="w-8 h-8 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 ring-1 ring-white/5 shadow-sm">
           {userAvatar ? (
@@ -94,10 +103,10 @@ export function DiscussionCommentItem({
         </div>
 
         {/* Right: Comment Body */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 text-left">
           {/* Header: Name, Timestamp, Spoiler Badge & Delete */}
           <div className="flex items-center justify-between gap-2 mb-1">
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <div className="flex items-center gap-2 flex-wrap min-w-0 text-left">
               <span className="text-xs sm:text-[13px] font-bold text-white hover:text-amber-400 transition-colors truncate">
                 {userName}
               </span>
@@ -118,9 +127,10 @@ export function DiscussionCommentItem({
 
               {isAuthor && onDelete && (
                 <button
+                  type="button"
                   onClick={onDelete}
                   disabled={isDeleting}
-                  className="opacity-70 hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-all disabled:opacity-50 rounded"
+                  className="p-1 text-zinc-500 hover:text-red-400 transition-colors disabled:opacity-50 rounded cursor-pointer"
                   title="Delete comment"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -130,7 +140,7 @@ export function DiscussionCommentItem({
           </div>
 
           {/* Comment Text / Spoiler Mask */}
-          <div className="text-xs sm:text-[13px] text-zinc-200 leading-relaxed mb-1.5 break-words">
+          <div className="text-xs sm:text-[13px] text-zinc-200 leading-relaxed mb-1.5 break-words text-left">
             {isSpoiler && !isRevealedLocally ? (
               <button
                 type="button"
@@ -152,7 +162,7 @@ export function DiscussionCommentItem({
             ) : (
               <>
                 {displayContent && (
-                  <p className="whitespace-pre-wrap">{displayContent}</p>
+                  <p className="whitespace-pre-wrap text-left">{displayContent}</p>
                 )}
 
                 {/* Attached Media (Photo / GIF) - Full width on mobile, snugly reduced on desktop */}
@@ -195,8 +205,12 @@ export function DiscussionCommentItem({
           {/* Social Action Row (Like & Reply - TV Time Style) */}
           <div className="flex items-center gap-4 pt-1 text-zinc-500">
             <button
-              onClick={onToggleLike}
-              className={`flex items-center gap-1.5 text-xs sm:text-[11px] font-semibold transition-colors py-0.5 rounded ${
+              type="button"
+              onClick={() => {
+                if (onToggleLike) onToggleLike();
+                else if (onLike) onLike();
+              }}
+              className={`flex items-center gap-1.5 text-xs sm:text-[11px] font-semibold transition-colors py-0.5 rounded cursor-pointer ${
                 comment.isLikedByMe
                   ? 'text-rose-500'
                   : 'text-zinc-500 hover:text-zinc-300'

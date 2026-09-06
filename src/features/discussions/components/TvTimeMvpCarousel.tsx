@@ -17,6 +17,7 @@ interface TvTimeMvpCarouselProps {
   }>;
   onSelectCharacter: (characterId: number) => void;
   isSubmitting?: boolean;
+  title?: string;
 }
 
 export function TvTimeMvpCarousel({
@@ -25,6 +26,7 @@ export function TvTimeMvpCarousel({
   mvpLeaderboard = [],
   onSelectCharacter,
   isSubmitting = false,
+  title = 'Character of the Episode (MVP)',
 }: TvTimeMvpCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasUserVoted = Boolean(selectedCharacterId);
@@ -51,7 +53,7 @@ export function TvTimeMvpCarousel({
         <div className="flex items-center gap-2">
           <Trophy className="w-4 h-4 text-[#2dd4bf]" />
           <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide">
-            Character of the Episode (MVP)
+            {title}
           </h3>
         </div>
 
