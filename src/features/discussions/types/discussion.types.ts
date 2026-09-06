@@ -33,8 +33,14 @@ export interface EpisodeSummary {
     emotion?: EmotionType | null;
     characterId?: number | null;
     rating?: number | null;
+    platform?: string | null;
   } | null;
   isWatchedByMe: boolean;
+}
+
+export interface CommentMedia {
+  type: 'image' | 'gif';
+  url: string;
 }
 
 export interface DiscussionComment {
@@ -47,11 +53,25 @@ export interface DiscussionComment {
     profileImage?: string;
   };
   content: string | null;
+  media?: CommentMedia | null;
   isSpoiler: boolean;
+  isMediaMasked?: boolean;
   likeCount: number;
   isLikedByMe: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface CreateCommentPayload {
+  content?: string;
+  isSpoiler?: boolean;
+  mediaId?: string;
+}
+
+export interface PendingMediaAttachment {
+  mediaId: string;
+  previewUrl: string;
+  type: 'image' | 'gif';
 }
 
 export interface CommentsResponse {

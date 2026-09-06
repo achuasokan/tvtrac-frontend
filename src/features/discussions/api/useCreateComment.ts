@@ -5,16 +5,17 @@ interface CreateCommentVariables {
   tmdbId: string;
   season: number;
   episode: number;
-  content: string;
+  content?: string;
   isSpoiler: boolean;
+  mediaId?: string;
 }
 
 export function useCreateComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ tmdbId, season, episode, content, isSpoiler }: CreateCommentVariables) =>
-      discussionService.createComment(tmdbId, season, episode, { content, isSpoiler }),
+    mutationFn: ({ tmdbId, season, episode, content, isSpoiler, mediaId }: CreateCommentVariables) =>
+      discussionService.createComment(tmdbId, season, episode, { content, isSpoiler, mediaId }),
     onSuccess: (_data, variables) => {
       // Invalidate comments feeds & summary count
       queryClient.invalidateQueries({

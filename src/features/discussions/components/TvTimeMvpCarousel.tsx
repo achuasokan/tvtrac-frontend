@@ -49,7 +49,7 @@ export function TvTimeMvpCarousel({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Trophy className="w-4 h-4 text-amber-400" />
+          <Trophy className="w-4 h-4 text-[#2dd4bf]" />
           <h3 className="text-xs sm:text-sm font-bold text-white tracking-wide">
             Character of the Episode (MVP)
           </h3>
@@ -110,7 +110,7 @@ export function TvTimeMvpCarousel({
                 <div
                   className={`w-14 h-14 xs:w-16 xs:h-16 sm:w-18 sm:h-18 rounded-full overflow-hidden transition-all duration-300 group-hover:scale-105 border-2 ${
                     isSelected
-                      ? 'border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.45)] ring-2 ring-amber-400/20'
+                      ? 'border-[#2dd4bf] shadow-[0_0_16px_rgba(45,212,191,0.4)] ring-2 ring-[#2dd4bf]/25'
                       : 'border-zinc-800/90 group-hover:border-zinc-600'
                   }`}
                 >
@@ -130,7 +130,7 @@ export function TvTimeMvpCarousel({
 
                 {/* Selection Badge: ONLY shown when THIS user selected this character */}
                 {isSelected && (
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-400 text-black flex items-center justify-center shadow-md animate-in zoom-in duration-150">
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#2dd4bf] text-black flex items-center justify-center shadow-md animate-in zoom-in duration-150">
                     <Check className="w-3 h-3 stroke-[3]" />
                   </div>
                 )}
@@ -140,7 +140,7 @@ export function TvTimeMvpCarousel({
               <div className="w-full flex flex-col items-center">
                 <span
                   className={`text-xs line-clamp-1 transition-colors ${
-                    isSelected ? 'font-black text-amber-300' : 'font-bold text-zinc-200 group-hover:text-white'
+                    isSelected ? 'font-black text-[#2dd4bf]' : 'font-bold text-zinc-200 group-hover:text-white'
                   }`}
                 >
                   {member.name}
@@ -155,7 +155,7 @@ export function TvTimeMvpCarousel({
                     <span
                       className={`mt-1 text-[10px] font-black px-2 py-0.5 rounded-full transition-colors animate-in fade-in duration-300 ${
                         isSelected
-                          ? 'bg-amber-400 text-black shadow-sm'
+                          ? 'bg-[#2dd4bf] text-black shadow-sm'
                           : 'bg-zinc-800/90 text-zinc-300 border border-zinc-700/60'
                       }`}
                     >

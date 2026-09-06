@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from 'react';
-import { MessageSquare, Flame, Clock, Filter, ChevronRight, ArrowRight } from 'lucide-react';
+import { MessageSquare, Flame, Clock, Filter, ChevronRight, ArrowRight, Tv } from 'lucide-react';
 import { useEpisodeSummary } from '../api/useEpisodeSummary';
 import { useEpisodeComments } from '../api/useEpisodeComments';
 import { useSubmitReaction } from '../api/useSubmitReaction';
@@ -11,6 +11,7 @@ import { useToggleCommentLike } from '../api/useToggleCommentLike';
 import { TvTimeRatingCard } from './TvTimeRatingCard';
 import { TvTimeVibeSelector } from './TvTimeVibeSelector';
 import { TvTimeMvpCarousel } from './TvTimeMvpCarousel';
+import { EpisodePlatformSelector } from './EpisodePlatformSelector';
 import { DiscussionCommentItem } from './DiscussionCommentItem';
 import { DiscussionCommentInput } from './DiscussionCommentInput';
 import { EpisodeDiscussionDrawer } from './EpisodeDiscussionDrawer';
@@ -28,6 +29,8 @@ interface EpisodeDiscussionSectionProps {
   currentUserAvatar?: string;
   cast: CastMember[];
   onRequireAuth?: () => void;
+  watchProviders?: any[];
+  networks?: any[];
 }
 
 export function EpisodeDiscussionSection({
@@ -42,6 +45,8 @@ export function EpisodeDiscussionSection({
   currentUserAvatar,
   cast,
   onRequireAuth,
+  watchProviders = [],
+  networks = [],
 }: EpisodeDiscussionSectionProps) {
   const [sort, setSort] = useState<'top' | 'newest'>('top');
   const [hideSpoilers, setHideSpoilers] = useState(false);
@@ -90,6 +95,7 @@ export function EpisodeDiscussionSection({
       rating,
       emotion: summary?.userReaction?.emotion,
       characterId: summary?.userReaction?.characterId,
+      platform: summary?.userReaction?.platform,
     });
   };
 
@@ -106,6 +112,7 @@ export function EpisodeDiscussionSection({
       rating: summary?.userReaction?.rating,
       emotion: nextEmotion,
       characterId: summary?.userReaction?.characterId,
+      platform: summary?.userReaction?.platform,
     });
   };
 
@@ -122,10 +129,27 @@ export function EpisodeDiscussionSection({
       rating: summary?.userReaction?.rating,
       emotion: summary?.userReaction?.emotion,
       characterId: nextCharacter,
+      platform: summary?.userReaction?.platform,
     });
   };
 
-  const handlePostComment = async (content: string, isSpoiler: boolean) => {
+  const handleSelectPlatform = async (platform: string | null) => {
+    if (!isLoggedIn && onRequireAuth) {
+      onRequireAuth();
+      return;
+    }
+    await submitReaction({
+      tmdbId,
+      season: seasonNumber,
+      episode: episodeNumber,
+      rating: summary?.userReaction?.rating,
+      emotion: summary?.userReaction?.emotion,
+      characterId: summary?.userReaction?.characterId,
+      platform,
+    });
+  };
+
+  const handlePostComment = async (content: string, isSpoiler: boolean, mediaId?: string) => {
     if (!isLoggedIn && onRequireAuth) {
       onRequireAuth();
       return;
@@ -136,6 +160,7 @@ export function EpisodeDiscussionSection({
       episode: episodeNumber,
       content,
       isSpoiler,
+      mediaId,
     });
   };
 
@@ -158,7 +183,49 @@ export function EpisodeDiscussionSection({
         isSubmitting={isSubmittingReaction}
       />
 
-      {/* 2. Interactive TV Time Vibe Reaction Selector */}
+      {/* 2. Where Did You Watch It? (Streaming Platform) */}
+      <div className="flex flex-col gap-3 py-2 sm:py-3 w-full select-none">
+        <div className="flex items-center justify-between px-0.5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-[#2dd4bf]/10 border border-[#2dd4bf]/25 flex items-center justify-center text-[#2dd4bf] shrink-0">
+              <Tv className="w-4 h-4" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-zinc-300">
+                Where Did You Watch It?
+              </span>
+              <span className="text-[11px] font-medium">
+                {summary?.userReaction?.platform ? (
+                  <span className="text-[#2dd4bf] font-semibold flex items-center gap-1">
+                    Watched on {summary.userReaction.platform}
+                  </span>
+                ) : (
+                  <span className="text-zinc-500">
+                    Select where you watched this episode
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+          {summary?.userReaction?.platform && (
+            <button
+              type="button"
+              onClick={() => handleSelectPlatform(null)}
+              className="text-[11px] font-semibold text-zinc-400 hover:text-white transition-colors px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-800 hover:bg-zinc-800"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <EpisodePlatformSelector
+          watchProviders={watchProviders}
+          networks={networks}
+          selectedPlatform={summary?.userReaction?.platform || null}
+          onSelect={handleSelectPlatform}
+        />
+      </div>
+
+      {/* 3. Interactive TV Time Vibe Reaction Selector */}
       <TvTimeVibeSelector
         selectedEmotion={summary?.userReaction?.emotion}
         emotionStats={summary?.emotionStats}
@@ -166,7 +233,7 @@ export function EpisodeDiscussionSection({
         isSubmitting={isSubmittingReaction}
       />
 
-      {/* 3. Character of the Episode (MVP) Carousel */}
+      {/* 4. Character of the Episode (MVP) Carousel */}
       {cast && cast.length > 0 && (
         <TvTimeMvpCarousel
           cast={cast}
@@ -241,7 +308,7 @@ export function EpisodeDiscussionSection({
         />
 
         {/* Comments Feed List (Top 3 Preview + View All in Bottom-to-Top Drawer) */}
-        <div className="flex flex-col gap-3 pt-2">
+        <div className="pt-2">
           {isCommentsLoading ? (
             <div className="flex justify-center py-12">
               <div className="w-7 h-7 border-3 border-zinc-700 border-t-white rounded-full animate-spin" />
@@ -252,36 +319,38 @@ export function EpisodeDiscussionSection({
             </div>
           ) : (
             <>
-              {allComments.slice(0, 3).map((comment) => (
-                <DiscussionCommentItem
-                  key={comment._id}
-                  comment={comment}
-                  currentUserId={currentUserId}
-                  onToggleLike={() =>
-                    toggleLike({
-                      commentId: comment._id,
-                      tmdbId,
-                      season: seasonNumber,
-                      episode: episodeNumber,
-                    })
-                  }
-                  onDelete={() =>
-                    deleteComment({
-                      commentId: comment._id,
-                      tmdbId,
-                      season: seasonNumber,
-                      episode: episodeNumber,
-                    })
-                  }
-                  isDeleting={isDeletingComment}
-                />
-              ))}
+              <div className="rounded-2xl bg-[#0e0e12]/60 border border-zinc-800/70 p-3 sm:p-4 divide-y divide-zinc-800/50 shadow-sm">
+                {allComments.slice(0, 3).map((comment) => (
+                  <DiscussionCommentItem
+                    key={comment._id}
+                    comment={comment}
+                    currentUserId={currentUserId}
+                    onToggleLike={() =>
+                      toggleLike({
+                        commentId: comment._id,
+                        tmdbId,
+                        season: seasonNumber,
+                        episode: episodeNumber,
+                      })
+                    }
+                    onDelete={() =>
+                      deleteComment({
+                        commentId: comment._id,
+                        tmdbId,
+                        season: seasonNumber,
+                        episode: episodeNumber,
+                      })
+                    }
+                    isDeleting={isDeletingComment}
+                  />
+                ))}
+              </div>
 
               {/* View All Comments Button (Opens Bottom-to-Top Discussion Modal) */}
               <button
                 type="button"
                 onClick={() => setIsDrawerOpen(true)}
-                className="group flex items-center justify-between w-full p-4 rounded-2xl bg-gradient-to-r from-zinc-900/90 via-zinc-900/60 to-zinc-900/90 hover:from-zinc-800 hover:to-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 transition-all duration-200 mt-1 shadow-lg active:scale-[0.99]"
+                className="group flex items-center justify-between w-full p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-zinc-900/90 via-zinc-900/60 to-zinc-900/90 hover:from-zinc-800 hover:to-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 transition-all duration-200 mt-2.5 shadow-lg active:scale-[0.99]"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-xl bg-white/5 group-hover:bg-white/10 flex items-center justify-center text-zinc-400 group-hover:text-white transition-colors">

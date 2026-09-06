@@ -9,36 +9,44 @@ interface SubmitReactionVariables {
   emotion?: EmotionType | null;
   characterId?: number | null;
   rating?: number | null;
+  platform?: string | null;
 }
 
 export function useSubmitReaction() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ tmdbId, season, episode, emotion, characterId, rating }: SubmitReactionVariables) =>
-      discussionService.upsertReaction(tmdbId, season, episode, { emotion, characterId, rating }),
-    onMutate: async ({ tmdbId, season, episode, emotion, characterId, rating }) => {
-      const summaryKey = ['episode-discussion-summary', tmdbId, season, episode];
-      await queryClient.cancelQueries({ queryKey: summaryKey });
+    mutationFn: ({ tmdbId, season, episode, emotion, characterId, rating, platform }: SubmitReactionVariables) =>
+      discussionService.upsertReaction(tmdbId, season, episode, { emotion, characterId, rating, platform }),
+    onMutate: async ({ tmdbId, season, episode, emotion, characterId, rating, platform }) => {
+      const summaryPrefix = ['episode-discussion-summary', tmdbId, season, episode];
+      await queryClient.cancelQueries({ queryKey: summaryPrefix });
 
-      const prevSummary = queryClient.getQueryData<EpisodeSummary>(summaryKey);
+      const previousSummaries = queryClient.getQueriesData<EpisodeSummary>({ queryKey: summaryPrefix });
 
-      if (prevSummary) {
-        queryClient.setQueryData<EpisodeSummary>(summaryKey, {
-          ...prevSummary,
-          userReaction: {
-            emotion: emotion !== undefined ? emotion : prevSummary.userReaction?.emotion,
-            characterId: characterId !== undefined ? characterId : prevSummary.userReaction?.characterId,
-            rating: rating !== undefined ? rating : prevSummary.userReaction?.rating,
-          },
-        });
-      }
+      queryClient.setQueriesData<EpisodeSummary>(
+        { queryKey: summaryPrefix },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            userReaction: {
+              emotion: emotion !== undefined ? emotion : old.userReaction?.emotion,
+              characterId: characterId !== undefined ? characterId : old.userReaction?.characterId,
+              rating: rating !== undefined ? rating : old.userReaction?.rating,
+              platform: platform !== undefined ? platform : old.userReaction?.platform,
+            },
+          };
+        }
+      );
 
-      return { prevSummary, summaryKey };
+      return { previousSummaries, summaryPrefix };
     },
     onError: (_err, _vars, context) => {
-      if (context?.prevSummary && context.summaryKey) {
-        queryClient.setQueryData(context.summaryKey, context.prevSummary);
+      if (context?.previousSummaries) {
+        context.previousSummaries.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
     onSettled: (_data, _error, variables) => {

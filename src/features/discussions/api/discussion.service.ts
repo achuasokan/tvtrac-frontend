@@ -1,5 +1,12 @@
 import { api } from '@/lib/api';
-import { EpisodeSummary, CommentsResponse, DiscussionComment, EmotionType } from '../types/discussion.types';
+import {
+  EpisodeSummary,
+  CommentsResponse,
+  DiscussionComment,
+  EmotionType,
+  CreateCommentPayload,
+  PendingMediaAttachment,
+} from '../types/discussion.types';
 
 export const discussionService = {
   getSummary: async (tmdbId: string, season: number, episode: number): Promise<EpisodeSummary> => {
@@ -33,9 +40,26 @@ export const discussionService = {
       emotion?: EmotionType | null;
       characterId?: number | null;
       rating?: number | null;
+      platform?: string | null;
     }
   ) => {
     const res = await api.post(`/discussions/tv/${tmdbId}/season/${season}/episode/${episode}/reaction`, body);
+    return res.data.data;
+  },
+
+  uploadMedia: async (file: File): Promise<PendingMediaAttachment> => {
+    const formData = new FormData();
+    formData.append('media', file);
+    const res = await api.post('/discussions/upload-media', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data.data;
+  },
+
+  attachGif: async (providerId: string): Promise<PendingMediaAttachment> => {
+    const res = await api.post('/discussions/attach-gif', { providerId });
     return res.data.data;
   },
 
@@ -43,12 +67,14 @@ export const discussionService = {
     tmdbId: string,
     season: number,
     episode: number,
-    body: {
-      content: string;
-      isSpoiler: boolean;
-    }
+    body: CreateCommentPayload
   ): Promise<DiscussionComment> => {
     const res = await api.post(`/discussions/tv/${tmdbId}/season/${season}/episode/${episode}/comments`, body);
+    return res.data.data;
+  },
+
+  revealComment: async (commentId: string): Promise<Partial<DiscussionComment>> => {
+    const res = await api.post(`/discussions/comments/${commentId}/reveal`);
     return res.data.data;
   },
 

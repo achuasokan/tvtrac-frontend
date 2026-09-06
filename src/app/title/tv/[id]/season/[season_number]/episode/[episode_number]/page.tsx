@@ -607,6 +607,8 @@ export default function EpisodeDetailsPage() {
         currentUserAvatar={user?.avatar || user?.profileImage}
         cast={episodeCast}
         onRequireAuth={() => router.push("/login")}
+        watchProviders={showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate || []}
+        networks={showDetails?.networks || []}
       />
 
       {/* Guest Stars Section */}
@@ -781,6 +783,8 @@ export default function EpisodeDetailsPage() {
         episodeNumber={Number(episode_number)}
         episodeTitle={details?.name}
         cast={episodeCast}
+        watchProviders={showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate || []}
+        networks={showDetails?.networks || []}
       />
 
 

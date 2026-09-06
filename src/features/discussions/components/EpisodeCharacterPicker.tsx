@@ -37,12 +37,12 @@ export function EpisodeCharacterPicker({
             onClick={() => onSelect(isSelected ? null : member.id)}
             className={`group relative shrink-0 w-24 sm:w-28 flex flex-col items-center p-2 rounded-2xl border transition-all duration-200 snap-start text-center focus:outline-none ${
               isSelected
-                ? 'bg-gradient-to-b from-amber-500/20 via-zinc-900 to-zinc-950 border-amber-500/60 shadow-[0_0_20px_rgba(245,158,11,0.25)] ring-1 ring-amber-400/40 scale-105'
+                ? 'bg-gradient-to-b from-[#2dd4bf]/20 via-zinc-900 to-zinc-950 border-[#2dd4bf]/60 shadow-[0_0_20px_rgba(45,212,191,0.25)] ring-1 ring-[#2dd4bf]/40 scale-105'
                 : 'bg-zinc-900/60 border-zinc-800/80 hover:border-zinc-700 hover:bg-zinc-800/60'
             }`}
           >
             {isSelected && (
-              <div className="absolute -top-2 -right-1 bg-amber-500 text-black p-1 rounded-full shadow-lg">
+              <div className="absolute -top-2 -right-1 bg-[#2dd4bf] text-black p-1 rounded-full shadow-lg">
                 <Crown className="w-3.5 h-3.5 fill-black" />
               </div>
             )}
