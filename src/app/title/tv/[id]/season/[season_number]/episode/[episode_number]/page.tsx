@@ -603,8 +603,8 @@ export default function EpisodeDetailsPage() {
         isWatched={isWatched}
         onToggleWatched={handleToggleWatched}
         isLoggedIn={Boolean(user)}
-        currentUserId={user?.id || user?._id}
-        currentUserAvatar={user?.avatar || user?.profileImage}
+        currentUserId={user?.id || (user as any)?._id}
+        currentUserAvatar={user?.avatar || (user as any)?.profileImage}
         cast={episodeCast}
         onRequireAuth={() => router.push("/login")}
         watchProviders={showDetails?.['watch/providers']?.results?.[userCountry]?.flatrate || []}
