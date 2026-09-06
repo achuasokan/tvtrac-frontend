@@ -9,7 +9,7 @@ export function GlobalCacheInvalidator() {
     const user = useSelector((state: RootState) => state.auth.user);
     const queryClient = useQueryClient();
     
-    const currentUserId = user?.id || user?._id || null;
+    const currentUserId = user?.id || (user as any)?._id || null;
     const prevUserId = useRef(currentUserId);
     const prevWatchlistMovies = useRef(user?.watchlistMovies?.length);
     const prevWatchlistShows = useRef(user?.watchlistShows?.length);
