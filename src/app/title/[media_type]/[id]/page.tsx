@@ -589,6 +589,39 @@ export default function TitleDetailsPage() {
     }));
   }, [details?.credits?.cast]);
 
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+
+  useEffect(() => {
+    setLogoLoadFailed(false);
+  }, [id, mediaType]);
+
+  const titleLogo = useMemo(() => {
+    const logos = details?.images?.logos;
+    if (!logos || !Array.isArray(logos) || logos.length === 0) return null;
+
+    // 1. Prefer English ('en') logo with the highest rating / votes
+    const enLogos = logos.filter((l: any) => l.iso_639_1 === 'en');
+    if (enLogos.length > 0) {
+      return [...enLogos].sort((a: any, b: any) => (b.vote_average || 0) - (a.vote_average || 0) || (b.vote_count || 0) - (a.vote_count || 0))[0];
+    }
+
+    // 2. Try language matching original language of the title
+    if (details?.original_language) {
+      const origLogos = logos.filter((l: any) => l.iso_639_1 === details.original_language);
+      if (origLogos.length > 0) {
+        return [...origLogos].sort((a: any, b: any) => (b.vote_average || 0) - (a.vote_average || 0) || (b.vote_count || 0) - (a.vote_count || 0))[0];
+      }
+    }
+
+    // 3. Fallback to language-neutral (null or "") or first logo
+    const neutralLogos = logos.filter((l: any) => !l.iso_639_1);
+    if (neutralLogos.length > 0) {
+      return [...neutralLogos].sort((a: any, b: any) => (b.vote_average || 0) - (a.vote_average || 0) || (b.vote_count || 0) - (a.vote_count || 0))[0];
+    }
+
+    return logos[0];
+  }, [details?.images?.logos, details?.original_language]);
+
   useEffect(() => {
     if (initialMount.current) {
       if (details) {
@@ -1171,12 +1204,24 @@ export default function TitleDetailsPage() {
         
         {/* Info */}
         <div className="flex flex-col items-center text-center pt-4 sm:pt-16 w-full sm:px-24">
-          <h1 
-            className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-2 transition-all duration-1000"
-            style={{ textShadow: dominantColor ? `0 2px 15px ${dominantColor}, 0 0 30px ${dominantColor}80` : undefined }}
-          >
-            {title}
-          </h1>
+          {titleLogo && !logoLoadFailed ? (
+            <div className="mb-2.5 sm:mb-3 flex justify-center items-center max-w-full">
+              <img 
+                src={`https://image.tmdb.org/t/p/w500${titleLogo.file_path}`} 
+                alt={title}
+                onError={() => setLogoLoadFailed(true)}
+                className="max-h-18 sm:max-h-24 md:max-h-28 max-w-[235px] sm:max-w-[300px] md:max-w-[360px] w-auto h-auto object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.85)] select-none pointer-events-none"
+              />
+              <h1 className="sr-only">{title}</h1>
+            </div>
+          ) : (
+            <h1 
+              className="text-3xl sm:text-5xl font-extrabold tracking-tight mb-2 transition-all duration-1000"
+              style={{ textShadow: dominantColor ? `0 2px 15px ${dominantColor}, 0 0 30px ${dominantColor}80` : undefined }}
+            >
+              {title}
+            </h1>
+          )}
           
           <div className="flex items-center justify-center flex-wrap gap-4 text-sm text-zinc-400 mt-2 font-medium">
             <span>{releaseYear}</span>
