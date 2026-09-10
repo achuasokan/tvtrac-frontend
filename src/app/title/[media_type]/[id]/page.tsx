@@ -13,10 +13,26 @@ import { extractDominantColor } from "@/utils/colorExtractor";
 import { shouldAutoplayTrailer } from "@/utils/autoplaySettings";
 import { RatingsBar } from "@/components/ui/RatingsBar";
 import ReactPlayer from "react-player/lazy";
-import { Music, Play, Pause, Ticket } from "lucide-react";
+import { Music, Play, Pause, Ticket, RotateCcw } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { PostWatchMovieReactionDrawer } from "@/features/discussions/components/PostWatchMovieReactionDrawer";
-import { MovieDiscussionSection } from "@/features/discussions/components/MovieDiscussionSection";
+import dynamic from "next/dynamic";
+import { BoxOfficeCard } from "@/features/title/components/BoxOfficeCard";
+import { MediaGallery } from "@/features/title/components/MediaGallery";
+import { ExternalLinksHub } from "@/features/title/components/ExternalLinksHub";
+
+const MovieDiscussionSection = dynamic(() => import("@/features/discussions/components/MovieDiscussionSection").then(mod => mod.MovieDiscussionSection), {
+  ssr: false,
+  loading: () => <div className="h-64 flex items-center justify-center text-zinc-500">Loading community...</div>
+});
+
+const EpisodeDiscussionSection = dynamic(() => import("@/features/discussions/components/EpisodeDiscussionSection").then(mod => mod.EpisodeDiscussionSection), {
+  ssr: false,
+  loading: () => <div className="h-64 flex items-center justify-center text-zinc-500">Loading community...</div>
+});
+
+const PostWatchMovieReactionDrawer = dynamic(() => import("@/features/discussions/components/PostWatchMovieReactionDrawer").then(mod => mod.PostWatchMovieReactionDrawer), {
+  ssr: false
+});
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -284,25 +300,25 @@ function SeasonItem({
   };
 
   return (
-    <div className="mb-3 bg-zinc-900/50 rounded-xl overflow-hidden border border-zinc-800">
+    <div className="mb-2 rounded-2xl overflow-hidden transition-all duration-200">
       <div 
-        className="flex items-center p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors relative"
+        className="flex items-center p-2.5 sm:p-3 cursor-pointer hover:bg-white/[0.04] active:bg-white/[0.08] transition-colors relative rounded-2xl"
         onClick={handleToggle}
       >
         {season.poster_path ? (
           <img 
             src={`https://image.tmdb.org/t/p/w200${season.poster_path}`} 
             alt={season.name} 
-            className="w-10 h-14 sm:w-12 sm:h-16 object-cover rounded-md mr-4 shadow-sm"
+            className="w-10 h-14 sm:w-12 sm:h-16 object-cover rounded-xl mr-3 sm:mr-4 shadow-md shrink-0"
           />
         ) : (
-          <div className="w-10 h-14 sm:w-12 sm:h-16 bg-zinc-800 rounded-md mr-4 shadow-sm" />
+          <div className="w-10 h-14 sm:w-12 sm:h-16 bg-zinc-800/60 rounded-xl mr-3 sm:mr-4 shadow-md shrink-0" />
         )}
-        <div className="flex-1 text-left pr-2 sm:pr-4">
-          <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+        <div className="flex-1 text-left pr-2 sm:pr-4 min-w-0">
+          <h3 className="text-sm sm:text-base md:text-lg font-bold text-white truncate">
             {season.name}
           </h3>
-          <p className="text-zinc-400 text-xs sm:text-sm">
+          <p className="text-zinc-400 text-xs sm:text-sm truncate">
             {user ? (
               <span className={watchedEpisodes.filter(e => e.season === season.season_number).length === season.episode_count && season.episode_count > 0 ? "text-green-400 font-medium" : "text-white font-medium"}>
                 {watchedEpisodes.filter(e => e.season === season.season_number).length} / {season.episode_count}
@@ -317,7 +333,7 @@ function SeasonItem({
           onClick={handleMarkSeasonWatched}
           disabled={isTogglingSeason}
           title={(watchedEpisodes.filter(e => e.season === season.season_number).length >= season.episode_count && season.episode_count > 0) ? "Unmark season as watched" : "Mark entire season as watched"}
-          className={`cursor-pointer mr-2 sm:mr-3 w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-colors z-10 group border ${
+          className={`cursor-pointer mr-2 sm:mr-3 w-8 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-all active:scale-90 z-10 group border ${
             (watchedEpisodes.filter(e => e.season === season.season_number).length >= season.episode_count && season.episode_count > 0)
               ? 'bg-green-500 text-white border-green-500 hover:bg-green-600'
               : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'
@@ -333,7 +349,7 @@ function SeasonItem({
         </button>
 
         <div className="text-zinc-500 flex-shrink-0">
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 transform transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 sm:h-6 sm:w-6 transform transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
@@ -345,9 +361,9 @@ function SeasonItem({
           const progressPercentage = Math.min(Math.round((seasonWatchedCount / season.episode_count) * 100), 100);
           const isComplete = progressPercentage === 100;
           return (
-            <div className="absolute bottom-0 left-0 w-full h-[2px] bg-white/5">
+            <div className="absolute bottom-0 left-3 right-3 h-[2px] bg-white/5 rounded-full overflow-hidden">
               <div 
-                className={`absolute top-0 left-0 h-full transition-all duration-700 ease-out bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]`} 
+                className="h-full transition-all duration-700 ease-out bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] rounded-full" 
                 style={{ width: `${progressPercentage}%` }} 
               />
             </div>
@@ -356,13 +372,13 @@ function SeasonItem({
       </div>
       
       {expanded && (
-        <div className="p-4 border-t border-zinc-800 bg-zinc-900/30">
+        <div className="pt-1.5 pb-3 px-0.5 sm:px-2 flex flex-col gap-1">
           {loading ? (
             <div className="flex justify-center p-4">
               <div className="h-6 w-6 rounded-full border-2 border-zinc-700 border-t-white animate-spin" />
             </div>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
               {episodes.map((ep: any) => {
                 const isEpWatched = watchedEpisodes.some(e => e.season === season.season_number && e.episode === ep.episode_number);
                 const isToggling = togglingEpisodes[ep.episode_number];
@@ -383,10 +399,10 @@ function SeasonItem({
                 return (
                 <div 
                   key={ep.id} 
-                  className="flex gap-3 sm:gap-4 p-2.5 sm:p-3 rounded-lg hover:bg-zinc-800/40 transition-colors cursor-pointer border border-transparent hover:border-zinc-800/50 group"
+                  className="flex items-center gap-2.5 sm:gap-4 p-1.5 sm:p-2.5 rounded-xl hover:bg-white/[0.04] active:bg-white/[0.08] transition-colors cursor-pointer group"
                   onClick={() => router.push(`/title/tv/${tvId}/season/${season.season_number}/episode/${ep.episode_number}`)}
                 >
-                  <div className="relative w-24 sm:w-32 shrink-0 aspect-video bg-zinc-800 rounded overflow-hidden">
+                  <div className="relative w-20 sm:w-28 md:w-32 shrink-0 aspect-video bg-zinc-800/80 rounded-lg overflow-hidden shadow-sm">
                     {ep.still_path ? (
                       <img src={`https://image.tmdb.org/t/p/w300${ep.still_path}`} alt={ep.name} className="w-full h-full object-cover" />
                     ) : (
@@ -400,14 +416,14 @@ function SeasonItem({
                   
                   <div className="flex-1 flex flex-col justify-center text-left min-w-0">
                     <div className="flex justify-between items-center w-full">
-                      <div className="min-w-0 flex-1 pr-2">
+                      <div className="min-w-0 flex-1 pr-1.5 sm:pr-2">
                         <h4 className="text-xs sm:text-sm font-bold text-zinc-200 group-hover:text-white transition-colors line-clamp-2">{ep.episode_number}. {ep.name}</h4>
                         {ep.runtime > 0 && <p className="text-[10px] sm:text-xs font-medium text-zinc-500 mt-0.5">{ep.runtime} min</p>}
                       </div>
                       
                       {isUnreleased ? (
                         <div className="shrink-0 flex items-center justify-center">
-                          <span className="text-[10px] sm:text-xs font-bold text-white tracking-widest uppercase whitespace-nowrap">
+                          <span className="text-[9px] sm:text-xs font-bold text-white tracking-widest uppercase whitespace-nowrap">
                             {daysLeft === 0 ? 'Today' : `${daysLeft} Days`}
                           </span>
                         </div>
@@ -415,7 +431,7 @@ function SeasonItem({
                         <button 
                           onClick={(e) => handleToggleEpisode(e, ep.episode_number)}
                           disabled={isToggling}
-                          className={`cursor-pointer ml-2 sm:ml-3 w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-colors border ${
+                          className={`cursor-pointer ml-1 sm:ml-3 w-8 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-all active:scale-90 border ${
                             isEpWatched 
                               ? 'bg-green-500 text-white border-green-500 hover:bg-green-600' 
                               : 'bg-zinc-800/60 text-zinc-400 border-zinc-700/80 hover:bg-zinc-700 hover:text-white'
@@ -661,11 +677,32 @@ export default function TitleDetailsPage() {
     }
   }, [titleDetailsQuery?.watchedStatus]);
 
-  const { data: soundtrackData } = useQuery({
-    queryKey: ['soundtrack', details?.title || details?.name],
+  const mainComposer = useMemo(() => {
+    if (!details) return null;
+    const crew = details?.credits?.crew || [];
+    let composer = crew.find((c: any) => 
+      c.job === 'Original Music Composer' || 
+      c.job === 'Music' || 
+      (c.department === 'Sound' && c.job?.toLowerCase().includes('music'))
+    );
+
+    if (!composer && details?.aggregate_credits?.crew) {
+      composer = details.aggregate_credits.crew.find((c: any) => 
+        c.jobs?.some((j: any) => j.job?.toLowerCase().includes('composer') || j.job?.toLowerCase().includes('music')) ||
+        c.department === 'Sound'
+      );
+    }
+    return composer || null;
+  }, [details]);
+
+  const [isRefreshingSoundtrack, setIsRefreshingSoundtrack] = useState(false);
+
+  const { data: soundtrackData, isLoading: isLoadingSoundtrack } = useQuery({
+    queryKey: ['soundtrack', details?.title || details?.name, mainComposer?.name],
     queryFn: async () => {
       const titleToSearch = details.title || details.name;
-      const res = await api.get(`/youtube/soundtrack?q=${encodeURIComponent(titleToSearch)}`);
+      const composerParam = mainComposer?.name ? `&composer=${encodeURIComponent(mainComposer.name)}` : '';
+      const res = await api.get(`/youtube/soundtrack?q=${encodeURIComponent(titleToSearch)}${composerParam}`);
       return res.data?.url || null;
     },
     enabled: !!details,
@@ -677,6 +714,24 @@ export default function TitleDetailsPage() {
       setSoundtrackUrl(soundtrackData);
     }
   }, [soundtrackData]);
+
+  const handleRefreshSoundtrack = async () => {
+    if (!details || isRefreshingSoundtrack) return;
+    try {
+      setIsRefreshingSoundtrack(true);
+      const titleToSearch = details.title || details.name;
+      const composerParam = mainComposer?.name ? `&composer=${encodeURIComponent(mainComposer.name)}` : '';
+      const res = await api.get(`/youtube/soundtrack?q=${encodeURIComponent(titleToSearch)}${composerParam}&refresh=true`);
+      if (res.data?.url) {
+        setSoundtrackUrl(res.data.url);
+        setIsPlayingSoundtrack(false);
+      }
+    } catch (err) {
+      console.error('Failed to refresh soundtrack:', err);
+    } finally {
+      setIsRefreshingSoundtrack(false);
+    }
+  };
 
   const trailer = details?.videos?.results?.find((v: any) => v.site === 'YouTube' && v.type === 'Trailer') || details?.videos?.results?.find((v: any) => v.site === 'YouTube');
 
@@ -710,7 +765,7 @@ export default function TitleDetailsPage() {
 
   useEffect(() => {
     if (details?.backdrop_path) {
-      const imgUrl = `https://image.tmdb.org/t/p/w300${details.backdrop_path}`;
+      const imgUrl = `https://image.tmdb.org/t/p/w92${details.backdrop_path}`;
       extractDominantColor(imgUrl).then(color => {
         if (color) {
           setDominantColor(color);
@@ -891,12 +946,29 @@ export default function TitleDetailsPage() {
     allImages = [details.backdrop_path];
   }
 
+  const pageBgColor = '#0A0A0C';
+
   return (
-    <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white pb-24 font-sans">
+    <main 
+      className="flex-1 flex flex-col relative min-h-screen text-white pb-24 font-sans"
+      style={{ backgroundColor: pageBgColor }}
+    >
+      
+      {/* Aura Glow */}
+      {dominantColor && (
+        <div 
+          className="absolute top-[30vh] left-0 right-0 h-[80vh] pointer-events-none opacity-30 transition-opacity duration-1000 z-0"
+          style={{ 
+            background: `radial-gradient(100% 50% at 50% 50%, ${dominantColor} 0%, transparent 100%)`
+          }} 
+        />
+      )}
       
       {/* Sticky App Bar */}
-      <div className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 border-b ${isScrolled ? 'bg-[#050505]/95 backdrop-blur-md border-white/10 shadow-lg' : 'bg-transparent border-transparent pt-4'}`}>
-        <button onClick={() => router.back()} className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors cursor-pointer ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}>
+      <div 
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 ${isScrolled ? 'backdrop-blur-md shadow-lg' : 'bg-transparent pt-4'}`}
+      >
+        <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer bg-black/50 backdrop-blur-md hover:bg-black/70 active:scale-95">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -909,7 +981,7 @@ export default function TitleDetailsPage() {
         <div className="relative">
           <button 
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors cursor-pointer ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}
+            className="w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer bg-black/50 backdrop-blur-md hover:bg-black/70 active:scale-95"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
@@ -936,10 +1008,16 @@ export default function TitleDetailsPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative w-full h-[50vh] sm:h-[60vh] overflow-hidden bg-[#050505] z-0">
+      <div className="relative w-full h-[50vh] sm:h-[60vh] overflow-hidden z-0">
         {/* Background Video layer */}
         {trailer && showVideo && (
-          <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden animate-in fade-in duration-1000">
+          <div 
+            className="absolute inset-0 z-0 pointer-events-none overflow-hidden animate-in fade-in duration-1000"
+            style={{
+              WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
+              maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)'
+            }}
+          >
             <iframe
               key={videoKey}
               className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[1.05] pointer-events-none max-w-none"
@@ -966,10 +1044,16 @@ export default function TitleDetailsPage() {
         )}
 
         {/* Image layer (Fades out when video plays) */}
-        <div className={`absolute inset-0 z-10 transition-opacity duration-1000 ${showVideo ? 'opacity-0' : 'opacity-100'}`}>
+        <div 
+          className={`absolute inset-0 z-10 transition-opacity duration-1000 ${showVideo ? 'opacity-0' : 'opacity-100'}`}
+          style={{
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
+            maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)'
+          }}
+        >
           {details.backdrop_path ? (
             <img 
-              src={`https://image.tmdb.org/t/p/original${details.backdrop_path}`}
+              src={`https://image.tmdb.org/t/p/w1280${details.backdrop_path}`}
               alt={title}
               className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
               onClick={() => {
@@ -979,14 +1063,9 @@ export default function TitleDetailsPage() {
               }}
             />
           ) : (
-            <div className="w-full h-full bg-zinc-900" />
+            <div className="w-full h-full bg-zinc-900/50" />
           )}
         </div>
-        
-        {/* Gradients */}
-        <div className="absolute inset-0 z-20 bg-gradient-to-t from-[#050505] from-0% via-[#050505]/60 via-30% to-transparent pointer-events-none" />
-        {/* Extra bottom block to completely eliminate 1px seam artifacts on some screens */}
-        <div className="absolute inset-x-0 bottom-0 h-1 z-20 bg-[#050505] pointer-events-none" />
         
         {/* Manual Play / Pause Trailer Button (Centered Icon Only) */}
         {trailer && (
@@ -1167,7 +1246,9 @@ export default function TitleDetailsPage() {
               );
             })()}
 
-            <div className="bg-[#050505]/95 backdrop-blur-xl pt-2 flex justify-between sm:justify-center border-b border-zinc-800 w-full px-1 sm:px-4">
+            <div 
+              className={`pt-2 flex justify-between sm:justify-center border-b border-transparent w-full px-1 sm:px-4 transition-all duration-500 ${isScrolled ? 'backdrop-blur-xl' : ''}`}
+            >
               <button 
                 className={`py-2 px-1 sm:py-3 sm:px-6 font-bold text-[9px] xs:text-[10px] sm:text-sm tracking-wide uppercase transition-colors whitespace-nowrap cursor-pointer flex-1 sm:flex-none text-center ${activeTab === 'about' ? 'text-white border-b-2' : 'text-zinc-500 hover:text-zinc-300 border-b-2 border-transparent'}`}
                 style={activeTab === 'about' ? { borderColor: dominantColor || '#ffffff', textShadow: dominantColor ? `0 0 12px ${dominantColor}` : undefined } : {}}
@@ -1604,12 +1685,12 @@ export default function TitleDetailsPage() {
             )}
 
             {activeTab === 'soundtrack' && (
-              <div className="animate-in fade-in duration-300 w-full flex flex-col items-center justify-center min-h-[120px] px-4">
-                  <div className="w-full max-w-5xl mx-auto mt-10 mb-10">
+              <div className="animate-in fade-in duration-300 w-full flex flex-col items-center justify-center min-h-[120px] px-0">
+                  <div className="w-full max-w-5xl mx-auto mt-4 sm:mt-6 mb-8">
 
                     {/* Awards & Age Rating Section — shown first */}
                     {((details?.omdb?.Awards && details.omdb.Awards !== 'N/A') || (details?.omdb?.Rated && details.omdb.Rated !== 'N/A' && details.omdb.Rated !== 'Not Rated')) && (
-                      <div className="w-full max-w-3xl mx-auto mb-8 sm:mb-12 px-4 outline-none">
+                      <div className="w-full max-w-3xl mx-auto mb-4 sm:mb-6 px-0 sm:px-2 outline-none">
                         <div className="flex flex-row flex-wrap items-start justify-center sm:justify-start gap-6 sm:gap-10 md:gap-16">
 
                           {/* Age Rating */}
@@ -1632,13 +1713,13 @@ export default function TitleDetailsPage() {
 
                         </div>
                         {/* Divider below awards */}
-                        <div className="w-full h-px bg-zinc-800/60 mt-6 sm:mt-10" />
+                        <div className="w-full h-px bg-zinc-800/60 mt-4 sm:mt-5" />
                       </div>
                     )}
 
                     {/* Collection Banner */}
                     {details?.belongs_to_collection && (
-                      <Link href={`/collection/${details.belongs_to_collection.id}`} className="block w-full max-w-3xl mx-auto mb-8 sm:mb-12 group">
+                      <Link href={`/collection/${details.belongs_to_collection.id}`} className="block w-full max-w-3xl mx-auto mb-5 sm:mb-6 group">
                         <div className="relative w-full h-24 sm:h-32 md:h-40 rounded-xl overflow-hidden border border-zinc-800 hover:border-zinc-500 transition-colors shadow-2xl bg-zinc-900">
                           {(details.belongs_to_collection.backdrop_path || details.backdrop_path) && (
                             <img src={`https://image.tmdb.org/t/p/w780${details.belongs_to_collection.backdrop_path || details.backdrop_path}`} alt={details.belongs_to_collection.name} className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity duration-500" />
@@ -1658,106 +1739,166 @@ export default function TitleDetailsPage() {
                     )}
 
                     {soundtrackUrl ? (
-                      <>
-                        {/* The Mini Pill Player */}
-                    <div 
-                      className="w-[95%] sm:w-full max-w-[320px] sm:max-w-[400px] md:max-w-[450px] mx-auto flex items-center rounded-full h-12 sm:h-14 md:h-16 shadow-md relative backdrop-blur-3xl transition-colors duration-700"
-                      style={{ 
-                        backgroundColor: dominantColor ? dominantColor.replace('rgb', 'rgba').replace(')', ', 0.15)') : '#151515',
-                        border: dominantColor ? `1px solid ${dominantColor.replace('rgb', 'rgba').replace(')', ', 0.1)')}` : '1px solid transparent',
-                        boxShadow: dominantColor ? `0 10px 30px -15px ${dominantColor.replace('rgb', 'rgba').replace(')', ', 0.3)')}` : undefined
-                      }}
-                    >
-                      {/* Album Art / Poster (Connects exactly to left edge) */}
-                      <div className="h-full aspect-square rounded-full overflow-hidden shrink-0 bg-black relative border-none">
-                         {details.poster_path ? (
-                            <img src={`https://image.tmdb.org/t/p/w200${details.poster_path}`} alt="Album Art" className="w-full h-full object-cover" />
-                         ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Music className="w-4 h-4 text-zinc-500"/></div>
-                         )}
-                         <div className="absolute inset-0 bg-black/10" />
-                      </div>
-                      
-                      {/* Middle: Title & Progress Bar */}
-                      <div className="flex-1 flex flex-col justify-center px-3 sm:px-4 md:px-5 min-w-0 gap-0.5 md:gap-1">
-                         <h3 className="text-white font-bold text-[11px] sm:text-xs md:text-sm truncate w-full">{details.title || details.name}</h3>
-                         
-                         <div className="flex items-center gap-1.5 md:gap-2 w-full">
-                           <span className="text-[8px] sm:text-[9px] md:text-[10px] font-medium text-zinc-500 tabular-nums w-7 sm:w-8 md:w-10 text-right shrink-0">
-                             {Math.floor((soundtrackProgress * soundtrackDuration) / 60)}:{(Math.floor((soundtrackProgress * soundtrackDuration) % 60)).toString().padStart(2, '0')}
-                           </span>
-                           
-                           <div 
-                             className="flex-1 min-w-[40px] h-1 sm:h-1.5 bg-zinc-800 rounded-full overflow-hidden relative cursor-pointer"
-                             onClick={(e) => {
-                               if (playerRef.current) {
-                                 const bounds = e.currentTarget.getBoundingClientRect();
-                                 const percent = (e.clientX - bounds.left) / bounds.width;
-                                 playerRef.current.seekTo(percent);
-                               }
-                             }}
-                           >
-                             <div 
-                               className="h-full absolute left-0 top-0 transition-all duration-150 ease-linear rounded-full"
-                               style={{ 
-                                 width: `${soundtrackProgress * 100}%`,
-                                 backgroundColor: dominantColor || '#e5e5e5'
-                               }}
-                             />
-                           </div>
-
-                           <span className="text-[8px] sm:text-[9px] md:text-[10px] font-medium text-zinc-500 tabular-nums w-7 sm:w-8 md:w-10 shrink-0">
-                             {Math.floor(soundtrackDuration / 60)}:{(Math.floor(soundtrackDuration % 60)).toString().padStart(2, '0')}
-                           </span>
-                         </div>
-                      </div>
-
-                      {/* Custom Play Button */}
-                      <button 
-                        onClick={() => setIsPlayingSoundtrack(!isPlayingSoundtrack)}
-                        className="h-10 w-10 sm:h-11 sm:w-11 md:h-14 md:w-14 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer mr-1 md:mr-1.5"
-                        style={{ backgroundColor: dominantColor || '#e5e5e5', color: '#000000' }}
+                      /* The Mini Pill Player */
+                      <div 
+                        className="w-[95%] sm:w-full max-w-[320px] sm:max-w-[400px] md:max-w-[450px] mx-auto flex items-center rounded-full h-12 sm:h-14 md:h-16 shadow-md relative backdrop-blur-3xl transition-colors duration-700"
+                        style={{ 
+                          backgroundColor: dominantColor ? dominantColor.replace('rgb', 'rgba').replace(')', ', 0.15)') : '#151515',
+                          border: dominantColor ? `1px solid ${dominantColor.replace('rgb', 'rgba').replace(')', ', 0.1)')}` : '1px solid transparent',
+                          boxShadow: dominantColor ? `0 10px 30px -15px ${dominantColor.replace('rgb', 'rgba').replace(')', ', 0.3)')}` : undefined
+                        }}
                       >
-                        {isPlayingSoundtrack ? (
-                          <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
-                        ) : (
-                          <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current ml-0.5" />
-                        )}
-                      </button>
+                        {/* Album Art / Poster (Connects exactly to left edge) */}
+                        <div className="h-full aspect-square rounded-full overflow-hidden shrink-0 bg-black relative border-none">
+                           {details.poster_path ? (
+                              <img src={`https://image.tmdb.org/t/p/w200${details.poster_path}`} alt="Album Art" className="w-full h-full object-cover" />
+                           ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-zinc-800"><Music className="w-4 h-4 text-zinc-500"/></div>
+                           )}
+                           <div className="absolute inset-0 bg-black/10" />
+                        </div>
+                        
+                        {/* Middle: Title & Progress Bar */}
+                        <div className="flex-1 flex flex-col justify-center px-3 sm:px-4 md:px-5 min-w-0 gap-0.5 md:gap-1">
+                           <h3 className="text-white font-bold text-[11px] sm:text-xs md:text-sm truncate w-full">{details.title || details.name}</h3>
+                           
+                           <div className="flex items-center gap-1.5 md:gap-2 w-full">
+                             <span className="text-[8px] sm:text-[9px] md:text-[10px] font-medium text-zinc-500 tabular-nums w-7 sm:w-8 md:w-10 text-right shrink-0">
+                               {Math.floor((soundtrackProgress * soundtrackDuration) / 60)}:{(Math.floor((soundtrackProgress * soundtrackDuration) % 60)).toString().padStart(2, '0')}
+                             </span>
+                             
+                             <div 
+                               className="flex-1 min-w-[40px] h-1 sm:h-1.5 bg-zinc-800 rounded-full overflow-hidden relative cursor-pointer"
+                               onClick={(e) => {
+                                 if (playerRef.current) {
+                                   const bounds = e.currentTarget.getBoundingClientRect();
+                                   const percent = (e.clientX - bounds.left) / bounds.width;
+                                   playerRef.current.seekTo(percent);
+                                 }
+                               }}
+                             >
+                               <div 
+                                 className="h-full absolute left-0 top-0 transition-all duration-150 ease-linear rounded-full"
+                                 style={{ 
+                                   width: `${soundtrackProgress * 100}%`,
+                                   backgroundColor: dominantColor || '#e5e5e5'
+                                 }}
+                               />
+                             </div>
+
+                             <span className="text-[8px] sm:text-[9px] md:text-[10px] font-medium text-zinc-500 tabular-nums w-7 sm:w-8 md:w-10 shrink-0">
+                               {Math.floor(soundtrackDuration / 60)}:{(Math.floor(soundtrackDuration % 60)).toString().padStart(2, '0')}
+                             </span>
+                           </div>
+                        </div>
+
+                        {/* Custom Play Button */}
+                        <button 
+                          onClick={() => setIsPlayingSoundtrack(!isPlayingSoundtrack)}
+                          className="h-10 w-10 sm:h-11 sm:w-11 md:h-14 md:w-14 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300 hover:scale-105 active:scale-95 cursor-pointer mr-1 md:mr-1.5"
+                          style={{ backgroundColor: dominantColor || '#e5e5e5', color: '#000000' }}
+                        >
+                          {isPlayingSoundtrack ? (
+                            <Pause className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                          ) : (
+                            <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current ml-0.5" />
+                          )}
+                        </button>
+                      </div>
+                    ) : isLoadingSoundtrack ? (
+                      <div className="flex flex-col items-center gap-3 mt-4 py-4">
+                        <div className="w-8 h-8 border-2 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
+                        <p className="text-zinc-500 font-medium text-[11px] tracking-wider uppercase">Locating official theme...</p>
+                      </div>
+                    ) : null}
+
+                    {/* Streaming Services & Quick Search Links */}
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mt-4 sm:mt-5 max-w-lg mx-auto px-4">
+                      {/* Spotify */}
+                      <a
+                        href={`https://open.spotify.com/search/${encodeURIComponent(
+                          `${details.title || details.name} ${mainComposer ? mainComposer.name + ' ' : ''}Soundtrack`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#1DB954]/15 border border-white/5 hover:border-[#1DB954]/30 text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-[#1DB954] transition-all duration-200 group shadow-sm active:scale-95"
+                        title="Listen on Spotify"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-[#1DB954] group-hover:scale-110 transition-transform shrink-0">
+                          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.502 17.307c-.216.354-.674.467-1.028.252-2.825-1.728-6.381-2.119-10.569-1.163-.404.093-.807-.156-.9-.56-.093-.404.156-.807.56-.9 4.582-1.047 8.528-.6 11.685 1.343.354.215.467.674.252 1.028zm1.469-3.266c-.272.443-.852.585-1.295.313-3.235-1.988-8.165-2.564-11.99-1.402-.497.151-1.024-.135-1.175-.632-.151-.497.135-1.024.632-1.175 4.38-1.33 9.816-.688 13.515 1.581.443.272.585.852.313 1.295zm.126-3.41c-3.879-2.304-10.27-2.516-13.978-1.39-.594.18-1.222-.156-1.402-.75-.18-.594.156-1.222.75-1.402 4.258-1.293 11.31-1.048 15.753 1.587.534.317.708 1.01.391 1.544-.317.534-1.01.708-1.544.391z"/>
+                        </svg>
+                        <span>Spotify</span>
+                      </a>
+
+                      {/* Apple Music */}
+                      <a
+                        href={`https://music.apple.com/search?term=${encodeURIComponent(
+                          `${details.title || details.name} ${mainComposer ? mainComposer.name + ' ' : ''}Soundtrack`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FA2D48]/15 border border-white/5 hover:border-[#FA2D48]/30 text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-[#FA2D48] transition-all duration-200 group shadow-sm active:scale-95"
+                        title="Listen on Apple Music"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-[#FA2D48] group-hover:scale-110 transition-transform shrink-0">
+                          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 7.17c.6-1.04.85-2.07.76-3.17-1.03.07-2.14.7-2.73 1.4-.55.65-.96 1.7-.85 2.76 1.13.09 2.22-.54 2.82-.99z"/>
+                        </svg>
+                        <span>Apple Music</span>
+                      </a>
+
+                      {/* YouTube Music */}
+                      <a
+                        href={`https://music.youtube.com/search?q=${encodeURIComponent(
+                          `${details.title || details.name} ${mainComposer ? mainComposer.name + ' ' : ''}Soundtrack`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-[#FF0000]/15 border border-white/5 hover:border-[#FF0000]/30 text-[11px] sm:text-xs font-semibold text-zinc-300 hover:text-[#FF4E45] transition-all duration-200 group shadow-sm active:scale-95"
+                        title="Listen on YouTube Music"
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-[#FF0000] group-hover:scale-110 transition-transform shrink-0">
+                          <path d="M12 0C5.376 0 0 5.376 0 12s5.376 12 12 12 12-5.376 12-12S18.624 0 12 0zm0 19c-3.864 0-7-3.136-7-7s3.136-7 7-7 7 3.136 7 7-3.136 7-7 7zm0-11.5c-2.484 0-4.5 2.016-4.5 4.5s2.016 4.5 4.5 4.5 4.5-2.016 4.5-4.5-2.016-4.5-4.5-4.5zm-1 6.5l3-2-3-2v4z"/>
+                        </svg>
+                        <span>YT Music</span>
+                      </a>
+
+                      {/* Refresh / Wrong track? button */}
+                      {soundtrackUrl && (
+                        <button
+                          onClick={handleRefreshSoundtrack}
+                          disabled={isRefreshingSoundtrack}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] hover:bg-white/[0.08] border border-white/5 text-[10px] sm:text-[11px] font-medium text-zinc-400 hover:text-zinc-200 transition-all duration-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+                          title="Search for another official soundtrack if this track isn't right"
+                        >
+                          <RotateCcw className={`w-3 h-3 ${isRefreshingSoundtrack ? 'animate-spin text-zinc-200' : 'text-zinc-500'}`} />
+                          <span>{isRefreshingSoundtrack ? 'Refreshing...' : 'Wrong track?'}</span>
+                        </button>
+                      )}
                     </div>
 
-
                     {/* Soundtrack Details Section */}
-                    <div className="w-full max-w-2xl mx-auto mt-6 sm:mt-10 md:mt-16 mb-8 sm:mb-12 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300 px-4">
+                    <div className="w-full max-w-2xl mx-auto mt-4 sm:mt-5 mb-4 sm:mb-6 animate-in fade-in slide-in-from-bottom-6 duration-700 delay-100 px-0 sm:px-2">
                       <div className="flex flex-row items-center justify-center sm:justify-between gap-6 sm:gap-10 md:gap-16">
                         
                         {/* Composer Info */}
-                        {(() => {
-                          const composers = details?.credits?.crew?.filter((c: any) => c.job === 'Original Music Composer' || c.job === 'Music' || c.department === 'Sound' && c.job.includes('Music')) || [];
-                          const mainComposer = composers.length > 0 ? composers[0] : null;
-                          
-                          if (mainComposer) {
-                            return (
-                              <div className="flex items-center gap-3 sm:gap-5 md:gap-7 flex-1 justify-center sm:justify-end text-left">
-                                <Link href={`/person/${mainComposer.id}`} className="w-10 h-10 sm:w-16 sm:h-16 md:w-24 md:h-24 rounded-full overflow-hidden bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 transition-colors shadow-xl shrink-0">
-                                  {mainComposer.profile_path ? (
-                                    <img src={`https://image.tmdb.org/t/p/w200${mainComposer.profile_path}`} className="w-full h-full object-cover" alt={mainComposer.name} />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center"><Music className="w-4 h-4 md:w-8 md:h-8 text-zinc-600"/></div>
-                                  )}
-                                </Link>
-                                <div className="flex flex-col items-start">
-                                  <span className="text-[8px] sm:text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] mb-0.5 sm:mb-1">Music By</span>
-                                  <Link href={`/person/${mainComposer.id}`} className="text-sm sm:text-xl md:text-3xl font-extrabold text-white hover:text-zinc-300 transition-colors tracking-tight text-left max-w-[130px] sm:max-w-none leading-tight">{mainComposer.name}</Link>
-                                </div>
-                              </div>
-                            );
-                          }
-                          return null;
-                        })()}
+                        {mainComposer && (
+                          <div className="flex items-center gap-3 sm:gap-5 md:gap-7 flex-1 justify-center sm:justify-end text-left">
+                            <Link href={`/person/${mainComposer.id}`} className="w-10 h-10 sm:w-16 sm:h-16 md:w-24 md:h-24 rounded-full overflow-hidden bg-zinc-900 border-2 border-zinc-800 hover:border-zinc-500 transition-colors shadow-xl shrink-0">
+                              {mainComposer.profile_path ? (
+                                <img src={`https://image.tmdb.org/t/p/w200${mainComposer.profile_path}`} className="w-full h-full object-cover" alt={mainComposer.name} />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center"><Music className="w-4 h-4 md:w-8 md:h-8 text-zinc-600"/></div>
+                              )}
+                            </Link>
+                            <div className="flex flex-col items-start">
+                              <span className="text-[8px] sm:text-[10px] md:text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] mb-0.5 sm:mb-1">Music By</span>
+                              <Link href={`/person/${mainComposer.id}`} className="text-sm sm:text-xl md:text-3xl font-extrabold text-white hover:text-zinc-300 transition-colors tracking-tight text-left max-w-[130px] sm:max-w-none leading-tight">{mainComposer.name}</Link>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Divider */}
-                        <div className="h-14 sm:h-20 md:h-28 w-px bg-zinc-800/80 shrink-0" />
+                        {mainComposer && <div className="h-14 sm:h-20 md:h-28 w-px bg-zinc-800/80 shrink-0" />}
 
                         {/* Soundtrack Info */}
                         <div className="flex flex-col items-start text-left flex-1 justify-center">
@@ -1778,13 +1919,14 @@ export default function TitleDetailsPage() {
                       </div>
                     </div>
 
-                  </>
-                ) : (
-                      <div className="flex flex-col items-center gap-4 mt-8">
-                        <div className="w-12 h-12 border-4 border-zinc-800 border-t-zinc-400 rounded-full animate-spin" />
-                        <p className="text-zinc-500 font-medium">Searching for soundtrack...</p>
-                      </div>
-                    )}
+                    {/* Box Office & Financials (Movies only) */}
+                    <BoxOfficeCard mediaType={mediaType as string} details={details} dominantColor={dominantColor} />
+
+                    {/* Official Wallpapers & Stills Gallery */}
+                    <MediaGallery images={details?.images?.backdrops} titleName={details.title || details.name} dominantColor={dominantColor} />
+
+                    {/* External Links & Official Profiles */}
+                    <ExternalLinksHub details={details} dominantColor={dominantColor} />
                   </div>
               </div>
             )}
