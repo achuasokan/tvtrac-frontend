@@ -1210,7 +1210,7 @@ export default function TitleDetailsPage() {
                 src={`https://image.tmdb.org/t/p/w500${titleLogo.file_path}`} 
                 alt={title}
                 onError={() => setLogoLoadFailed(true)}
-                className="max-h-18 sm:max-h-24 md:max-h-28 max-w-[235px] sm:max-w-[300px] md:max-w-[360px] w-auto h-auto object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.85)] select-none pointer-events-none"
+                className="max-h-28 sm:max-h-28 md:max-h-32 max-w-[280px] sm:max-w-[340px] md:max-w-[420px] w-auto h-auto object-contain drop-shadow-[0_4px_20px_rgba(0,0,0,0.85)] select-none pointer-events-none"
               />
               <h1 className="sr-only">{title}</h1>
             </div>
