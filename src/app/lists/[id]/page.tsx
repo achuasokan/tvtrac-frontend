@@ -434,10 +434,10 @@ export default function ListDetailsPage() {
   const renderOptionsMenu = () => (
     <>
       <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
-      <div className="absolute right-0 top-full mt-2 w-max min-w-[160px] bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+      <div className="absolute right-0 top-full mt-2 w-max min-w-[160px] bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_12px_40px_rgba(0,0,0,0.9)] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
         <button 
           onClick={() => { setIsEditModalOpen(true); setIsMenuOpen(false); }} 
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-white/10 transition-colors text-zinc-300 whitespace-nowrap"
+          className="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left text-zinc-300 hover:bg-zinc-900 hover:text-white transition-colors cursor-pointer font-medium whitespace-nowrap"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -446,7 +446,7 @@ export default function ListDetailsPage() {
         </button>
         <button 
           onClick={handleStartReorder}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-white/10 transition-colors text-zinc-300 whitespace-nowrap"
+          className="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left text-zinc-300 hover:bg-zinc-900 hover:text-white transition-colors cursor-pointer font-medium whitespace-nowrap"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -455,7 +455,7 @@ export default function ListDetailsPage() {
         </button>
         <button 
           onClick={() => { setIsEditing(true); setIsMenuOpen(false); }} 
-          className="w-full sm:hidden flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-white/10 transition-colors text-red-500 font-medium mt-1 whitespace-nowrap"
+          className="w-full sm:hidden flex items-center gap-3 px-3 py-1.5 text-xs text-left text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-colors cursor-pointer font-medium mt-1 whitespace-nowrap"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -759,12 +759,12 @@ export default function ListDetailsPage() {
                 {isSortOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsSortOpen(false)}></div>
-                    <div className="absolute right-0 left-0 sm:left-auto top-full mt-2 sm:w-56 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-                      <button onClick={() => { setSortBy("default"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "default" ? "text-white font-bold" : "text-zinc-400"}`}>Default Order</button>
-                      <button onClick={() => { setSortBy("rating_desc"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "rating_desc" ? "text-white font-bold" : "text-zinc-400"}`}>Highest Rating</button>
-                      <button onClick={() => { setSortBy("rating_asc"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "rating_asc" ? "text-white font-bold" : "text-zinc-400"}`}>Lowest Rating</button>
-                      <button onClick={() => { setSortBy("az"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "az" ? "text-white font-bold" : "text-zinc-400"}`}>Alphabetical (A-Z)</button>
-                      <button onClick={() => { setSortBy("za"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "za" ? "text-white font-bold" : "text-zinc-400"}`}>Alphabetical (Z-A)</button>
+                    <div className="absolute right-0 left-0 sm:left-auto top-full mt-2 sm:w-56 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_12px_40px_rgba(0,0,0,0.9)] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                      <button onClick={() => { setSortBy("default"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "default" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Default Order</button>
+                      <button onClick={() => { setSortBy("rating_desc"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "rating_desc" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Highest Rating</button>
+                      <button onClick={() => { setSortBy("rating_asc"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "rating_asc" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Lowest Rating</button>
+                      <button onClick={() => { setSortBy("az"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "az" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Alphabetical (A-Z)</button>
+                      <button onClick={() => { setSortBy("za"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "za" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Alphabetical (Z-A)</button>
                     </div>
                   </>
                 )}

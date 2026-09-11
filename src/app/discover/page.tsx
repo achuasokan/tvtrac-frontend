@@ -40,13 +40,13 @@ function Carousel({ title, children }: { title: React.ReactNode, children: React
     <div className="group relative">
       <div className="flex items-center justify-between mb-4">
         {title}
-        <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
-          <button onClick={() => scroll('left')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+        <div className="flex items-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-md overflow-hidden shadow-[0_0_15px_rgba(45,212,191,0.06)] group/nav">
+          <button onClick={() => scroll('left')} className="cursor-pointer w-8 h-7 flex items-center justify-center text-zinc-400 hover:text-[#2dd4bf] active:scale-95 transition-all duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover/nav:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
           </button>
-          <div className="w-px h-4 bg-zinc-700/50" />
-          <button onClick={() => scroll('right')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+          <div className="w-[1px] h-3.5 bg-zinc-800" />
+          <button onClick={() => scroll('right')} className="cursor-pointer w-8 h-7 flex items-center justify-center text-zinc-400 hover:text-[#2dd4bf] active:scale-95 transition-all duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover/nav:translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
           </button>
         </div>
       </div>
@@ -454,13 +454,12 @@ export default function DiscoverPage() {
 
               <button
                 onClick={() => router.push("/discover/filter")}
-                className="cursor-pointer flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-tl-xl rounded-br-xl rounded-tr-xs rounded-bl-xs bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 hover:border-[#2dd4bf]/50 shadow-md active:scale-95 transition-all"
+                className="cursor-pointer flex items-center justify-center p-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-[#2dd4bf] border border-zinc-700/80 hover:border-[#2dd4bf]/50 shadow-md active:scale-95 transition-all"
                 title="Advanced Filters"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 stroke-[2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
-                <span className="hidden min-[480px]:inline text-[11px] sm:text-xs font-bold tracking-wider uppercase">Filter</span>
               </button>
             </div>
           </div>
@@ -482,15 +481,15 @@ export default function DiscoverPage() {
               </h3>
 
               {/* Scroll Controls Pill */}
-              <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
-                <button onClick={scrollLeft} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="flex items-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-md overflow-hidden shadow-[0_0_15px_rgba(45,212,191,0.06)] group/nav">
+                <button onClick={scrollLeft} className="cursor-pointer w-8 h-7 flex items-center justify-center text-zinc-400 hover:text-[#2dd4bf] active:scale-95 transition-all duration-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover/nav:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
-                <div className="w-px h-4 bg-zinc-700/50" />
-                <button onClick={scrollRight} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-[1px] h-3.5 bg-zinc-800" />
+                <button onClick={scrollRight} className="cursor-pointer w-8 h-7 flex items-center justify-center text-zinc-400 hover:text-[#2dd4bf] active:scale-95 transition-all duration-200">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover/nav:translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -620,8 +619,8 @@ export default function DiscoverPage() {
                         </svg>
                         TV Shows
                       </h3>
-                      <button onClick={() => router.push('/discover/tv')} className="cursor-pointer text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                        See All <span aria-hidden="true">&rarr;</span>
+                      <button onClick={() => router.push('/discover/tv')} className="group flex items-center justify-center px-2 py-0.5 h-6 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-zinc-400 hover:text-[#2dd4bf] hover:shadow-[0_0_15px_rgba(45,212,191,0.06)] active:scale-95 transition-all duration-200 cursor-pointer">
+                        See All <span aria-hidden="true" className="ml-0.5 group-hover:translate-x-0.5 transition-transform duration-200">&rarr;</span>
                       </button>
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
@@ -640,8 +639,8 @@ export default function DiscoverPage() {
                         </svg>
                         Movies
                       </h3>
-                      <button onClick={() => router.push('/discover/movies')} className="cursor-pointer text-xs font-semibold text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
-                        See All <span aria-hidden="true">&rarr;</span>
+                      <button onClick={() => router.push('/discover/movies')} className="group flex items-center justify-center px-2 py-0.5 h-6 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-zinc-400 hover:text-[#2dd4bf] hover:shadow-[0_0_15px_rgba(45,212,191,0.06)] active:scale-95 transition-all duration-200 cursor-pointer">
+                        See All <span aria-hidden="true" className="ml-0.5 group-hover:translate-x-0.5 transition-transform duration-200">&rarr;</span>
                       </button>
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">

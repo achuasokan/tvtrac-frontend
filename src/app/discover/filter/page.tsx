@@ -183,6 +183,17 @@ export default function AdvancedFilterPage() {
   // UI State
   const [showFilters, setShowFilters] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+
+  // Search State
+  const [inputValue, setInputValue] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(inputValue);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
   const toggleWatchlistMutation = useToggleWatchlist();
   const dispatch = useDispatch();
 
@@ -201,43 +212,53 @@ export default function AdvancedFilterPage() {
     isError,
     refetch
   } = useInfiniteQuery({
-    queryKey: ['filter-results', type, year, genre, language, provider, status, minRating],
+    queryKey: ['filter-results', type, year, genre, language, provider, status, minRating, debouncedQuery],
     queryFn: async ({ pageParam = 1 }) => {
-      const params: Record<string, string> = {
-        type,
-        page: pageParam.toString(),
-        sort_by: "popularity.desc"
-      };
+      let response;
       
-      if (minRating !== "0") {
-        params["vote_average.gte"] = minRating;
-        params["vote_count.gte"] = "10";
-      }
-
-      if (year) {
-        if (type === "tv") params["first_air_date_year"] = year;
-        else params["primary_release_year"] = year;
-      }
-      if (genre) params["with_genres"] = genre;
-      if (language) params["with_original_language"] = language;
-      if (provider) {
-        params["with_watch_providers"] = provider;
+      if (debouncedQuery.trim() !== "") {
+        response = await tmdbService.search(debouncedQuery, pageParam.toString());
+      } else {
+        const params: Record<string, string> = {
+          type,
+          page: pageParam.toString(),
+          sort_by: "popularity.desc"
+        };
         
-        // Auto-switch to India region for Indian platforms or languages, otherwise default to US
-        const indianProviders = ["122", "220", "232", "237", "309"];
-        const indianLangs = ["hi", "ml", "ta", "te", "bn", "kn"];
-        
-        if (indianProviders.includes(provider) || indianLangs.includes(language)) {
-          params["watch_region"] = "IN";
-        } else {
-          params["watch_region"] = "US";
+        if (minRating !== "0") {
+          params["vote_average.gte"] = minRating;
+          params["vote_count.gte"] = "10";
         }
-      }
-      if (type === "tv" && status) params["with_status"] = status;
 
-      const response = await tmdbService.discoverAdvanced(params);
-      const filtered = response.results?.filter((item: any) => item.poster_path) || [];
-      const mapped = filtered.map((item: any) => ({ ...item, media_type: type }));
+        if (year) {
+          if (type === "tv") params["first_air_date_year"] = year;
+          else params["primary_release_year"] = year;
+        }
+        if (genre) params["with_genres"] = genre;
+        if (language) params["with_original_language"] = language;
+        if (provider) {
+          params["with_watch_providers"] = provider;
+          
+          const indianProviders = ["122", "220", "232", "237", "309"];
+          const indianLangs = ["hi", "ml", "ta", "te", "bn", "kn"];
+          
+          if (indianProviders.includes(provider) || indianLangs.includes(language)) {
+            params["watch_region"] = "IN";
+          } else {
+            params["watch_region"] = "US";
+          }
+        }
+        if (type === "tv" && status) params["with_status"] = status;
+
+        response = await tmdbService.discoverAdvanced(params);
+      }
+
+      const filtered = response.results?.filter((item: any) => 
+        item.poster_path && 
+        item.media_type !== "person" &&
+        (debouncedQuery.trim() === "" || (item.media_type === type || !item.media_type))
+      ) || [];
+      const mapped = filtered.map((item: any) => ({ ...item, media_type: item.media_type || type }));
       
       return {
         results: mapped,
@@ -434,8 +455,6 @@ export default function AdvancedFilterPage() {
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white font-sans pb-24">
       {/* Header & Collapsible Filters */}
       <div className="sticky top-0 z-40 bg-[#050505]/90 backdrop-blur-xl border-b border-zinc-800/80 shadow-[0_10px_30px_rgba(0,0,0,0.7)]">
-        {/* Ambient top glow line */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#2dd4bf]/25 to-transparent pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 py-3 sm:py-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -525,6 +544,38 @@ export default function AdvancedFilterPage() {
           {/* Collapsible Filter Grid */}
           {showFilters && (
             <div className="pt-3.5 border-t border-zinc-800/60 mt-3.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              
+              {/* Compact Search Box */}
+              <div className="mb-3.5 w-full sm:max-w-xs relative flex items-center">
+                <div className="group relative w-full flex items-center bg-black  border border-zinc-800/80 focus-within:border-[#2dd4bf]/70 focus-within:shadow-[0_0_15px_rgba(45,212,191,0.15)] rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm transition-all duration-300">
+                  <div className="absolute inset-y-0 left-2.5 sm:left-3 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-[#2dd4bf] transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder={`Search ${type === 'tv' ? 'TV shows' : 'movies'}...`}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    className="w-full bg-transparent text-white py-1.5 sm:py-2 pl-8 sm:pl-9 pr-8 focus:outline-none text-xs sm:text-sm placeholder:text-zinc-500 font-medium"
+                  />
+                  {inputValue.length > 0 && (
+                    <div className="absolute inset-y-0 right-1 flex items-center">
+                      <button
+                        onClick={() => setInputValue("")}
+                        className="p-1 text-zinc-500 hover:text-white rounded-lg active:scale-95 transition-all cursor-pointer"
+                        title="Clear search"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className={`grid grid-cols-2 sm:grid-cols-3 ${type === 'tv' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-2.5 sm:gap-3`}>
                 
                 {/* Platform Filter */}

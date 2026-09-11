@@ -1531,21 +1531,22 @@ export default function TitleDetailsPage() {
                   <div className="mt-4 border-t border-zinc-800 pt-6 w-full text-center relative">
                     <div className="flex items-center justify-between mb-6 px-2">
                       <h3 className="text-xl font-bold text-white mb-0">You Might Also Like</h3>
-                      <div className="hidden sm:flex items-center gap-2">
+                      <div className="hidden sm:flex items-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-md overflow-hidden shadow-[0_0_15px_rgba(45,212,191,0.06)] group/nav">
                         <button 
                           onClick={(e) => { e.preventDefault(); handleScrollRecommendations('left'); }}
-                          className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all cursor-pointer"
+                          className="cursor-pointer w-8 h-7 flex items-center justify-center text-zinc-400 hover:text-[#2dd4bf] active:scale-95 transition-all duration-200"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover/nav:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
                           </svg>
                         </button>
+                        <div className="w-[1px] h-3.5 bg-zinc-800" />
                         <button 
                           onClick={(e) => { e.preventDefault(); handleScrollRecommendations('right'); }}
-                          className="w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all cursor-pointer"
+                          className="cursor-pointer w-8 h-7 flex items-center justify-center text-zinc-400 hover:text-[#2dd4bf] active:scale-95 transition-all duration-200"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover/nav:translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
                       </div>
