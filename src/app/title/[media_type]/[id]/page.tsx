@@ -1001,9 +1001,14 @@ export default function TitleDetailsPage() {
       <div 
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 ${isScrolled ? 'backdrop-blur-md shadow-lg' : 'bg-transparent pt-4'}`}
       >
-        <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer bg-black/50 backdrop-blur-md hover:bg-black/70 active:scale-95">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <button 
+          type="button"
+          onClick={() => router.back()} 
+          aria-label="Back"
+          className="group w-10 h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
         
@@ -1013,10 +1018,12 @@ export default function TitleDetailsPage() {
         
         <div className="relative">
           <button 
+            type="button"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer bg-black/50 backdrop-blur-md hover:bg-black/70 active:scale-95"
+            aria-label="More options"
+            className="group w-10 h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
             </svg>
           </button>
@@ -1024,15 +1031,18 @@ export default function TitleDetailsPage() {
           {isMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
-              <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-150 overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_15px_40px_rgba(0,0,0,0.9),0_0_20px_rgba(45,212,191,0.08)] p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <button 
+                  type="button"
                   onClick={() => { setIsAddToListModalOpen(true); setIsMenuOpen(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left text-zinc-300 hover:text-white transition-colors font-medium cursor-pointer"
+                  className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add to List
+                  <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-zinc-900 border border-zinc-800 group-hover:border-[#2dd4bf]/40 flex items-center justify-center text-zinc-400 group-hover:text-[#2dd4bf] transition-colors shadow-sm shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </div>
+                  <span className="truncate">Add to List</span>
                 </button>
               </div>
             </>

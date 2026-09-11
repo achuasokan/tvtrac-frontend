@@ -410,9 +410,14 @@ export default function EpisodeDetailsPage() {
 
       {/* Sticky App Bar */}
       <div className={`fixed top-0 left-0 right-0 z-50 pointer-events-none transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 ${isScrolled ? 'backdrop-blur-md shadow-lg' : 'bg-transparent pt-4'}`}>
-        <button onClick={() => router.back()} className="pointer-events-auto shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all cursor-pointer bg-black/50 backdrop-blur-md hover:bg-black/70 active:scale-95">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <button 
+          type="button"
+          onClick={() => router.back()} 
+          aria-label="Back"
+          className="pointer-events-auto group shrink-0 w-10 h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
         
