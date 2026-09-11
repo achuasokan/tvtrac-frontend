@@ -1273,7 +1273,7 @@ export default function TitleDetailsPage() {
           <div className="sticky top-16 z-40 w-[calc(100%+2rem)] -mx-4 sm:w-full sm:mx-0 mb-8 flex flex-col">
             
             {/* TV Show Progress Bar (Sticky) */}
-            {mediaType === 'tv' && user && details?.number_of_episodes > 0 && (() => {
+            {mediaType === 'tv' && user && details?.number_of_episodes > 0 && watchedEpisodes.length > 0 && (() => {
               const percentage = (watchedEpisodes.length / details.number_of_episodes) * 100;
               const isComplete = percentage === 100;
               const barColor = isComplete ? '#22c55e' : '#ffffff';
