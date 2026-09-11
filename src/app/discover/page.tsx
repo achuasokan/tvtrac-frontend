@@ -24,7 +24,7 @@ interface TmdbItem {
 
 function Carousel({ title, children }: { title: React.ReactNode, children: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  
+
   const scroll = (dir: 'left' | 'right') => {
     if (scrollRef.current) {
       const { scrollLeft, clientWidth } = scrollRef.current;
@@ -50,7 +50,7 @@ function Carousel({ title, children }: { title: React.ReactNode, children: React
           </button>
         </div>
       </div>
-      <div 
+      <div
         ref={scrollRef}
         className="flex items-center gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-4"
       >
@@ -66,17 +66,17 @@ export default function DiscoverPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  
+
   const urlQuery = searchParams.get('q') || "";
-  
+
   const [togglingId, setTogglingId] = useState<number | null>(null);
-  
+
   const toggleWatchlistMutation = useToggleWatchlist();
 
   const [inputValue, setInputValue] = useState(urlQuery);
   const [searchResults, setSearchResults] = useState<TmdbItem[]>([]);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
-  
+
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -112,11 +112,11 @@ export default function DiscoverPage() {
   const handleToggleWatchlist = async (e: React.MouseEvent, item: TmdbItem) => {
     e.stopPropagation();
     if (!user) return router.push("/login");
-    
+
     const isShow = item.media_type === 'tv';
     const watchlist = isShow ? user.watchlistShows || [] : user.watchlistMovies || [];
     const isAdded = watchlist.includes(item.id.toString());
-    
+
     setTogglingId(item.id);
     try {
       await toggleWatchlistMutation.mutateAsync({
@@ -158,7 +158,7 @@ export default function DiscoverPage() {
   // Fetch data based on URL query (Search)
   useEffect(() => {
     const controller = new AbortController();
-    
+
     if (urlQuery.trim()) {
       const fetchSearch = async () => {
         try {
@@ -180,7 +180,7 @@ export default function DiscoverPage() {
     } else {
       setSearchResults([]);
     }
-    
+
     return () => controller.abort();
   }, [urlQuery]);
 
@@ -203,12 +203,12 @@ export default function DiscoverPage() {
 
   // Fetch backdrop images for both genres and studios
   const genreNames = [
-    "K-Drama", "Action", "Comedy", "Sci-Fi", "Horror", 
+    "K-Drama", "Action", "Comedy", "Sci-Fi", "Horror",
     "Romance", "Drama", "Animation", "Documentary",
-    "Kids", "Mystery", "News", "Reality", 
+    "Kids", "Mystery", "News", "Reality",
     "Sci-Fi & Fantasy", "Soap", "Talk", "War & Politics", "Western"
   ];
-  
+
   const franchises = [
     { name: "MCU", id: 420, type: "company" },
     { name: "DCU", id: 229266, type: "keyword" },
@@ -223,7 +223,7 @@ export default function DiscoverPage() {
     { name: "X-Men Universe", id: "748,453993,448150,movie:340102", type: "collection" }
   ];
   const allCategories = [...genreNames, ...franchises.map(f => f.name)];
-  
+
   const topStudios = [
     { name: "Warner Bros. Pictures", id: 174 },
     { name: "Walt Disney Pictures", id: 2 },
@@ -244,12 +244,12 @@ export default function DiscoverPage() {
     { name: "Focus Features", id: 10146 },
     { name: "Searchlight Pictures", id: 43 },
   ];
-  
+
   const { data: genreImages = {} } = useQuery({
     queryKey: ['genre-images'],
     queryFn: async () => {
       const images: Record<string, string> = {};
-      
+
       await Promise.all([
         ...genreNames.map(async (name) => {
           try {
@@ -258,7 +258,7 @@ export default function DiscoverPage() {
             if (firstWithBackdrop) {
               images[name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
             }
-          } catch {}
+          } catch { }
         }),
         ...franchises.map(async (f) => {
           try {
@@ -275,18 +275,18 @@ export default function DiscoverPage() {
                 }
               }
             } else {
-              data = f.type === 'keyword' 
-                ? await tmdbService.discoverByKeyword(f.id, "type=movie") 
+              data = f.type === 'keyword'
+                ? await tmdbService.discoverByKeyword(f.id, "type=movie")
                 : await tmdbService.discoverByCompany(f.id, "type=movie");
               const firstWithBackdrop = data.results?.find((item: any) => item.backdrop_path);
               if (firstWithBackdrop) {
                 images[f.name] = `https://image.tmdb.org/t/p/w780${firstWithBackdrop.backdrop_path}`;
               }
             }
-          } catch {}
+          } catch { }
         })
       ]);
-      
+
       return images;
     },
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
@@ -318,8 +318,8 @@ export default function DiscoverPage() {
   // Replaced with React Query above
 
   const renderItemCard = (item: TmdbItem, idx: number = 0) => (
-    <motion.div 
-      key={item.id} 
+    <motion.div
+      key={item.id}
       initial={{ opacity: 0, y: 18, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -327,17 +327,17 @@ export default function DiscoverPage() {
         delay: Math.min((idx % 12) * 0.03, 0.35),
         ease: [0.21, 0.47, 0.32, 0.98]
       }}
-      className="group cursor-pointer flex flex-col gap-2" 
+      className="group cursor-pointer flex flex-col gap-2"
       onClick={() => router.push(`/title/${item.media_type}/${item.id}`)}
     >
       {/* Poster */}
       <div className="relative aspect-[2/3] w-full rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/50 shadow-lg group-hover:scale-105 group-hover:shadow-2xl transition-all duration-300">
-        <img 
-          src={`https://image.tmdb.org/t/p/w500${item.poster_path}`} 
-          alt={item.title || item.name} 
+        <img
+          src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
+          alt={item.title || item.name}
           className="w-full h-full object-cover animate-in fade-in duration-300"
         />
-        
+
         {/* Top Badges */}
         <div className="absolute top-2 left-2 flex gap-1.5 z-10">
           {item.vote_average ? (
@@ -352,24 +352,23 @@ export default function DiscoverPage() {
 
         {/* Hover Overlay */}
         <div className="absolute inset-0 bg-black/60 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-        
+
         {/* Add Button - Always visible on mobile, hover-only on desktop */}
         {(() => {
           const isShow = item.media_type === 'tv';
           const watchlist = isShow ? user?.watchlistShows || [] : user?.watchlistMovies || [];
           const isAdded = watchlist.includes(item.id.toString());
           const isToggling = togglingId === item.id;
-          
+
           return (
-            <button 
+            <button
               type="button"
               disabled={isToggling}
               onClick={(e) => handleToggleWatchlist(e, item)}
-              className={`absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100 ${
-                isAdded 
-                  ? 'bg-green-500 hover:bg-green-600 text-white' 
+              className={`absolute top-2 right-2 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-300 z-20 shadow-lg md:opacity-0 md:scale-75 md:group-hover:opacity-100 md:group-hover:scale-100 ${isAdded
+                  ? 'bg-green-500 hover:bg-green-600 text-white'
                   : 'bg-white/90 hover:bg-white text-black'
-              }`}
+                }`}
               title={isAdded ? "Remove from Watchlist" : "Add to Watchlist"}
             >
               {isToggling ? (
@@ -420,13 +419,13 @@ export default function DiscoverPage() {
 
   return (
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white pb-24 font-sans">
-      
+
       {/* Search Header */}
       <div className="sticky top-0 z-40 bg-gradient-to-b from-[#050505] via-[#050505]/95 to-transparent pt-4 sm:pt-8 pb-4 sm:pb-6 px-3 sm:px-4">
         <div className="max-w-3xl mx-auto relative flex items-center">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-3 sm:left-4 flex items-center pointer-events-none">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="group relative flex-1 flex items-center bg-zinc-950/80 hover:bg-zinc-950/95 border border-zinc-800/90 focus-within:border-[#2dd4bf]/70 focus-within:shadow-[0_0_35px_rgba(45,212,191,0.25)] rounded-tl-2xl sm:rounded-tl-3xl rounded-br-2xl sm:rounded-br-3xl rounded-tr-sm rounded-bl-sm transition-all duration-300 backdrop-blur-xl shadow-2xl">
+            <div className="absolute inset-y-0 left-3.5 sm:left-5 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-[#2dd4bf] transition-colors duration-200">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
@@ -435,31 +434,33 @@ export default function DiscoverPage() {
               placeholder="Search TV shows and movies..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              className="w-full bg-zinc-900/80 border border-zinc-800 text-white rounded-2xl py-3 sm:py-4 pl-11 sm:pl-14 pr-[80px] sm:pr-[100px] focus:outline-none focus:ring-2 focus:ring-zinc-600 transition-all text-sm sm:text-lg placeholder:text-zinc-500 shadow-xl backdrop-blur-md"
+              className="w-full bg-transparent text-white py-3 sm:py-4 pl-11 sm:pl-14 pr-[95px] sm:pr-[135px] focus:outline-none text-sm sm:text-base placeholder:text-zinc-500 font-medium"
             />
-            
-            <div className="absolute inset-y-0 right-1.5 sm:right-2 flex items-center gap-0.5 sm:gap-1">
+
+            <div className="absolute inset-y-0 right-2 sm:right-2.5 flex items-center gap-1 sm:gap-1.5">
               {inputValue.length > 0 && (
-                <button 
+                <button
                   onClick={() => setInputValue("")}
-                  className="p-1.5 sm:p-2 text-zinc-500 hover:text-white transition-colors"
+                  className="p-1.5 sm:p-2 text-zinc-500 hover:text-white rounded-lg hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                  title="Clear search"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
               )}
-              
-              <div className="w-px h-5 sm:h-6 bg-zinc-700/50 mx-0.5 sm:mx-1"></div>
-              
-              <button 
+
+              <div className="w-px h-5 sm:h-6 bg-zinc-800 mx-0.5"></div>
+
+              <button
                 onClick={() => router.push("/discover/filter")}
-                className="cursor-pointer p-1.5 sm:p-2 text-zinc-400 hover:text-white transition-colors mr-0.5 sm:mr-1"
+                className="cursor-pointer flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-tl-xl rounded-br-xl rounded-tr-xs rounded-bl-xs bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700/80 hover:border-[#2dd4bf]/50 shadow-md active:scale-95 transition-all"
                 title="Advanced Filters"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 stroke-[2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                 </svg>
+                <span className="hidden min-[480px]:inline text-[11px] sm:text-xs font-bold tracking-wider uppercase">Filter</span>
               </button>
             </div>
           </div>
@@ -468,7 +469,7 @@ export default function DiscoverPage() {
 
       {/* Content Grid */}
       <div className="w-full max-w-5xl mx-auto px-4 mt-2">
-        
+
         {/* Platforms Section */}
         {!urlQuery.trim() && (
           <div className="mb-10">
@@ -479,7 +480,7 @@ export default function DiscoverPage() {
                 </svg>
                 Browse by Platform
               </h3>
-              
+
               {/* Scroll Controls Pill */}
               <div className="flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
                 <button onClick={scrollLeft} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
@@ -496,8 +497,8 @@ export default function DiscoverPage() {
               </div>
             </div>
 
-            <div 
-              ref={platformsRef} 
+            <div
+              ref={platformsRef}
               className="flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {[
@@ -513,7 +514,7 @@ export default function DiscoverPage() {
                 { id: 386, name: "Peacock", logoPath: "/2aGrp1xw3qhwCYvNGAJZPdjfeeX.jpg" },
                 { id: 531, name: "Paramount+", logoPath: "/h5DcR0J2EESLitnhR8xLG1QymTE.jpg" },
                 { id: 283, name: "Crunchyroll", logoPath: "/fzN5Jok5Ig1eJ7gyNGoMhnLSCfh.jpg" },
-                { id: 122, name: "Hotstar", logoPath: "/kVqjgpcwvDJOhCupjcLzwwtOp52.jpg" }, 
+                { id: 122, name: "Hotstar", logoPath: "/kVqjgpcwvDJOhCupjcLzwwtOp52.jpg" },
                 { id: 43, name: "Starz", logoPath: "/yIKwylTLP1u8gl84Is7FItpYLGL.jpg" },
                 { id: 510, name: "Discovery+", logoPath: "/eMTnWwNVtThkjvQA6zwxaoJG9NE.jpg" },
                 { id: 99, name: "Shudder", logoPath: "/vEtdiYRPRbDCp1Tcn3BEPF1Ni76.jpg" },
@@ -521,27 +522,27 @@ export default function DiscoverPage() {
                 { id: 300, name: "Pluto TV", logoPath: "/dB8G41Q6tSL5NBisrIeqByfepBc.jpg" },
                 { id: 344, name: "Rakuten Viki", logoPath: "/73uV3YooOA8gD9YQTXFj2XakZWA.jpg" },
               ].map(platform => (
-                <button 
+                <button
                   key={platform.id}
                   onClick={() => router.push(`/discover/network/${platform.id}?name=${encodeURIComponent(platform.name)}`)}
                   className="flex-shrink-0 relative w-24 h-24 rounded-full overflow-hidden group hover:scale-105 transition-transform duration-300 border border-zinc-800/80 shadow-lg cursor-pointer bg-zinc-900"
                 >
                   {/* Ambient Blurred Background (using the logo itself) */}
-                  <img 
+                  <img
                     src={`https://image.tmdb.org/t/p/w200${platform.logoPath}`}
-                    className="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-60 group-hover:opacity-90 transition-opacity duration-300 scale-150 bg-black" 
-                    alt="" 
+                    className="absolute inset-0 w-full h-full object-cover filter blur-xl opacity-60 group-hover:opacity-90 transition-opacity duration-300 scale-150 bg-black"
+                    alt=""
                   />
-                  
+
                   {/* Dark Overlay for contrast */}
                   <div className="absolute inset-0 bg-black/30 group-hover:bg-transparent transition-colors duration-300 rounded-full" />
-                  
+
                   {/* Foreground Circular Logo */}
                   <div className="absolute inset-0 flex items-center justify-center z-10">
-                    <img 
+                    <img
                       src={`https://image.tmdb.org/t/p/w200${platform.logoPath}`}
-                      className="w-14 h-14 rounded-full shadow-2xl border border-white/10 group-hover:scale-110 transition-transform duration-300 object-cover bg-black" 
-                      alt={platform.name} 
+                      className="w-14 h-14 rounded-full shadow-2xl border border-white/10 group-hover:scale-110 transition-transform duration-300 object-cover bg-black"
+                      alt={platform.name}
                     />
                   </div>
                 </button>
@@ -556,7 +557,7 @@ export default function DiscoverPage() {
           </h2>
         </div>
 
-        { (urlQuery.trim() ? isSearchLoading : isTrendingLoading) ? (
+        {(urlQuery.trim() ? isSearchLoading : isTrendingLoading) ? (
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
             {[...Array(12)].map((_, i) => (
               <div key={i} className="flex flex-col gap-2 animate-pulse">
@@ -583,10 +584,10 @@ export default function DiscoverPage() {
               <div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
                   {searchResults.map((item, idx) => renderItemCard(item, idx))}
-                  
+
                   {/* Inline Load More Card */}
                   {hasMore && (
-                    <div 
+                    <div
                       onClick={handleLoadMore}
                       className={`group cursor-pointer flex flex-col items-center justify-center gap-3 aspect-[2/3] w-full rounded-xl bg-zinc-900 border border-zinc-800/50 shadow-lg hover:bg-zinc-800 hover:border-zinc-500 transition-all duration-300 ${isLoadingMore ? 'pointer-events-none opacity-80' : ''}`}
                     >
@@ -654,9 +655,9 @@ export default function DiscoverPage() {
             {/* Explore by Genre Section */}
             {!urlQuery.trim() && (
               <div className="mt-10 mb-10 space-y-10">
-                
+
                 {/* Genres */}
-                <Carousel 
+                <Carousel
                   title={
                     <h3 className="text-xl font-bold text-white flex items-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -667,25 +668,25 @@ export default function DiscoverPage() {
                   }
                 >
                   <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
-                  {genreNames.map(name => (
-                    <button 
-                      key={name}
-                      onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
-                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow transition-all duration-300 border border-zinc-800/80"
-                    >
-                      {genreImages[name] && (
-                        <img 
-                          src={genreImages[name]} 
-                          alt={name}
-                          className="absolute inset-0 w-full h-full object-cover opacity-60 transition-all duration-500"
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-80 transition-opacity duration-300" />
-                      <span className="relative z-10 font-bold text-[13px] sm:text-sm tracking-wide text-zinc-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] transition-transform duration-300">
-                        {name}
-                      </span>
-                    </button>
-                  ))}
+                    {genreNames.map(name => (
+                      <button
+                        key={name}
+                        onClick={() => router.push(`/discover/genre/${encodeURIComponent(name)}`)}
+                        className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow transition-all duration-300 border border-zinc-800/80"
+                      >
+                        {genreImages[name] && (
+                          <img
+                            src={genreImages[name]}
+                            alt={name}
+                            className="absolute inset-0 w-full h-full object-cover opacity-60 transition-all duration-500"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-80 transition-opacity duration-300" />
+                        <span className="relative z-10 font-bold text-[13px] sm:text-sm tracking-wide text-zinc-100 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] transition-transform duration-300">
+                          {name}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </Carousel>
 
@@ -701,25 +702,25 @@ export default function DiscoverPage() {
                   }
                 >
                   <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
-                  {franchises.map(franchise => (
-                    <button 
-                      key={franchise.name}
-                      onClick={() => router.push(`/discover/franchise/${franchise.type}/${franchise.id}/${encodeURIComponent(franchise.name)}`)}
-                      className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg transition-all duration-300 border border-zinc-800/80"
-                    >
-                      {genreImages[franchise.name] && (
-                        <img 
-                          src={genreImages[franchise.name]} 
-                          alt={franchise.name}
-                          className="absolute inset-0 w-full h-full object-cover opacity-70 transition-all duration-700"
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-black/30 transition-colors duration-300" />
-                      <span className="relative z-10 font-black text-[13px] sm:text-[15px] tracking-wide uppercase text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] transition-transform duration-300">
-                        {franchise.name}
-                      </span>
-                    </button>
-                  ))}
+                    {franchises.map(franchise => (
+                      <button
+                        key={franchise.name}
+                        onClick={() => router.push(`/discover/franchise/${franchise.type}/${franchise.id}/${encodeURIComponent(franchise.name)}`)}
+                        className="cursor-pointer flex-shrink-0 snap-start w-32 sm:w-40 relative h-16 sm:h-20 rounded-2xl bg-zinc-900 overflow-hidden flex items-center justify-center shadow-lg transition-all duration-300 border border-zinc-800/80"
+                      >
+                        {genreImages[franchise.name] && (
+                          <img
+                            src={genreImages[franchise.name]}
+                            alt={franchise.name}
+                            className="absolute inset-0 w-full h-full object-cover opacity-70 transition-all duration-700"
+                          />
+                        )}
+                        <div className="absolute inset-0 bg-black/30 transition-colors duration-300" />
+                        <span className="relative z-10 font-black text-[13px] sm:text-[15px] tracking-wide uppercase text-white drop-shadow-[0_4px_8px_rgba(0,0,0,0.8)] transition-transform duration-300">
+                          {franchise.name}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </Carousel>
 
@@ -734,49 +735,49 @@ export default function DiscoverPage() {
                   }
                 >
                   <div className="contents [&:has(button:hover)_button:not(:hover)]:opacity-40 transition-all">
-                  {topStudios.map(studio => {
-                    const invertLogos = [
-                      "20th Century Studios",
-                      "A24", 
-                      "Castle Rock Entertainment", 
-                      "Columbia Pictures",
-                      "DreamWorks Pictures",
-                      "Focus Features", 
-                      "Lucasfilm Ltd.", 
-                      "New Line Cinema", 
-                      "Paramount Pictures",
-                      "Pixar", 
-                      "Searchlight Pictures",
-                      "Sony Pictures", 
-                      "Studio Ghibli",
-                      "TriStar Pictures",
-                      "Walt Disney Pictures"
-                    ];
-                    const shouldInvert = invertLogos.includes(studio.name);
-                    
-                    return (
-                      <button 
-                        key={studio.name}
-                        onClick={() => router.push(`/discover/studio/${studio.id}/${encodeURIComponent(studio.name)}`)}
-                        className="cursor-pointer flex-shrink-0 snap-start relative flex items-center justify-center w-32 sm:w-40 h-16 sm:h-20 rounded-xl bg-gradient-to-br from-zinc-800/80 to-zinc-950 border border-zinc-700/50 transition-all duration-500 shadow-xl overflow-hidden"
-                        aria-label={studio.name}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity duration-500" />
-                        
-                        {studioLogos[studio.name] === 'error' ? (
-                          <span className="font-bold text-xl text-zinc-500">{studio.name.charAt(0)}</span>
-                        ) : studioLogos[studio.name] ? (
-                          <img 
-                            src={studioLogos[studio.name]} 
-                            alt={studio.name}
-                            className={`relative z-10 w-[75%] h-[65%] object-contain drop-shadow-lg ${shouldInvert ? 'brightness-0 invert' : ''}`}
-                          />
-                        ) : (
-                          <div className="w-5 h-5 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin opacity-50" />
-                        )}
-                      </button>
-                    );
-                  })}
+                    {topStudios.map(studio => {
+                      const invertLogos = [
+                        "20th Century Studios",
+                        "A24",
+                        "Castle Rock Entertainment",
+                        "Columbia Pictures",
+                        "DreamWorks Pictures",
+                        "Focus Features",
+                        "Lucasfilm Ltd.",
+                        "New Line Cinema",
+                        "Paramount Pictures",
+                        "Pixar",
+                        "Searchlight Pictures",
+                        "Sony Pictures",
+                        "Studio Ghibli",
+                        "TriStar Pictures",
+                        "Walt Disney Pictures"
+                      ];
+                      const shouldInvert = invertLogos.includes(studio.name);
+
+                      return (
+                        <button
+                          key={studio.name}
+                          onClick={() => router.push(`/discover/studio/${studio.id}/${encodeURIComponent(studio.name)}`)}
+                          className="cursor-pointer flex-shrink-0 snap-start relative flex items-center justify-center w-32 sm:w-40 h-16 sm:h-20 rounded-xl bg-gradient-to-br from-zinc-800/80 to-zinc-950 border border-zinc-700/50 transition-all duration-500 shadow-xl overflow-hidden"
+                          aria-label={studio.name}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 transition-opacity duration-500" />
+
+                          {studioLogos[studio.name] === 'error' ? (
+                            <span className="font-bold text-xl text-zinc-500">{studio.name.charAt(0)}</span>
+                          ) : studioLogos[studio.name] ? (
+                            <img
+                              src={studioLogos[studio.name]}
+                              alt={studio.name}
+                              className={`relative z-10 w-[75%] h-[65%] object-contain drop-shadow-lg ${shouldInvert ? 'brightness-0 invert' : ''}`}
+                            />
+                          ) : (
+                            <div className="w-5 h-5 rounded-full border-2 border-zinc-600 border-t-zinc-300 animate-spin opacity-50" />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </Carousel>
 
