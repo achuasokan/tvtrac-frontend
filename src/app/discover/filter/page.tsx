@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { useRouter } from "next/navigation";
+import { DualRangeSlider } from "@/components/ui/DualRangeSlider";
 import { tmdbService } from "@/services/tmdb.service";
 import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { setUser } from "@/store/slices/authSlice";
@@ -160,6 +161,113 @@ function FilterDropdown({
   );
 }
 
+// Custom filter dropdown for Range Sliders
+function FilterSliderDropdown({ 
+  label,
+  icon,
+  isActive,
+  children
+}: { 
+  label: string; 
+  icon: React.ReactNode;
+  isActive: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        btnRef.current && !btnRef.current.contains(e.target as Node) &&
+        menuRef.current && !menuRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const handleScroll = (e: Event) => {
+      if (menuRef.current && (e.target === menuRef.current || menuRef.current.contains(e.target as Node))) return;
+      setOpen(false);
+    };
+
+    const handleResize = () => setOpen(false);
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      window.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", handleResize);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const menuWidth = Math.max(rect.width, 260); // Match w-64 so slider fits well
+      let left = rect.left;
+      if (left + menuWidth > window.innerWidth - 8) {
+        left = window.innerWidth - menuWidth - 8;
+      }
+      if (left < 8) left = 8;
+      setMenuPos({ top: rect.bottom + 6, left, width: menuWidth });
+    }
+  }, [open]);
+
+  return (
+    <div className="relative w-full">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(!open)}
+        title={label}
+        className={`group w-full flex items-center justify-between gap-2 px-3 py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs transition-all duration-200 border outline-none focus:outline-none focus:ring-0 cursor-pointer active:scale-[0.98] ${
+          isActive
+            ? "bg-zinc-900/90 border-[#2dd4bf]/70 shadow-[0_0_15px_rgba(45,212,191,0.2)] text-white ring-1 ring-[#2dd4bf]/30 font-bold"
+            : "bg-zinc-950/70 border-zinc-800/90 text-zinc-400 hover:text-white hover:bg-zinc-900/70 hover:border-zinc-700 font-semibold"
+        }`}
+      >
+        <div className="flex items-center gap-2 min-w-0 truncate">
+          <span className={`flex-shrink-0 transition-colors ${isActive ? "text-[#2dd4bf]" : "text-zinc-500 group-hover:text-zinc-300"}`}>
+            {icon}
+          </span>
+          <span className="truncate">{label}</span>
+        </div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${
+            open ? "rotate-180 text-[#2dd4bf]" : isActive ? "text-[#2dd4bf]" : "text-zinc-500 group-hover:text-zinc-300"
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <div
+            ref={menuRef}
+            className="fixed bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_12px_40px_rgba(0,0,0,0.9)] p-4 z-[9999] animate-in fade-in zoom-in-95 duration-150"
+            style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+          >
+            {children}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdvancedFilterPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
@@ -173,7 +281,21 @@ export default function AdvancedFilterPage() {
   };
 
   const [type, setType] = useState<"tv" | "movie">(getParam("type", "tv") as "tv" | "movie");
-  const [year, setYear] = useState<string>(getParam("year"));
+  
+  const currentYear = new Date().getFullYear();
+  const initialYearFrom = parseInt(getParam("yearFrom", "1900"));
+  const initialYearTo = parseInt(getParam("yearTo", currentYear.toString()));
+  
+  const [yearRange, setYearRange] = useState<[number, number]>([initialYearFrom, initialYearTo]);
+  const [debouncedYearRange, setDebouncedYearRange] = useState<[number, number]>([initialYearFrom, initialYearTo]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedYearRange(yearRange);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [yearRange]);
+
   const [genre, setGenre] = useState<string>(getParam("genre"));
   const [language, setLanguage] = useState<string>(getParam("language"));
   const [provider, setProvider] = useState<string>(getParam("provider"));
@@ -212,7 +334,7 @@ export default function AdvancedFilterPage() {
     isError,
     refetch
   } = useInfiniteQuery({
-    queryKey: ['filter-results', type, year, genre, language, provider, status, minRating, debouncedQuery],
+    queryKey: ['filter-results', type, debouncedYearRange[0], debouncedYearRange[1], genre, language, provider, status, minRating, debouncedQuery],
     queryFn: async ({ pageParam = 1 }) => {
       let response;
       
@@ -230,9 +352,14 @@ export default function AdvancedFilterPage() {
           params["vote_count.gte"] = "10";
         }
 
-        if (year) {
-          if (type === "tv") params["first_air_date_year"] = year;
-          else params["primary_release_year"] = year;
+        if (debouncedYearRange[0] > 1900 || debouncedYearRange[1] < currentYear) {
+          if (type === "tv") {
+            params["first_air_date.gte"] = `${debouncedYearRange[0]}-01-01`;
+            params["first_air_date.lte"] = `${debouncedYearRange[1]}-12-31`;
+          } else {
+            params["primary_release_date.gte"] = `${debouncedYearRange[0]}-01-01`;
+            params["primary_release_date.lte"] = `${debouncedYearRange[1]}-12-31`;
+          }
         }
         if (genre) params["with_genres"] = genre;
         if (language) params["with_original_language"] = language;
@@ -314,7 +441,8 @@ export default function AdvancedFilterPage() {
     
     const params = new URLSearchParams();
     if (type !== "tv") params.set("type", type);
-    if (year) params.set("year", year);
+    if (debouncedYearRange[0] > 1900) params.set("yearFrom", debouncedYearRange[0].toString());
+    if (debouncedYearRange[1] < currentYear) params.set("yearTo", debouncedYearRange[1].toString());
     if (genre) params.set("genre", genre);
     if (language) params.set("language", language);
     if (provider) params.set("provider", provider);
@@ -325,10 +453,9 @@ export default function AdvancedFilterPage() {
     if (window.location.search !== queryString) {
       window.history.replaceState(null, "", `${window.location.pathname}${queryString}`);
     }
-  }, [type, year, genre, language, provider, status, minRating]);
+  }, [type, debouncedYearRange, genre, language, provider, status, minRating]);
 
   // Dropdown Options
-  const years = Array.from({ length: 40 }, (_, i) => new Date().getFullYear() - i);
   const platforms = [
     { id: "8", name: "Netflix" },
     { id: "9", name: "Amazon Prime" },
@@ -422,11 +549,6 @@ export default function AdvancedFilterPage() {
     ...genres.map(g => ({ value: g.id, label: g.name }))
   ], [genres]);
 
-  const yearOptions = useMemo(() => [
-    { value: "", label: "Any Year" },
-    ...years.map(y => ({ value: y.toString(), label: y.toString() }))
-  ], [years]);
-
   const statusOptions = useMemo(() => [
     { value: "", label: "Any Status" },
     ...tvStatuses.map(s => ({ value: s.id, label: s.name }))
@@ -449,7 +571,10 @@ export default function AdvancedFilterPage() {
     );
   }
 
-  const activeFilterCount = [year, genre, language, provider, status, minRating !== "0" ? minRating : ""].filter(Boolean).length;
+  const activeFilterCount = [
+    (debouncedYearRange[0] > 1900 || debouncedYearRange[1] < currentYear) ? "year" : "",
+    genre, language, provider, status, minRating !== "0" ? minRating : ""
+  ].filter(Boolean).length;
 
   return (
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white font-sans pb-24">
@@ -614,17 +739,33 @@ export default function AdvancedFilterPage() {
                   }
                 />
 
-                {/* Year Filter */}
-                <FilterDropdown
-                  value={year}
-                  onChange={setYear}
-                  options={yearOptions}
+                {/* Year Range Slider */}
+                <FilterSliderDropdown
+                  label={yearRange[0] === 1900 && yearRange[1] === currentYear 
+                    ? "Any Era" 
+                    : `${yearRange[0]} - ${yearRange[1]}`}
+                  isActive={yearRange[0] > 1900 || yearRange[1] < currentYear}
                   icon={
                     <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                   }
-                />
+                >
+                  <div className="w-full px-1 py-2">
+                    <div className="flex items-center gap-2 mb-4">
+                      <svg className="h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs font-semibold text-zinc-300">Release Era</span>
+                    </div>
+                    <DualRangeSlider
+                      min={1900}
+                      max={currentYear}
+                      value={yearRange}
+                      onChange={setYearRange}
+                    />
+                  </div>
+                </FilterSliderDropdown>
 
                 {/* Status Filter (TV only) */}
                 {type === "tv" && (
@@ -663,7 +804,7 @@ export default function AdvancedFilterPage() {
                       </span>
                     </div>
                     <button 
-                      onClick={() => { setYear(''); setGenre(''); setLanguage(''); setProvider(''); setStatus(''); setMinRating('0'); }}
+                      onClick={() => { setYearRange([1900, currentYear]); setGenre(''); setLanguage(''); setProvider(''); setStatus(''); setMinRating('0'); }}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-300 py-1.5 px-3 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 hover:border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.12)] active:scale-95 transition-all cursor-pointer"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
