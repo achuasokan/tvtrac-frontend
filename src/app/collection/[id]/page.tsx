@@ -84,11 +84,12 @@ export default function CollectionPage() {
       <div className={`fixed top-0 left-0 right-0 z-50 transition-colors duration-300 ${isScrolled ? 'bg-[#050505]/95 backdrop-blur-md' : 'bg-transparent'}`}>
         <div className="h-16 md:h-20 px-4 sm:px-6 flex items-center justify-between">
           <button 
+            type="button"
             onClick={() => router.back()}
-            className="w-10 h-10 rounded-full bg-black/50 hover:bg-black/80 transition-colors flex items-center justify-center"
-            style={{ border: 'none', outline: 'none' }}
+            aria-label="Back"
+            className="group w-10 h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
           >
-            <ArrowLeft className="w-5 h-5 text-white" />
+            <ArrowLeft className="w-5 h-5 text-zinc-400 group-hover:text-white group-hover:-translate-x-0.5 transition-transform duration-200" />
           </button>
           
           <h2 className={`text-sm sm:text-base font-bold tracking-widest uppercase text-white transition-opacity duration-300 ${isScrolled ? 'opacity-100' : 'opacity-0'}`}>

@@ -434,10 +434,10 @@ export default function ListDetailsPage() {
   const renderOptionsMenu = () => (
     <>
       <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)}></div>
-      <div className="absolute right-0 top-full mt-2 w-max min-w-[160px] bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+      <div className="absolute right-0 top-full mt-2 w-max min-w-[160px] bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_12px_40px_rgba(0,0,0,0.9)] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
         <button 
           onClick={() => { setIsEditModalOpen(true); setIsMenuOpen(false); }} 
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-white/10 transition-colors text-zinc-300 whitespace-nowrap"
+          className="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left text-zinc-300 hover:bg-zinc-900 hover:text-white transition-colors cursor-pointer font-medium whitespace-nowrap"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -446,7 +446,7 @@ export default function ListDetailsPage() {
         </button>
         <button 
           onClick={handleStartReorder}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-white/10 transition-colors text-zinc-300 whitespace-nowrap"
+          className="w-full flex items-center gap-3 px-3 py-1.5 text-xs text-left text-zinc-300 hover:bg-zinc-900 hover:text-white transition-colors cursor-pointer font-medium whitespace-nowrap"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -455,7 +455,7 @@ export default function ListDetailsPage() {
         </button>
         <button 
           onClick={() => { setIsEditing(true); setIsMenuOpen(false); }} 
-          className="w-full sm:hidden flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-white/10 transition-colors text-red-500 font-medium mt-1 whitespace-nowrap"
+          className="w-full sm:hidden flex items-center gap-3 px-3 py-1.5 text-xs text-left text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-colors cursor-pointer font-medium mt-1 whitespace-nowrap"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-70 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -476,11 +476,13 @@ export default function ListDetailsPage() {
       <div className={`fixed top-0 left-0 right-0 z-50 bg-[#050505]/95 backdrop-blur-md border-b border-white/10 shadow-lg transition-all duration-300 flex items-center justify-between h-16 px-4 max-w-7xl mx-auto ${isScrolled ? 'opacity-100 pointer-events-auto translate-y-0' : 'opacity-0 pointer-events-none -translate-y-4'}`}>
         <div className="flex items-center gap-3">
           <button 
+            type="button"
             onClick={() => router.push('/lists')}
-            className="text-zinc-400 hover:text-white transition-colors p-1"
+            aria-label="Back to Lists"
+            className="group flex items-center justify-center w-9 h-9 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <h1 className="text-lg font-bold text-white truncate max-w-[200px] sm:max-w-xs">{displayTitle}</h1>
@@ -491,7 +493,7 @@ export default function ListDetailsPage() {
             <button
               onClick={handleCloneList}
               disabled={isCloning}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-black font-bold rounded-lg text-xs hover:bg-zinc-200 transition-colors shadow-lg disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-white text-black font-bold rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs hover:bg-zinc-200 transition-all shadow-lg disabled:opacity-50 cursor-pointer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -500,82 +502,160 @@ export default function ListDetailsPage() {
             </button>
           )
         ) : (
-          <button
-            onClick={() => setIsSearchModalOpen(true)}
-            className="p-2 bg-white text-black rounded-full hover:bg-zinc-200 transition-colors shadow-lg"
-            title="Add Movie / Show"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-          </button>
-        )}
-      </div>
-
-      {/* Main Expanded Header */}
-      <div className="pt-4 pb-0 px-4 max-w-7xl mx-auto relative">
-        {!isCurated && (
-          <div className="absolute top-4 right-4 z-10 flex gap-2">
+          <div className="flex items-center gap-2">
             {isReordering ? (
               <>
                 <button
                   onClick={() => setIsReordering(false)}
-                  className="px-4 py-1.5 rounded-full font-bold text-[11px] sm:text-xs bg-zinc-800 text-white shadow-lg tracking-wide uppercase hover:bg-zinc-700 transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-bold text-xs tracking-wider uppercase bg-zinc-900/90 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 shadow-lg active:scale-95 transition-all cursor-pointer backdrop-blur-md"
                 >
-                  Cancel
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>Cancel</span>
                 </button>
                 <button
                   onClick={handleSaveOrder}
-                  className="px-4 py-1.5 rounded-full font-bold text-[11px] sm:text-xs bg-blue-600 text-white shadow-lg tracking-wide uppercase hover:bg-blue-700 transition-colors"
+                  className="group flex items-center gap-1.5 px-4 sm:px-5 py-1.5 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-black text-xs sm:text-sm tracking-wide bg-gradient-to-r from-[#d98a59] via-[#fed7b8] to-[#d98a59] text-black shadow-[0_0_20px_rgba(217,138,89,0.4)] hover:shadow-[0_0_28px_rgba(217,138,89,0.65)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-white/25"
                 >
-                  Save Order
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 stroke-[2.5] text-black group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Save Order</span>
                 </button>
               </>
             ) : isEditing ? (
               <>
                 <button
                   onClick={() => { setIsEditing(false); setSelectedItems(new Set()); }}
-                  className="px-4 py-1.5 rounded-full font-bold text-[11px] sm:text-xs bg-zinc-800 text-white shadow-lg tracking-wide uppercase hover:bg-zinc-700 transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-bold text-xs tracking-wider uppercase bg-zinc-900/90 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 shadow-lg active:scale-95 transition-all cursor-pointer backdrop-blur-md"
                 >
-                  Cancel
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span>Cancel</span>
                 </button>
                 {selectedItems.size > 0 && (
                   <button
                     onClick={handleBulkDelete}
-                    className="px-4 py-1.5 rounded-full font-bold text-[11px] sm:text-xs bg-red-600 text-white shadow-lg tracking-wide uppercase hover:bg-red-700 transition-colors"
+                    className="flex items-center gap-1.5 px-4 sm:px-5 py-1.5 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-black text-xs sm:text-sm tracking-wide bg-gradient-to-r from-red-600 via-rose-500 to-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:shadow-[0_0_28px_rgba(239,68,68,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-red-400/30"
                   >
-                    Delete ({selectedItems.size})
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    <span>Delete ({selectedItems.size})</span>
                   </button>
                 )}
               </>
             ) : (
-              <div className="relative">
+              <>
                 <button
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
-                  className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-900 border border-zinc-800 text-white shadow-lg hover:bg-zinc-800 transition-colors"
-                  title="List Options"
+                  onClick={() => setIsSearchModalOpen(true)}
+                  className="p-2 bg-white text-black rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm hover:bg-zinc-200 transition-all shadow-lg cursor-pointer"
+                  title="Add Movie / Show"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                   </svg>
                 </button>
-                {isMenuOpen && renderOptionsMenu()}
-              </div>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-zinc-900 border border-zinc-800 text-white shadow-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+                    title="List Options"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                    </svg>
+                  </button>
+                  {isMenuOpen && renderOptionsMenu()}
+                </div>
+              </>
             )}
           </div>
         )}
+      </div>
 
+      {/* Main Expanded Header */}
+      <div className="pt-4 pb-0 px-4 max-w-7xl mx-auto">
         <button 
+          type="button"
           onClick={() => router.push('/lists')}
-          className="flex items-center justify-center w-8 h-8 bg-zinc-900/50 hover:bg-zinc-800 text-zinc-400 hover:text-white rounded-full transition-colors mb-2"
-          title="Back to Lists"
+          aria-label="Back to Lists"
+          className="group flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0 mb-3"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
         
-        <h1 className="text-3xl sm:text-4xl font-extrabold text-white mb-1 tracking-tight">{displayTitle}</h1>
+        {/* Title and Header Actions Row */}
+        <div className="flex items-center justify-between gap-3 sm:gap-4 mb-2 flex-wrap sm:flex-nowrap">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">{displayTitle}</h1>
+
+          {!isCurated && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isReordering ? (
+                <>
+                  <button
+                    onClick={() => setIsReordering(false)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-bold text-xs tracking-wider uppercase bg-zinc-900/90 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 shadow-lg active:scale-95 transition-all cursor-pointer backdrop-blur-md"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Cancel</span>
+                  </button>
+                  <button
+                    onClick={handleSaveOrder}
+                    className="group flex items-center gap-1.5 px-4 sm:px-5 py-1.5 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-black text-xs sm:text-sm tracking-wide bg-gradient-to-r from-[#d98a59] via-[#fed7b8] to-[#d98a59] text-black shadow-[0_0_20px_rgba(217,138,89,0.4)] hover:shadow-[0_0_28px_rgba(217,138,89,0.65)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-white/25"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 stroke-[2.5] text-black group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Save Order</span>
+                  </button>
+                </>
+              ) : isEditing ? (
+                <>
+                  <button
+                    onClick={() => { setIsEditing(false); setSelectedItems(new Set()); }}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-bold text-xs tracking-wider uppercase bg-zinc-900/90 text-zinc-300 hover:text-white hover:bg-zinc-800 border border-zinc-700/80 hover:border-zinc-500 shadow-lg active:scale-95 transition-all cursor-pointer backdrop-blur-md"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span>Cancel</span>
+                  </button>
+                  {selectedItems.size > 0 && (
+                    <button
+                      onClick={handleBulkDelete}
+                      className="flex items-center gap-1.5 px-4 sm:px-5 py-1.5 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-black text-xs sm:text-sm tracking-wide bg-gradient-to-r from-red-600 via-rose-500 to-red-600 text-white shadow-[0_0_20px_rgba(239,68,68,0.4)] hover:shadow-[0_0_28px_rgba(239,68,68,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer border border-red-400/30"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      <span>Delete ({selectedItems.size})</span>
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="relative">
+                  <button
+                    onClick={() => setIsMenuOpen(!isMenuOpen)}
+                    className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-900 border border-zinc-800 text-white shadow-lg hover:bg-zinc-800 transition-colors"
+                    title="List Options"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+                    </svg>
+                  </button>
+                  {isMenuOpen && renderOptionsMenu()}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         
         {isCurated ? (
           <div className="text-zinc-400 text-sm font-medium mb-4 tracking-wide">
@@ -590,15 +670,15 @@ export default function ListDetailsPage() {
           
           <div className="flex items-center gap-2 w-full sm:w-auto flex-1 max-w-md">
             {/* Search within list */}
-            <div className="relative w-full">
+            <div className="group relative w-full">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search in this list..."
-                className="w-full bg-zinc-900/80 border border-zinc-800 rounded-xl px-4 py-2 pl-10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+                className="w-full bg-zinc-950/80 border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm px-4 py-2 pl-10 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#2dd4bf]/70 focus:shadow-[0_0_20px_rgba(45,212,191,0.25)] transition-all"
               />
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-500 absolute left-3.5 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-zinc-500 group-focus-within:text-[#2dd4bf] absolute left-3.5 top-3 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               {searchQuery && (
@@ -616,7 +696,7 @@ export default function ListDetailsPage() {
                 <button
                   onClick={handleCloneList}
                   disabled={isCloning}
-                  className="flex items-center justify-center gap-2 bg-white text-black px-4 py-2 rounded-xl font-bold text-sm hover:bg-zinc-200 transition-colors shadow-lg whitespace-nowrap disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 bg-white text-black px-4 py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-bold text-sm hover:bg-zinc-200 transition-all shadow-lg whitespace-nowrap disabled:opacity-50 cursor-pointer"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -626,10 +706,10 @@ export default function ListDetailsPage() {
               )
             ) : (
               <>
-                {!isClonedCopy && (
+                {!isClonedCopy && !isReordering && (
                   <button
                     onClick={() => setIsSearchModalOpen(true)}
-                    className="flex items-center justify-center gap-2 bg-white text-black px-4 py-2 rounded-xl font-bold text-sm hover:bg-zinc-200 transition-colors shadow-lg whitespace-nowrap"
+                    className="flex items-center justify-center gap-2 bg-white text-black px-4 py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-bold text-sm hover:bg-zinc-200 transition-all shadow-lg active:scale-95 whitespace-nowrap cursor-pointer"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
@@ -649,38 +729,47 @@ export default function ListDetailsPage() {
               {filteredAndSortedItems.length} items
             </div>
             
-            {/* Custom Sort Dropdown */}
-            <div className="relative flex-1 sm:flex-none flex">
-              <button 
-                onClick={() => setIsSortOpen(!isSortOpen)}
-                className="flex items-center justify-between sm:justify-start w-full gap-2 bg-transparent text-zinc-300 text-sm px-3 sm:px-4 py-2 hover:text-white transition-colors outline-none h-full"
-              >
-                <span className="truncate max-w-[120px] sm:max-w-none text-left">
-                  {sortBy === "default" ? "Default Order" : 
-                   sortBy === "rating_desc" ? "Highest Rating" :
-                   sortBy === "rating_asc" ? "Lowest Rating" :
-                   sortBy === "first_added" ? "First Added" : 
-                   sortBy === "last_added" ? "Latest Added" : 
-                   sortBy === "az" ? "A-Z" : "Z-A"}
-                </span>
-                <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform flex-shrink-0 ${isSortOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+            {/* Custom Sort Dropdown or Reordering Indicator */}
+            {isReordering ? (
+              <div className="flex items-center gap-1.5 px-3 sm:px-4 py-2 text-amber-400/90 text-xs font-semibold tracking-wide whitespace-nowrap">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 animate-pulse text-[#d98a59]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
                 </svg>
-              </button>
+                <span>Drag cards to reorder</span>
+              </div>
+            ) : (
+              <div className="relative flex-1 sm:flex-none flex">
+                <button 
+                  onClick={() => setIsSortOpen(!isSortOpen)}
+                  className="flex items-center justify-between sm:justify-start w-full gap-2 bg-transparent text-zinc-300 text-sm px-3 sm:px-4 py-2 hover:text-white transition-colors outline-none h-full"
+                >
+                  <span className="truncate max-w-[120px] sm:max-w-none text-left">
+                    {sortBy === "default" ? "Default Order" : 
+                     sortBy === "rating_desc" ? "Highest Rating" :
+                     sortBy === "rating_asc" ? "Lowest Rating" :
+                     sortBy === "first_added" ? "First Added" : 
+                     sortBy === "last_added" ? "Latest Added" : 
+                     sortBy === "az" ? "A-Z" : "Z-A"}
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 transition-transform flex-shrink-0 ${isSortOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </button>
 
-              {isSortOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsSortOpen(false)}></div>
-                  <div className="absolute right-0 left-0 sm:left-auto top-full mt-2 sm:w-56 bg-[#0a0a0a] border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-                    <button onClick={() => { setSortBy("default"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "default" ? "text-white font-bold" : "text-zinc-400"}`}>Default Order</button>
-                    <button onClick={() => { setSortBy("rating_desc"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "rating_desc" ? "text-white font-bold" : "text-zinc-400"}`}>Highest Rating</button>
-                    <button onClick={() => { setSortBy("rating_asc"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "rating_asc" ? "text-white font-bold" : "text-zinc-400"}`}>Lowest Rating</button>
-                    <button onClick={() => { setSortBy("az"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "az" ? "text-white font-bold" : "text-zinc-400"}`}>Alphabetical (A-Z)</button>
-                    <button onClick={() => { setSortBy("za"); setIsSortOpen(false); }} className={`block w-full text-left px-4 py-2 text-sm hover:bg-white/10 transition-colors ${sortBy === "za" ? "text-white font-bold" : "text-zinc-400"}`}>Alphabetical (Z-A)</button>
-                  </div>
-                </>
-              )}
-            </div>
+                {isSortOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsSortOpen(false)}></div>
+                    <div className="absolute right-0 left-0 sm:left-auto top-full mt-2 sm:w-56 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_12px_40px_rgba(0,0,0,0.9)] py-1 z-50 animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                      <button onClick={() => { setSortBy("default"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "default" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Default Order</button>
+                      <button onClick={() => { setSortBy("rating_desc"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "rating_desc" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Highest Rating</button>
+                      <button onClick={() => { setSortBy("rating_asc"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "rating_asc" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Lowest Rating</button>
+                      <button onClick={() => { setSortBy("az"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "az" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Alphabetical (A-Z)</button>
+                      <button onClick={() => { setSortBy("za"); setIsSortOpen(false); }} className={`block w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${sortBy === "za" ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold" : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"}`}>Alphabetical (Z-A)</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

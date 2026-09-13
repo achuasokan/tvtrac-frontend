@@ -1,9 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #000; /* Slate 950 */
-  --foreground: #f8fafc; /* Slate 50 */
-  --accent: #38bdf8; /* Light blue accent */
+  --background: #000;
+  /* Slate 950 */
+  --foreground: #f8fafc;
+  /* Slate 50 */
+  --accent: #38bdf8;
+  /* Light blue accent */
   --accent-glow: rgba(56, 189, 248, 0.15);
 }
 
@@ -46,8 +49,15 @@ next-route-announcer {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 0.7; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 0.7;
+    transform: scale(1);
+  }
 }
 
 .animate-fade-in {
@@ -60,6 +70,7 @@ next-route-announcer {
     opacity: 0;
     transform: translateY(15px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -71,6 +82,7 @@ next-route-announcer {
     opacity: 0;
     transform: translateY(12px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -90,13 +102,16 @@ next-route-announcer {
 
 .hide-scrollbar,
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
 @utility no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+
   &::-webkit-scrollbar {
     display: none;
   }
@@ -105,7 +120,18 @@ next-route-announcer {
 @utility hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+
   &::-webkit-scrollbar {
     display: none;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
   }
 }

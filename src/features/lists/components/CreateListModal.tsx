@@ -149,17 +149,17 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
                   type="button"
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="cursor-pointer flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all disabled:opacity-50"
+                  className="cursor-pointer flex-1 px-4 py-2.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-sm font-bold text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95 disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !name.trim()}
-                  className="cursor-pointer flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white hover:bg-zinc-100 text-black shadow-lg transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+                  className="cursor-pointer flex-1 px-4 py-2.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-sm font-bold bg-white hover:bg-zinc-100 text-black shadow-lg transition-all active:scale-95 disabled:opacity-40 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? (
-                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
                   ) : (
                     editList ? "Save Changes" : "Create List"
                   )}

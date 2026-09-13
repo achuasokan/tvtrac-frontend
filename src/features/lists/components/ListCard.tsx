@@ -123,7 +123,7 @@ export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
 
           {isMenuOpen && (
             <div className="absolute top-full right-0 pt-2 w-36 z-50">
-              <div className="bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150">
+              <div className="bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_12px_40px_rgba(0,0,0,0.9)] overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150">
                 {onEdit && (
                   <button 
                     onClick={(e) => {
@@ -132,7 +132,7 @@ export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
                       setIsMenuOpen(false);
                       onEdit(list);
                     }}
-                    className="cursor-pointer w-full text-left px-4 py-2 text-sm text-zinc-300 hover:text-white hover:bg-zinc-800 transition-colors font-medium"
+                    className="cursor-pointer w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-900 hover:text-white transition-colors font-medium"
                   >
                     Edit Details
                   </button>
@@ -145,7 +145,7 @@ export function ListCard({ list, onDelete, onEdit }: ListCardProps) {
                       setIsMenuOpen(false);
                       if (onDelete) onDelete(list.id);
                     }}
-                    className="cursor-pointer w-full text-left px-4 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors font-medium"
+                    className="cursor-pointer w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-colors font-medium"
                   >
                     Delete List
                   </button>

@@ -7,9 +7,18 @@ import { RootState } from "@/store";
 import { api } from "@/lib/api";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { EpisodeDiscussionSection } from "@/features/discussions/components/EpisodeDiscussionSection";
-import { PostWatchReactionDrawer } from "@/features/discussions/components/PostWatchReactionDrawer";
 import { CastMember } from "@/features/discussions/types/discussion.types";
+import dynamic from "next/dynamic";
+import { extractDominantColor } from "@/utils/colorExtractor";
+
+const EpisodeDiscussionSection = dynamic(() => import("@/features/discussions/components/EpisodeDiscussionSection").then(mod => mod.EpisodeDiscussionSection), {
+  ssr: false,
+  loading: () => <div className="h-64 flex items-center justify-center text-zinc-500">Loading community...</div>
+});
+
+const PostWatchReactionDrawer = dynamic(() => import("@/features/discussions/components/PostWatchReactionDrawer").then(mod => mod.PostWatchReactionDrawer), {
+  ssr: false
+});
 
 const getProviderLink = (providerName: string, title: string, fallbackLink: string) => {
   const name = providerName.toLowerCase();
@@ -160,6 +169,16 @@ export default function EpisodeDetailsPage() {
       setDetails(queryData.details);
       setSeasonDetails(queryData.seasonDetails);
       setShowDetails(queryData.showDetails);
+      
+      // Async instantaneous color extraction
+      if (queryData.details?.still_path) {
+        const imgUrl = `https://image.tmdb.org/t/p/w92${queryData.details.still_path}`;
+        extractDominantColor(imgUrl).then(color => {
+          if (color) {
+            setDominantColor(color);
+          }
+        });
+      }
     }
   }, [queryData]);
 
@@ -301,9 +320,11 @@ export default function EpisodeDetailsPage() {
     }
   };
 
+  const [dominantColor, setDominantColor] = useState<string | null>(null);
+
   if (!user || isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#0A0A0C]">
         <div className="h-8 w-8 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
       </div>
     );
@@ -311,7 +332,7 @@ export default function EpisodeDetailsPage() {
 
   if (queryError) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#0A0A0C] text-white">
         <h1 className="text-2xl font-bold mb-4 text-red-500">Network Error</h1>
         <p className="text-zinc-400 mb-6">Failed to load episode details. Please try again.</p>
         <div className="flex gap-4">
@@ -328,7 +349,7 @@ export default function EpisodeDetailsPage() {
 
   if (!details) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#050505] text-white">
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-[#0A0A0C] text-white">
         <h1 className="text-2xl font-bold mb-4">Episode Not Found</h1>
         <Link href={`/title/tv/${id}`} className="px-6 py-2 bg-white text-black font-bold rounded hover:bg-zinc-200 transition-colors">
           Back to Series
@@ -375,13 +396,28 @@ export default function EpisodeDetailsPage() {
   const nextEpisodeData = hasNext ? seasonDetails?.episodes?.find((ep: any) => ep.episode_number === currentEpNum + 1) : null;
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex flex-col relative overflow-x-hidden pb-12">
+    <div className="min-h-screen bg-[#0A0A0C] text-white flex flex-col relative overflow-x-hidden pb-12">
       
+      {/* Aura Glow */}
+      {dominantColor && (
+        <div 
+          className="absolute top-[30vh] left-0 right-0 h-[80vh] pointer-events-none opacity-30 transition-opacity duration-1000 z-0"
+          style={{ 
+            background: `radial-gradient(100% 50% at 50% 50%, ${dominantColor} 0%, transparent 100%)`
+          }} 
+        />
+      )}
+
       {/* Sticky App Bar */}
-      <div className={`fixed top-0 left-0 right-0 z-50 pointer-events-none transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 border-b ${isScrolled ? 'bg-[#050505]/95 backdrop-blur-md border-white/10 shadow-lg' : 'bg-transparent border-transparent pt-4'}`}>
-        <button onClick={() => router.back()} className={`pointer-events-auto shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-colors cursor-pointer ${isScrolled ? 'hover:bg-white/10' : 'bg-black/50 backdrop-blur-md hover:bg-black/70 border border-white/10'}`}>
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+      <div className={`fixed top-0 left-0 right-0 z-50 pointer-events-none transition-all duration-300 flex items-center justify-between h-16 px-4 sm:px-6 ${isScrolled ? 'backdrop-blur-md shadow-lg' : 'bg-transparent pt-4'}`}>
+        <button 
+          type="button"
+          onClick={() => router.back()} 
+          aria-label="Back"
+          className="pointer-events-auto group shrink-0 w-10 h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
         </button>
         
@@ -398,19 +434,23 @@ export default function EpisodeDetailsPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="relative w-full h-[50vh] sm:h-[60vh]">
+      <div 
+        className="relative w-full h-[50vh] sm:h-[60vh]"
+        style={{
+          WebkitMaskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)',
+          maskImage: 'linear-gradient(to bottom, black 0%, black 50%, transparent 100%)'
+        }}
+      >
         {details.still_path ? (
           <img 
-            src={`https://image.tmdb.org/t/p/original${details.still_path}`} 
+            src={`https://image.tmdb.org/t/p/w1280${details.still_path}`} 
             alt={title} 
             className="w-full h-full object-cover"
           />
         ) : (
           <div className="w-full h-full bg-zinc-900" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#050505] via-transparent to-transparent opacity-80" />
-
+        
         {/* Floating Watched Button */}
         <div className="absolute inset-0 flex justify-center pointer-events-none z-30 px-4">
           <div className="relative w-full max-w-4xl h-full">

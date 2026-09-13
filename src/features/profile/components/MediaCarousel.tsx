@@ -113,20 +113,24 @@ export function MediaCarousel({ title, items, emptyMessage = "No items to displa
             {viewAllLink && (
                 <button 
                     onClick={() => router.push(viewAllLink)}
-                    className="text-xs font-semibold text-zinc-400 hover:text-white transition-colors mb-1 cursor-pointer"
+                    className="group flex items-center justify-center px-2 py-0.5 h-6 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-md text-[9px] font-bold uppercase tracking-wider text-zinc-400 hover:text-[#2dd4bf] hover:shadow-[0_0_15px_rgba(45,212,191,0.06)] active:scale-95 transition-all duration-200 cursor-pointer mb-1"
                 >
-                    View All &rsaquo;
+                    View All <span aria-hidden="true" className="ml-0.5 group-hover:translate-x-0.5 transition-transform duration-200">&rarr;</span>
                 </button>
             )}
         </div>
         {canScroll && (
-            <div className="hidden md:flex items-center bg-[#18181b] rounded-full border border-zinc-800/80 overflow-hidden shadow-sm">
-            <button onClick={() => scroll('left')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+            <div className="hidden md:flex items-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-md overflow-hidden shadow-[0_0_15px_rgba(45,212,191,0.06)] group/nav">
+            <button onClick={() => scroll('left')} className="cursor-pointer w-8 h-7 flex items-center justify-center text-zinc-400 hover:text-[#2dd4bf] active:scale-95 transition-all duration-200">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover/nav:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
-            <div className="w-px h-4 bg-zinc-700/50" />
-            <button onClick={() => scroll('right')} className="cursor-pointer w-9 h-7 hover:bg-zinc-800 flex items-center justify-center text-zinc-300 hover:text-white transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+            <div className="w-[1px] h-3.5 bg-zinc-800" />
+            <button onClick={() => scroll('right')} className="cursor-pointer w-8 h-7 flex items-center justify-center text-zinc-400 hover:text-[#2dd4bf] active:scale-95 transition-all duration-200">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 group-hover/nav:translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
             </button>
             </div>
         )}

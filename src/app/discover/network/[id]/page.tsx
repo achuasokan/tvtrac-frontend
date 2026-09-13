@@ -207,46 +207,97 @@ export default function DiscoverNetworkPage() {
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white pb-24 font-sans">
       
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-[#050505]/90 backdrop-blur-md pt-8 pb-4 px-4 border-b border-zinc-800">
-        <div className="w-full max-w-5xl mx-auto flex items-center gap-4">
-          <button onClick={() => router.back()} className="w-10 h-10 flex items-center justify-center rounded-full bg-zinc-900 hover:bg-zinc-800 transition-colors border border-zinc-800">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+      <div className="sticky top-0 z-40 bg-[#050505]/90 backdrop-blur-xl pt-5 sm:pt-6 pb-3 sm:pb-4 px-4 border-b border-zinc-800/80 shadow-[0_10px_30px_rgba(0,0,0,0.7)]">
+        {/* Ambient top glow line */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#2dd4bf]/25 to-transparent pointer-events-none" />
+
+        <div className="w-full max-w-5xl mx-auto flex items-center gap-3.5 sm:gap-4">
+          <button 
+            type="button"
+            onClick={() => router.back()} 
+            aria-label="Back"
+            className="group w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-white">
-              {networkName} Catalog
-            </h2>
-            <p className="text-xs text-zinc-500 mt-1">Discover the most popular content streaming on {networkName}.</p>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-baseline gap-2">
+              <span>{networkName}</span>
+              <span className="text-zinc-500 font-semibold text-base sm:text-lg">Catalog</span>
+            </h1>
+            <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1.5 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2dd4bf] animate-pulse" />
+              Discover the most popular content streaming on <span className="text-zinc-300 font-bold">{networkName}</span>
+            </p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="w-full max-w-5xl mx-auto mt-4">
-          <div className="flex overflow-x-auto gap-2 pb-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="w-full max-w-5xl mx-auto mt-4 sm:mt-5">
+          <div className="flex overflow-x-auto gap-2 sm:gap-2.5 pb-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {[
-              { id: "tv", label: "TV Shows" },
-              { id: "movies", label: "Movies" },
-              { id: "animation", label: "Animation" },
-              { id: "anime", label: "Anime" },
-            ].map(f => (
-              <button
-                key={f.id}
-                onClick={() => {
-                  if (filter !== f.id) {
-                    setFilter(f.id as any);
-                  }
-                }}
-                className={`px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap transition-colors ${
-                  filter === f.id 
-                    ? "bg-white text-black" 
-                    : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+              { 
+                id: "tv", 
+                label: "TV Shows",
+                icon: (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                )
+              },
+              { 
+                id: "movies", 
+                label: "Movies",
+                icon: (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                  </svg>
+                )
+              },
+              { 
+                id: "animation", 
+                label: "Animation",
+                icon: (
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                )
+              },
+              { 
+                id: "anime", 
+                label: "Anime",
+                icon: (
+                  <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" />
+                  </svg>
+                )
+              },
+            ].map(f => {
+              const isActive = filter === f.id;
+              return (
+                <button
+                  type="button"
+                  key={f.id}
+                  onClick={() => {
+                    if (filter !== f.id) {
+                      setFilter(f.id as any);
+                    }
+                  }}
+                  className={`group inline-flex items-center gap-1.5 px-4 py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs font-bold whitespace-nowrap transition-all duration-200 active:scale-95 outline-none focus:outline-none focus:ring-0 cursor-pointer ${
+                    isActive 
+                      ? "bg-gradient-to-r from-[#2dd4bf] to-[#14b8a6] text-black shadow-[0_0_18px_rgba(45,212,191,0.35)] border border-[#2dd4bf] font-black" 
+                      : "bg-zinc-900/80 border border-zinc-800/90 text-zinc-400 hover:text-white hover:bg-zinc-850 hover:border-zinc-700 hover:shadow-[0_0_12px_rgba(45,212,191,0.1)]"
+                  }`}
+                >
+                  <span className={`transition-colors ${isActive ? "text-black" : "text-zinc-500 group-hover:text-zinc-300"}`}>
+                    {f.icon}
+                  </span>
+                  <span>{f.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

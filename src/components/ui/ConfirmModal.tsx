@@ -88,7 +88,7 @@ export function ConfirmModal({
         <div className="relative z-10 flex flex-col w-full gap-3">
           <button
             onClick={onConfirm}
-            className={`w-full py-3.5 rounded-2xl text-[15px] font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            className={`w-full py-3.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-[15px] font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
               isDestructive
                 ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.15)] hover:shadow-[0_0_25px_rgba(239,68,68,0.3)] hover:scale-[1.02] active:scale-[0.98]'
                 : 'bg-white text-black hover:bg-zinc-200 shadow-lg hover:scale-[1.02] active:scale-[0.98]'
@@ -98,7 +98,7 @@ export function ConfirmModal({
           </button>
           <button
             onClick={onCancel}
-            className="w-full py-3.5 rounded-2xl bg-zinc-800/40 hover:bg-zinc-800/60 border border-white/10 text-zinc-300 hover:text-white text-[15px] font-medium transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            className="w-full py-3.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-800/40 hover:bg-zinc-800/60 border border-white/10 text-zinc-300 hover:text-white text-[15px] font-medium transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
           >
             {cancelText}
           </button>

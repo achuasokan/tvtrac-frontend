@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { useRouter } from "next/navigation";
+import { DualRangeSlider } from "@/components/ui/DualRangeSlider";
 import { tmdbService } from "@/services/tmdb.service";
 import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { setUser } from "@/store/slices/authSlice";
@@ -23,6 +24,250 @@ type TmdbItem = {
   media_type: "movie" | "tv";
 };
 
+// Custom filter dropdown component with cinema ticket-cut geometry and neon teal highlights
+function FilterDropdown({ 
+  value, 
+  options, 
+  onChange, 
+  icon,
+  activeCondition
+}: { 
+  value: string; 
+  options: { value: string; label: string }[]; 
+  onChange: (val: string) => void;
+  icon: React.ReactNode;
+  activeCondition?: (val: string) => boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
+
+  const isActive = activeCondition ? activeCondition(value) : Boolean(value && value !== "" && value !== "0");
+  const selectedOption = options.find(o => o.value === value);
+  const displayLabel = selectedOption?.label || options[0]?.label || "";
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        btnRef.current && !btnRef.current.contains(e.target as Node) &&
+        menuRef.current && !menuRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const handleScroll = (e: Event) => {
+      // Do not close if the user is scrolling inside the dropdown menu itself
+      if (menuRef.current && (e.target === menuRef.current || menuRef.current.contains(e.target as Node))) {
+        return;
+      }
+      setOpen(false);
+    };
+
+    const handleResize = () => {
+      setOpen(false);
+    };
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      window.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", handleResize);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const menuWidth = Math.max(rect.width, 160);
+      let left = rect.left;
+      if (left + menuWidth > window.innerWidth - 8) {
+        left = window.innerWidth - menuWidth - 8;
+      }
+      if (left < 8) left = 8;
+      setMenuPos({ top: rect.bottom + 6, left, width: menuWidth });
+    }
+  }, [open]);
+
+  return (
+    <div className="relative w-full">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(!open)}
+        title={displayLabel}
+        className={`group w-full flex items-center justify-between gap-2 px-3 py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs transition-all duration-200 border outline-none focus:outline-none focus:ring-0 cursor-pointer active:scale-[0.98] ${
+          isActive
+            ? "bg-zinc-900/90 border-[#2dd4bf]/70 shadow-[0_0_15px_rgba(45,212,191,0.2)] text-white ring-1 ring-[#2dd4bf]/30 font-bold"
+            : "bg-zinc-950/70 border-zinc-800/90 text-zinc-400 hover:text-white hover:bg-zinc-900/70 hover:border-zinc-700 font-semibold"
+        }`}
+      >
+        <div className="flex items-center gap-2 min-w-0 truncate">
+          <span className={`flex-shrink-0 transition-colors ${isActive ? "text-[#2dd4bf]" : "text-zinc-500 group-hover:text-zinc-300"}`}>
+            {icon}
+          </span>
+          <span className="truncate">{displayLabel}</span>
+        </div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${
+            open ? "rotate-180 text-[#2dd4bf]" : isActive ? "text-[#2dd4bf]" : "text-zinc-500 group-hover:text-zinc-300"
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <div
+            ref={menuRef}
+            className="fixed max-h-60 overflow-y-auto overscroll-contain bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_12px_40px_rgba(0,0,0,0.9)] py-1 z-[9999] animate-in fade-in zoom-in-95 duration-150 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-700/90 hover:[&::-webkit-scrollbar-thumb]:bg-[#2dd4bf]/60 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-900/40"
+            style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+          >
+            {options.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  type="button"
+                  key={opt.value}
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer truncate ${
+                    isSelected
+                      ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold"
+                      : "text-zinc-300 hover:bg-zinc-900 hover:text-white font-medium"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Custom filter dropdown for Range Sliders
+function FilterSliderDropdown({ 
+  label,
+  icon,
+  isActive,
+  children
+}: { 
+  label: string; 
+  icon: React.ReactNode;
+  isActive: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        btnRef.current && !btnRef.current.contains(e.target as Node) &&
+        menuRef.current && !menuRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const handleScroll = (e: Event) => {
+      if (menuRef.current && (e.target === menuRef.current || menuRef.current.contains(e.target as Node))) return;
+      setOpen(false);
+    };
+
+    const handleResize = () => setOpen(false);
+
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      window.addEventListener("scroll", handleScroll, true);
+      window.addEventListener("resize", handleResize);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (open && btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      const menuWidth = Math.max(rect.width, 260); // Match w-64 so slider fits well
+      let left = rect.left;
+      if (left + menuWidth > window.innerWidth - 8) {
+        left = window.innerWidth - menuWidth - 8;
+      }
+      if (left < 8) left = 8;
+      setMenuPos({ top: rect.bottom + 6, left, width: menuWidth });
+    }
+  }, [open]);
+
+  return (
+    <div className="relative w-full">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen(!open)}
+        title={label}
+        className={`group w-full flex items-center justify-between gap-2 px-3 py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs transition-all duration-200 border outline-none focus:outline-none focus:ring-0 cursor-pointer active:scale-[0.98] ${
+          isActive
+            ? "bg-zinc-900/90 border-[#2dd4bf]/70 shadow-[0_0_15px_rgba(45,212,191,0.2)] text-white ring-1 ring-[#2dd4bf]/30 font-bold"
+            : "bg-zinc-950/70 border-zinc-800/90 text-zinc-400 hover:text-white hover:bg-zinc-900/70 hover:border-zinc-700 font-semibold"
+        }`}
+      >
+        <div className="flex items-center gap-2 min-w-0 truncate">
+          <span className={`flex-shrink-0 transition-colors ${isActive ? "text-[#2dd4bf]" : "text-zinc-500 group-hover:text-zinc-300"}`}>
+            {icon}
+          </span>
+          <span className="truncate">{label}</span>
+        </div>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className={`h-3.5 w-3.5 flex-shrink-0 transition-transform duration-200 ${
+            open ? "rotate-180 text-[#2dd4bf]" : isActive ? "text-[#2dd4bf]" : "text-zinc-500 group-hover:text-zinc-300"
+          }`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setOpen(false)} />
+          <div
+            ref={menuRef}
+            className="fixed bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_12px_40px_rgba(0,0,0,0.9)] p-4 z-[9999] animate-in fade-in zoom-in-95 duration-150"
+            style={{ top: menuPos.top, left: menuPos.left, width: menuPos.width }}
+          >
+            {children}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdvancedFilterPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
@@ -36,7 +281,21 @@ export default function AdvancedFilterPage() {
   };
 
   const [type, setType] = useState<"tv" | "movie">(getParam("type", "tv") as "tv" | "movie");
-  const [year, setYear] = useState<string>(getParam("year"));
+  
+  const currentYear = new Date().getFullYear();
+  const initialYearFrom = parseInt(getParam("yearFrom", "1900"));
+  const initialYearTo = parseInt(getParam("yearTo", currentYear.toString()));
+  
+  const [yearRange, setYearRange] = useState<[number, number]>([initialYearFrom, initialYearTo]);
+  const [debouncedYearRange, setDebouncedYearRange] = useState<[number, number]>([initialYearFrom, initialYearTo]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedYearRange(yearRange);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [yearRange]);
+
   const [genre, setGenre] = useState<string>(getParam("genre"));
   const [language, setLanguage] = useState<string>(getParam("language"));
   const [provider, setProvider] = useState<string>(getParam("provider"));
@@ -46,6 +305,17 @@ export default function AdvancedFilterPage() {
   // UI State
   const [showFilters, setShowFilters] = useState(false);
   const [togglingId, setTogglingId] = useState<number | null>(null);
+
+  // Search State
+  const [inputValue, setInputValue] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(inputValue);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [inputValue]);
   const toggleWatchlistMutation = useToggleWatchlist();
   const dispatch = useDispatch();
 
@@ -64,43 +334,58 @@ export default function AdvancedFilterPage() {
     isError,
     refetch
   } = useInfiniteQuery({
-    queryKey: ['filter-results', type, year, genre, language, provider, status, minRating],
+    queryKey: ['filter-results', type, debouncedYearRange[0], debouncedYearRange[1], genre, language, provider, status, minRating, debouncedQuery],
     queryFn: async ({ pageParam = 1 }) => {
-      const params: Record<string, string> = {
-        type,
-        page: pageParam.toString(),
-        sort_by: "popularity.desc"
-      };
+      let response;
       
-      if (minRating !== "0") {
-        params["vote_average.gte"] = minRating;
-        params["vote_count.gte"] = "10";
-      }
-
-      if (year) {
-        if (type === "tv") params["first_air_date_year"] = year;
-        else params["primary_release_year"] = year;
-      }
-      if (genre) params["with_genres"] = genre;
-      if (language) params["with_original_language"] = language;
-      if (provider) {
-        params["with_watch_providers"] = provider;
+      if (debouncedQuery.trim() !== "") {
+        response = await tmdbService.search(debouncedQuery, pageParam.toString());
+      } else {
+        const params: Record<string, string> = {
+          type,
+          page: pageParam.toString(),
+          sort_by: "popularity.desc"
+        };
         
-        // Auto-switch to India region for Indian platforms or languages, otherwise default to US
-        const indianProviders = ["122", "220", "232", "237", "309"];
-        const indianLangs = ["hi", "ml", "ta", "te", "bn", "kn"];
-        
-        if (indianProviders.includes(provider) || indianLangs.includes(language)) {
-          params["watch_region"] = "IN";
-        } else {
-          params["watch_region"] = "US";
+        if (minRating !== "0") {
+          params["vote_average.gte"] = minRating;
+          params["vote_count.gte"] = "10";
         }
-      }
-      if (type === "tv" && status) params["with_status"] = status;
 
-      const response = await tmdbService.discoverAdvanced(params);
-      const filtered = response.results?.filter((item: any) => item.poster_path) || [];
-      const mapped = filtered.map((item: any) => ({ ...item, media_type: type }));
+        if (debouncedYearRange[0] > 1900 || debouncedYearRange[1] < currentYear) {
+          if (type === "tv") {
+            params["first_air_date.gte"] = `${debouncedYearRange[0]}-01-01`;
+            params["first_air_date.lte"] = `${debouncedYearRange[1]}-12-31`;
+          } else {
+            params["primary_release_date.gte"] = `${debouncedYearRange[0]}-01-01`;
+            params["primary_release_date.lte"] = `${debouncedYearRange[1]}-12-31`;
+          }
+        }
+        if (genre) params["with_genres"] = genre;
+        if (language) params["with_original_language"] = language;
+        if (provider) {
+          params["with_watch_providers"] = provider;
+          
+          const indianProviders = ["122", "220", "232", "237", "309"];
+          const indianLangs = ["hi", "ml", "ta", "te", "bn", "kn"];
+          
+          if (indianProviders.includes(provider) || indianLangs.includes(language)) {
+            params["watch_region"] = "IN";
+          } else {
+            params["watch_region"] = "US";
+          }
+        }
+        if (type === "tv" && status) params["with_status"] = status;
+
+        response = await tmdbService.discoverAdvanced(params);
+      }
+
+      const filtered = response.results?.filter((item: any) => 
+        item.poster_path && 
+        item.media_type !== "person" &&
+        (debouncedQuery.trim() === "" || (item.media_type === type || !item.media_type))
+      ) || [];
+      const mapped = filtered.map((item: any) => ({ ...item, media_type: item.media_type || type }));
       
       return {
         results: mapped,
@@ -156,7 +441,8 @@ export default function AdvancedFilterPage() {
     
     const params = new URLSearchParams();
     if (type !== "tv") params.set("type", type);
-    if (year) params.set("year", year);
+    if (debouncedYearRange[0] > 1900) params.set("yearFrom", debouncedYearRange[0].toString());
+    if (debouncedYearRange[1] < currentYear) params.set("yearTo", debouncedYearRange[1].toString());
     if (genre) params.set("genre", genre);
     if (language) params.set("language", language);
     if (provider) params.set("provider", provider);
@@ -167,10 +453,9 @@ export default function AdvancedFilterPage() {
     if (window.location.search !== queryString) {
       window.history.replaceState(null, "", `${window.location.pathname}${queryString}`);
     }
-  }, [type, year, genre, language, provider, status, minRating]);
+  }, [type, debouncedYearRange, genre, language, provider, status, minRating]);
 
   // Dropdown Options
-  const years = Array.from({ length: 40 }, (_, i) => new Date().getFullYear() - i);
   const platforms = [
     { id: "8", name: "Netflix" },
     { id: "9", name: "Amazon Prime" },
@@ -249,6 +534,35 @@ export default function AdvancedFilterPage() {
     { id: "37", name: "Western" }
   ];
 
+  const platformOptions = useMemo(() => [
+    { value: "", label: "Any Platform" },
+    ...platforms.map(p => ({ value: p.id, label: p.name }))
+  ], [platforms]);
+
+  const languageOptions = useMemo(() => [
+    { value: "", label: "Any Language" },
+    ...languages.map(l => ({ value: l.code, label: l.name }))
+  ], [languages]);
+
+  const genreOptions = useMemo(() => [
+    { value: "", label: "Any Genre" },
+    ...genres.map(g => ({ value: g.id, label: g.name }))
+  ], [genres]);
+
+  const statusOptions = useMemo(() => [
+    { value: "", label: "Any Status" },
+    ...tvStatuses.map(s => ({ value: s.id, label: s.name }))
+  ], [tvStatuses]);
+
+  const ratingOptions = useMemo(() => [
+    { value: "0", label: "Any Rating" },
+    { value: "5", label: "5+ Stars" },
+    { value: "6", label: "6+ Stars" },
+    { value: "7", label: "7+ Stars" },
+    { value: "8", label: "8+ Stars" },
+    { value: "9", label: "9+ Stars" }
+  ], []);
+
   if (isAuthLoading || !user) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
@@ -257,43 +571,67 @@ export default function AdvancedFilterPage() {
     );
   }
 
-  const activeFilterCount = [year, genre, language, provider, status, minRating !== "0" ? minRating : ""].filter(Boolean).length;
+  const activeFilterCount = [
+    (debouncedYearRange[0] > 1900 || debouncedYearRange[1] < currentYear) ? "year" : "",
+    genre, language, provider, status, minRating !== "0" ? minRating : ""
+  ].filter(Boolean).length;
 
   return (
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white font-sans pb-24">
       {/* Header & Collapsible Filters */}
-      <div className="sticky top-0 z-40 bg-[#050505]/95 backdrop-blur-xl border-b border-zinc-800/80 shadow-xl">
-        <div className="max-w-7xl mx-auto px-4 py-3">
+      <div className="sticky top-0 z-40 bg-[#050505]/90 backdrop-blur-xl border-b border-zinc-800/80 shadow-[0_10px_30px_rgba(0,0,0,0.7)]">
+
+        <div className="max-w-7xl mx-auto px-4 py-3 sm:py-3.5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             
             {/* Title & Back Button */}
-            <div className="flex items-center gap-2">
-              <button onClick={() => router.push("/discover")} className="text-zinc-400 hover:text-white transition-colors p-1 -ml-1 rounded-full hover:bg-zinc-900">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <button 
+                onClick={() => router.push("/discover")} 
+                aria-label="Back to Discover"
+                className="group flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 border border-zinc-800/90 text-zinc-400 hover:text-white hover:border-[#2dd4bf]/50 hover:bg-zinc-850 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </button>
-              <h1 className="text-lg sm:text-2xl font-extrabold tracking-tight flex items-baseline gap-2">
-                Filter
+              
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+                  Filter
+                </h1>
                 {totalResults !== null && (
-                  <span className="text-[10px] sm:text-xs text-zinc-500 font-medium">({totalResults.toLocaleString()} results)</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-900/80 border border-zinc-800 text-[10px] sm:text-xs text-zinc-400 font-medium shadow-inner">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2dd4bf] animate-pulse" />
+                    {totalResults.toLocaleString()} results
+                  </span>
                 )}
-              </h1>
+              </div>
             </div>
 
             {/* Top Bar Actions */}
-            <div className="flex items-center gap-2 self-start sm:self-auto w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex items-center gap-2.5 self-start sm:self-auto w-full sm:w-auto justify-between sm:justify-start">
               
               {/* Type Toggle */}
-              <div className="flex bg-zinc-900/80 p-0.5 rounded-md border border-zinc-800">
+              <div className="flex bg-zinc-950/90 p-1 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/90 shadow-inner backdrop-blur-md">
                 <button 
-                  className={`cursor-pointer px-3 py-1 sm:px-4 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-sm transition-all ${type === 'tv' ? 'bg-[#050505] text-white shadow-sm border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  type="button"
+                  className={`cursor-pointer px-3.5 py-1.5 sm:px-4 sm:py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                    type === 'tv' 
+                      ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
+                      : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
+                  }`}
                   onClick={() => { setType('tv'); setGenre(''); setStatus(''); }}
                 >
                   TV Shows
                 </button>
                 <button 
-                  className={`cursor-pointer px-3 py-1 sm:px-4 sm:py-1.5 text-[10px] sm:text-xs font-bold rounded-sm transition-all ${type === 'movie' ? 'bg-[#050505] text-white shadow-sm border border-zinc-700' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  type="button"
+                  className={`cursor-pointer px-3.5 py-1.5 sm:px-4 sm:py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                    type === 'movie' 
+                      ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
+                      : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
+                  }`}
                   onClick={() => { setType('movie'); setGenre(''); setStatus(''); }}
                 >
                   Movies
@@ -302,94 +640,176 @@ export default function AdvancedFilterPage() {
 
               {/* Filters Toggle Button */}
               <button 
+                type="button"
                 onClick={() => setShowFilters(!showFilters)}
-                className={`cursor-pointer flex items-center gap-1 border text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-md transition-all ${showFilters || activeFilterCount > 0 ? 'bg-white text-black border-white shadow-md' : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:bg-zinc-800'}`}
+                className={`cursor-pointer flex items-center gap-2 text-xs font-black px-3.5 py-2 sm:px-4 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm transition-all duration-200 active:scale-95 outline-none focus:outline-none focus:ring-0 ${
+                  showFilters || activeFilterCount > 0 
+                    ? 'bg-gradient-to-r from-[#2dd4bf] to-[#14b8a6] text-black shadow-[0_0_20px_rgba(45,212,191,0.35)] border border-[#2dd4bf]' 
+                    : 'bg-zinc-900/90 hover:bg-zinc-850 text-zinc-300 hover:text-white border border-zinc-800 hover:border-[#2dd4bf]/40 hover:shadow-[0_0_15px_rgba(45,212,191,0.12)]'
+                }`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 sm:h-3.5 sm:w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                Filters {activeFilterCount > 0 && <span className="bg-black text-white px-1.5 py-0.5 rounded-full text-[9px] font-bold ml-0.5 leading-none">{activeFilterCount}</span>}
+                <span>Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-black leading-none ${
+                    showFilters || activeFilterCount > 0 ? 'bg-black text-[#2dd4bf]' : 'bg-[#2dd4bf] text-black'
+                  }`}>
+                    {activeFilterCount}
+                  </span>
+                )}
+                <svg xmlns="http://www.w3.org/2000/svg" className={`h-3.5 w-3.5 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M19 9l-7 7-7-7" />
+                </svg>
               </button>
             </div>
           </div>
 
           {/* Collapsible Filter Grid */}
           {showFilters && (
-            <div className="pt-3 border-t border-zinc-800/50 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
-                <div className="relative">
-                  <select value={provider} onChange={e => setProvider(e.target.value)} className="w-full appearance-none bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-md pl-2.5 pr-7 py-1.5 sm:py-2 text-[11px] sm:text-xs focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer hover:bg-zinc-800 font-medium shadow-inner">
-                    <option value="">Any Platform</option>
-                    {platforms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+            <div className="pt-3.5 border-t border-zinc-800/60 mt-3.5 animate-in fade-in slide-in-from-top-2 duration-200">
+              
+              {/* Compact Search Box */}
+              <div className="mb-3.5 w-full sm:max-w-xs relative flex items-center">
+                <div className="group relative w-full flex items-center bg-black  border border-zinc-800/80 focus-within:border-[#2dd4bf]/70 focus-within:shadow-[0_0_15px_rgba(45,212,191,0.15)] rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm transition-all duration-300">
+                  <div className="absolute inset-y-0 left-2.5 sm:left-3 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-[#2dd4bf] transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
                   </div>
-                </div>
-
-                <div className="relative">
-                  <select value={language} onChange={e => setLanguage(e.target.value)} className="w-full appearance-none bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-md pl-2.5 pr-7 py-1.5 sm:py-2 text-[11px] sm:text-xs focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer hover:bg-zinc-800 font-medium shadow-inner">
-                    <option value="">Any Language</option>
-                    {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <select value={genre} onChange={e => setGenre(e.target.value)} className="w-full appearance-none bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-md pl-2.5 pr-7 py-1.5 sm:py-2 text-[11px] sm:text-xs focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer hover:bg-zinc-800 font-medium shadow-inner">
-                    <option value="">Any Genre</option>
-                    {genres.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-
-                <div className="relative">
-                  <select value={year} onChange={e => setYear(e.target.value)} className="w-full appearance-none bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-md pl-2.5 pr-7 py-1.5 sm:py-2 text-[11px] sm:text-xs focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer hover:bg-zinc-800 font-medium shadow-inner">
-                    <option value="">Any Year</option>
-                    {years.map(y => <option key={y} value={y.toString()}>{y}</option>)}
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-
-                {type === "tv" && (
-                  <div className="relative">
-                    <select value={status} onChange={e => setStatus(e.target.value)} className="w-full appearance-none bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-md pl-2.5 pr-7 py-1.5 sm:py-2 text-[11px] sm:text-xs focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer hover:bg-zinc-800 font-medium shadow-inner">
-                      <option value="">Any Status</option>
-                      {tvStatuses.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    </select>
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
+                  <input
+                    type="text"
+                    placeholder={`Search ${type === 'tv' ? 'TV shows' : 'movies'}...`}
+                    value={inputValue}
+                    onChange={(e) => setInputValue(e.target.value)}
+                    className="w-full bg-transparent text-white py-1.5 sm:py-2 pl-8 sm:pl-9 pr-8 focus:outline-none text-xs sm:text-sm placeholder:text-zinc-500 font-medium"
+                  />
+                  {inputValue.length > 0 && (
+                    <div className="absolute inset-y-0 right-1 flex items-center">
+                      <button
+                        onClick={() => setInputValue("")}
+                        className="p-1 text-zinc-500 hover:text-white rounded-lg active:scale-95 transition-all cursor-pointer"
+                        title="Clear search"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
+                  )}
+                </div>
+              </div>
+
+              <div className={`grid grid-cols-2 sm:grid-cols-3 ${type === 'tv' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-2.5 sm:gap-3`}>
+                
+                {/* Platform Filter */}
+                <FilterDropdown
+                  value={provider}
+                  onChange={setProvider}
+                  options={platformOptions}
+                  icon={
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  }
+                />
+
+                {/* Language Filter */}
+                <FilterDropdown
+                  value={language}
+                  onChange={setLanguage}
+                  options={languageOptions}
+                  icon={
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                    </svg>
+                  }
+                />
+
+                {/* Genre Filter */}
+                <FilterDropdown
+                  value={genre}
+                  onChange={setGenre}
+                  options={genreOptions}
+                  icon={
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                    </svg>
+                  }
+                />
+
+                {/* Year Range Slider */}
+                <FilterSliderDropdown
+                  label={yearRange[0] === 1900 && yearRange[1] === currentYear 
+                    ? "Any Era" 
+                    : `${yearRange[0]} - ${yearRange[1]}`}
+                  isActive={yearRange[0] > 1900 || yearRange[1] < currentYear}
+                  icon={
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  }
+                >
+                  <div className="w-full px-1 py-2">
+                    <div className="flex items-center gap-2 mb-4">
+                      <svg className="h-4 w-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-xs font-semibold text-zinc-300">Release Era</span>
+                    </div>
+                    <DualRangeSlider
+                      min={1900}
+                      max={currentYear}
+                      value={yearRange}
+                      onChange={setYearRange}
+                    />
                   </div>
+                </FilterSliderDropdown>
+
+                {/* Status Filter (TV only) */}
+                {type === "tv" && (
+                  <FilterDropdown
+                    value={status}
+                    onChange={setStatus}
+                    options={statusOptions}
+                    icon={
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    }
+                  />
                 )}
 
-                <div className="relative">
-                  <select value={minRating} onChange={e => setMinRating(e.target.value)} className="w-full appearance-none bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-md pl-2.5 pr-7 py-1.5 sm:py-2 text-[11px] sm:text-xs focus:outline-none focus:border-zinc-500 transition-colors cursor-pointer hover:bg-zinc-800 font-medium shadow-inner">
-                    <option value="0">Any Rating</option>
-                    <option value="5">5.0+ Stars</option>
-                    <option value="6">6.0+ Stars</option>
-                    <option value="7">7.0+ Stars</option>
-                    <option value="8">8.0+ Stars</option>
-                    <option value="9">9.0+ Stars</option>
-                  </select>
-                  <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-zinc-500">
-                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" /></svg>
-                  </div>
-                </div>
-                
+                {/* Rating Filter */}
+                <FilterDropdown
+                  value={minRating}
+                  onChange={setMinRating}
+                  options={ratingOptions}
+                  activeCondition={(val) => val !== "0" && val !== ""}
+                  icon={
+                    <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  }
+                />
+
+                {/* Active Filters Summary & Clear All */}
                 {activeFilterCount > 0 && (
-                  <div className="col-span-2 sm:col-span-3 lg:col-span-6 flex justify-end mt-1">
+                  <div className={`col-span-2 sm:col-span-3 ${type === 'tv' ? 'lg:col-span-6' : 'lg:col-span-5'} flex items-center justify-between pt-2.5 border-t border-zinc-800/60 mt-1`}>
+                    <div className="flex items-center gap-2 text-xs text-zinc-400">
+                      <span className="w-2 h-2 rounded-full bg-[#2dd4bf] shadow-[0_0_8px_#2dd4bf]" />
+                      <span>
+                        <strong className="text-white font-bold">{activeFilterCount}</strong> active {activeFilterCount === 1 ? 'filter' : 'filters'} applied
+                      </span>
+                    </div>
                     <button 
-                      onClick={() => { setYear(''); setGenre(''); setLanguage(''); setProvider(''); setStatus(''); setMinRating('0'); }}
-                      className="text-[10px] sm:text-xs font-bold text-red-500 hover:text-red-400 py-1 px-2 transition-colors flex items-center gap-1 rounded-md hover:bg-red-950/30"
+                      onClick={() => { setYearRange([1900, currentYear]); setGenre(''); setLanguage(''); setProvider(''); setStatus(''); setMinRating('0'); }}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-300 py-1.5 px-3 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 hover:border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.12)] active:scale-95 transition-all cursor-pointer"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
                       Clear All Filters
                     </button>
                   </div>

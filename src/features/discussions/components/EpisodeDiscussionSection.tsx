@@ -245,54 +245,57 @@ export function EpisodeDiscussionSection({
       )}
 
       {/* 4. Fan Discussion Feed Section */}
-      <div className="flex flex-col gap-4 pt-4 border-t border-zinc-800/80">
+      <div className="flex flex-col gap-4 pt-4 border-t border-zinc-800/60">
         {/* Discussion Header & Filters */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-zinc-400" />
-            <h3 className="text-base sm:text-lg font-extrabold text-white">
-              Episode Discussion ({totalCommentCount})
+            <MessageSquare className="w-4 h-4 text-zinc-500" />
+            <h3 className="text-sm font-bold text-zinc-200 tracking-wide">
+              Discussion
+              {totalCommentCount > 0 && (
+                <span className="ml-1.5 text-xs font-semibold text-zinc-500">{totalCommentCount}</span>
+              )}
             </h3>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Sort Tabs */}
-            <div className="flex items-center bg-[#101014] p-1 rounded-xl border border-zinc-800">
+            {/* Sort Tabs — ghost pill style */}
+            <div className="flex items-center gap-0.5">
               <button
                 onClick={() => setSort('top')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                   sort === 'top'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-white/10 text-white'
+                    : 'text-zinc-500 hover:text-zinc-300'
                 }`}
               >
-                <Flame className="w-3.5 h-3.5" />
+                <Flame className="w-3 h-3" />
                 Top
               </button>
               <button
                 onClick={() => setSort('newest')}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                   sort === 'newest'
-                    ? 'bg-white text-black shadow-sm'
-                    : 'text-zinc-400 hover:text-white'
+                    ? 'bg-white/10 text-white'
+                    : 'text-zinc-500 hover:text-zinc-300'
                 }`}
               >
-                <Clock className="w-3.5 h-3.5" />
-                Newest
+                <Clock className="w-3 h-3" />
+                New
               </button>
             </div>
 
-            {/* Spoiler Filter Toggle */}
+            {/* Spoiler Filter */}
             <button
               onClick={() => setHideSpoilers((prev) => !prev)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                 hideSpoilers
-                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-400'
-                  : 'bg-[#101014] border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                  ? 'text-amber-400 bg-amber-500/10'
+                  : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
-              <Filter className="w-3.5 h-3.5" />
-              <span>{hideSpoilers ? 'Spoilers Hidden' : 'Hide Spoilers'}</span>
+              <Filter className="w-3 h-3" />
+              <span>{hideSpoilers ? 'Spoilers Off' : 'Spoilers'}</span>
             </button>
           </div>
         </div>
@@ -314,12 +317,12 @@ export function EpisodeDiscussionSection({
               <div className="w-7 h-7 border-3 border-zinc-700 border-t-white rounded-full animate-spin" />
             </div>
           ) : allComments.length === 0 ? (
-            <div className="text-center py-10 text-zinc-500 text-xs sm:text-sm bg-[#0e0e11]/60 border border-zinc-800/60 rounded-2xl">
-              No comments yet for this episode. Start the conversation!
+            <div className="py-10 text-center text-zinc-600 text-xs">
+              No comments yet — be the first to start the conversation!
             </div>
           ) : (
             <>
-              <div className="rounded-2xl bg-[#0e0e12]/60 border border-zinc-800/70 p-3 sm:p-4 divide-y divide-zinc-800/50 shadow-sm">
+              <div className="divide-y divide-zinc-800/50">
                 {allComments.slice(0, 3).map((comment) => (
                   <DiscussionCommentItem
                     key={comment._id}

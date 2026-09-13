@@ -70,7 +70,7 @@ export default function ListsPage() {
             <h2 className="text-2xl font-bold text-white">My Lists</h2>
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="cursor-pointer flex items-center gap-1.5 bg-white text-black px-3 py-1.5 rounded-lg text-sm font-semibold hover:bg-zinc-200 transition-colors"
+              className="cursor-pointer flex items-center gap-1.5 bg-white text-black px-3.5 py-1.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-sm font-bold hover:bg-zinc-200 transition-all shadow-lg active:scale-95"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
@@ -120,7 +120,7 @@ export default function ListsPage() {
             </p>
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="cursor-pointer text-white bg-zinc-800 hover:bg-zinc-700 px-6 py-2.5 rounded-lg font-medium transition-colors"
+              className="cursor-pointer text-white bg-zinc-800 hover:bg-zinc-700 px-6 py-2.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-semibold transition-all active:scale-95 shadow-lg"
             >
               Create a List
             </button>

@@ -62,7 +62,7 @@ const YEAR_OPTIONS = [
   }),
 ];
 
-// Custom dropdown component for a clean pill-style look
+// Custom dropdown component with cinema ticket-cut geometry and neon teal highlights
 function PillDropdown({ 
   label, 
   value, 
@@ -99,14 +99,14 @@ function PillDropdown({
   useEffect(() => {
     if (open && btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      const menuWidth = 120;
+      const menuWidth = 130;
       let left = rect.left;
       // Keep menu within viewport
       if (left + menuWidth > window.innerWidth - 8) {
         left = window.innerWidth - menuWidth - 8;
       }
       if (left < 8) left = 8;
-      setMenuPos({ top: rect.bottom + 4, left });
+      setMenuPos({ top: rect.bottom + 6, left });
     }
   }, [open]);
 
@@ -114,17 +114,20 @@ function PillDropdown({
     <>
       <button
         ref={btnRef}
+        type="button"
         onClick={() => setOpen(!open)}
-        className={`flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all border whitespace-nowrap ${
+        className={`group flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs font-semibold transition-all border whitespace-nowrap active:scale-95 outline-none focus:outline-none focus:ring-0 cursor-pointer ${
           isActive
-            ? "bg-purple-500/20 text-purple-300 border-purple-500/40"
-            : "bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-zinc-200 hover:border-zinc-600"
+            ? "bg-[#2dd4bf]/15 text-[#2dd4bf] border-[#2dd4bf]/60 shadow-[0_0_15px_rgba(45,212,191,0.2)] font-bold ring-1 ring-[#2dd4bf]/25"
+            : "bg-zinc-900/80 text-zinc-400 border-zinc-800/90 hover:text-white hover:bg-zinc-850 hover:border-zinc-700"
         }`}
       >
-        {icon}
+        <span className={isActive ? "text-[#2dd4bf]" : "text-zinc-500 group-hover:text-zinc-300"}>
+          {icon}
+        </span>
         <span>{isActive ? displayLabel : label}</span>
-        <svg xmlns="http://www.w3.org/2000/svg" className={`h-2.5 w-2.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        <svg xmlns="http://www.w3.org/2000/svg" className={`h-3 w-3 transition-transform duration-200 ${open ? "rotate-180 text-[#2dd4bf]" : "text-zinc-500 group-hover:text-zinc-300"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
@@ -134,17 +137,18 @@ function PillDropdown({
           <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setOpen(false)} />
           <div 
             ref={menuRef}
-            className="fixed w-[120px] max-h-52 overflow-y-auto bg-zinc-900/95 backdrop-blur-md border border-zinc-700 rounded-lg shadow-2xl py-0.5 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
-            style={{ top: menuPos.top, left: menuPos.left, zIndex: 9999 }}
+            className="fixed w-[130px] max-h-56 overflow-y-auto bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_10px_35px_rgba(0,0,0,0.85)] py-1 z-[9999] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-zinc-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent"
+            style={{ top: menuPos.top, left: menuPos.left }}
           >
             {options.map(opt => (
               <button
+                type="button"
                 key={opt.value}
                 onClick={() => { onChange(opt.value); setOpen(false); }}
-                className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium transition-colors ${
+                className={`w-full text-left px-3 py-1.5 text-xs transition-colors cursor-pointer ${
                   value === opt.value
-                    ? "bg-purple-500/20 text-purple-300"
-                    : "text-zinc-400 hover:bg-zinc-800 hover:text-white"
+                    ? "bg-[#2dd4bf]/15 text-[#2dd4bf] font-bold"
+                    : "text-zinc-300 hover:bg-zinc-900 hover:text-white"
                 }`}
               >
                 {opt.label}
@@ -381,117 +385,134 @@ export default function DiscoverGenrePage() {
     <main className="flex-1 flex flex-col relative min-h-screen bg-[#050505] text-white pb-24 font-sans">
       
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-[#050505]/95 backdrop-blur-xl pt-4 sm:pt-6 pb-3 sm:pb-4 px-3 sm:px-4 border-b border-zinc-800/60">
+      <div className="sticky top-0 z-40 bg-[#050505]/90 backdrop-blur-xl pt-4 sm:pt-6 pb-3 sm:pb-4 px-3 sm:px-4 border-b border-zinc-800/80 shadow-[0_10px_30px_rgba(0,0,0,0.7)]">
+        {/* Ambient top glow line */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#2dd4bf]/25 to-transparent pointer-events-none" />
+
         {/* Top Row: Back + Title */}
-        <div className="w-full max-w-5xl mx-auto flex items-center gap-2 sm:gap-3">
-          <button onClick={() => router.back()} className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-full bg-zinc-900 hover:bg-zinc-800 transition-colors border border-zinc-800 flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-zinc-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+        <div className="w-full max-w-5xl mx-auto flex items-center gap-2.5 sm:gap-3">
+          <button 
+            type="button"
+            onClick={() => router.back()} 
+            aria-label="Back"
+            className="group w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </button>
-          <h2 className="text-base sm:text-lg font-bold tracking-tight text-white">{genreName}</h2>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
+              {genreName}
+            </h1>
+          </div>
         </div>
 
         {/* Filter Section */}
-        <div className="w-full max-w-5xl mx-auto mt-3 sm:mt-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pb-0.5">
+        <div className="w-full max-w-5xl mx-auto mt-3.5 sm:mt-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 pb-0.5">
           {/* Media Type Tabs - Fixed on mobile */}
-          <div className="flex items-center gap-2">
+          <div className="flex bg-zinc-950/90 p-1 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/90 shadow-inner backdrop-blur-md flex-shrink-0">
             {[
-            { id: "movie", label: "Movies" },
-            { id: "tv", label: "TV Shows" },
-          ].map(f => (
-            <button
-              key={f.id}
-              onClick={() => {
-                if (filter !== f.id) {
-                  setFilter(f.id as any);
-                }
-              }}
-              className={`flex-shrink-0 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-semibold transition-all border ${
-                filter === f.id 
-                  ? "bg-white text-black border-white" 
-                  : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
+              { id: "movie", label: "Movies" },
+              { id: "tv", label: "TV Shows" },
+            ].map(f => {
+              const isActive = filter === f.id;
+              return (
+                <button
+                  type="button"
+                  key={f.id}
+                  onClick={() => {
+                    if (filter !== f.id) {
+                      setFilter(f.id as any);
+                    }
+                  }}
+                  className={`cursor-pointer px-3.5 py-1.5 text-xs transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                    isActive 
+                      ? "bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black" 
+                      : "border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Divider - hidden on mobile */}
-          <div className="hidden sm:block w-px h-6 bg-zinc-700 flex-shrink-0 mx-2 sm:mx-4" />
+          <div className="hidden sm:block w-px h-6 bg-zinc-800 flex-shrink-0 mx-1" />
 
           {/* Filter Pills - scrollable on mobile */}
-          <div className="flex items-center gap-1.5 sm:gap-2 w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pr-4 sm:pr-0">
+          <div className="flex items-center gap-2 w-full overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pr-4 sm:pr-0">
             {/* Sort Pill */}
-          <PillDropdown
-            label="Sort"
-            value={sortBy === "popularity.desc" ? "" : sortBy}
-            options={SORT_OPTIONS.map(o => ({ value: o.id === "popularity.desc" ? "" : o.id, label: o.label }))}
-            onChange={(val) => setSortBy(val || "popularity.desc")}
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
-              </svg>
-            }
-          />
-
-          {/* Year Pill */}
-          <PillDropdown
-            label="Year"
-            value={year}
-            options={YEAR_OPTIONS}
-            onChange={setYear}
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            }
-          />
-
-          {/* Rating Pill */}
-          <PillDropdown
-            label="Rating"
-            value={minRating}
-            options={RATING_OPTIONS}
-            onChange={setMinRating}
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-              </svg>
-            }
-          />
-
-          {/* Language Pill */}
-          {genreName !== "K-Drama" && (
             <PillDropdown
-              label="Language"
-              value={language}
-              options={LANGUAGES.map(l => ({ value: l.code, label: l.label }))}
-              onChange={setLanguage}
+              label="Sort"
+              value={sortBy === "popularity.desc" ? "" : sortBy}
+              options={SORT_OPTIONS.map(o => ({ value: o.id === "popularity.desc" ? "" : o.id, label: o.label }))}
+              onChange={(val) => setSortBy(val || "popularity.desc")}
               icon={
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                 </svg>
               }
             />
-          )}
 
-          {/* Clear All */}
-          {hasActiveFilters && (
-            <>
-              <div className="w-px h-4 bg-zinc-800 flex-shrink-0" />
-              <button
-                onClick={clearFilters}
-                className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+            {/* Year Pill */}
+            <PillDropdown
+              label="Year"
+              value={year}
+              options={YEAR_OPTIONS}
+              onChange={setYear}
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                Clear
-              </button>
-            </>
-          )}
+              }
+            />
+
+            {/* Rating Pill */}
+            <PillDropdown
+              label="Rating"
+              value={minRating}
+              options={RATING_OPTIONS}
+              onChange={setMinRating}
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+              }
+            />
+
+            {/* Language Pill */}
+            {genreName !== "K-Drama" && (
+              <PillDropdown
+                label="Language"
+                value={language}
+                options={LANGUAGES.map(l => ({ value: l.code, label: l.label }))}
+                onChange={setLanguage}
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                }
+              />
+            )}
+
+            {/* Clear All */}
+            {hasActiveFilters && (
+              <>
+                <div className="w-px h-4 bg-zinc-800 flex-shrink-0" />
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/25 hover:bg-red-500/20 hover:border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.12)] active:scale-95 transition-all cursor-pointer outline-none focus:outline-none focus:ring-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

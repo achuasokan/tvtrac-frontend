@@ -115,10 +115,10 @@ export function DiscussionCommentInput({
 
   if (!isLoggedIn) {
     return (
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-2xl bg-[#0e0e11] border border-zinc-800/80 text-xs text-zinc-400">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 border-b border-zinc-800/60 text-xs text-zinc-500">
         <div className="flex items-center gap-2 min-w-0">
-          <Lock className="w-4 h-4 text-zinc-500 shrink-0" />
-          <span className="leading-snug">Sign in to join the conversation and share your reaction.</span>
+          <Lock className="w-3.5 h-3.5 shrink-0" />
+          <span className="leading-snug">Sign in to join the conversation.</span>
         </div>
         {onRequireAuth && (
           <button
@@ -137,9 +137,9 @@ export function DiscussionCommentInput({
 
   return (
     <>
-      <div className="flex gap-2.5 sm:gap-3 p-2.5 sm:p-3 rounded-2xl bg-[#0e0e12]/95 border border-zinc-800/80 focus-within:border-zinc-700 focus-within:ring-1 focus-within:ring-zinc-700/50 transition-all duration-200 shadow-sm">
+      <div className="flex gap-3 py-2 border-b border-zinc-800/50 focus-within:border-zinc-700/70 transition-colors duration-200">
         {/* User Avatar */}
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden bg-zinc-800 border border-white/10 flex items-center justify-center shrink-0 mt-0.5 ring-1 ring-white/5">
+        <div className="w-8 h-8 rounded-full overflow-hidden bg-zinc-800 flex items-center justify-center shrink-0 mt-0.5">
           {userAvatar ? (
             <img src={userAvatar} alt="You" className="w-full h-full object-cover" loading="lazy" />
           ) : (
@@ -148,42 +148,42 @@ export function DiscussionCommentInput({
         </div>
 
         {/* Input Container */}
-        <form onSubmit={handleSubmit} className="flex-1 min-w-0 flex flex-col gap-2">
+        <form onSubmit={handleSubmit} className="flex-1 min-w-0 flex flex-col gap-2.5">
           <textarea
             ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onFocus={() => setIsExpanded(true)}
             placeholder="Share your thoughts..."
-            rows={showToolbar ? 2 : 1}
+            rows={showToolbar ? 3 : 1}
             maxLength={2000}
             disabled={isSubmitting || isUploadingMedia}
-            className="w-full bg-transparent text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none leading-relaxed transition-all duration-200 min-h-[32px] sm:min-h-[36px] py-0.5"
+            className="w-full bg-transparent text-sm text-zinc-100 placeholder-zinc-600 resize-none focus:outline-none leading-relaxed transition-all duration-200 min-h-[28px] py-0.5"
           />
 
           {/* Pending Media Attachment Preview */}
           {(pendingMedia || isUploadingMedia) && (
-            <div className="relative inline-flex items-center gap-2 sm:gap-2.5 p-1.5 pr-2.5 sm:pr-3 rounded-xl bg-zinc-900/90 border border-zinc-700/80 shadow-inner max-w-full sm:max-w-fit animate-in fade-in zoom-in-95 duration-150">
+            <div className="relative inline-flex items-center gap-2 p-1.5 pr-2.5 rounded-xl bg-zinc-900/70 border border-zinc-800/80 max-w-full sm:max-w-fit animate-in fade-in zoom-in-95 duration-150">
               {isUploadingMedia ? (
-                <div className="flex items-center gap-2 px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs text-amber-400 font-medium">
-                  <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-amber-400" />
+                <div className="flex items-center gap-2 px-2.5 py-1.5 text-xs text-amber-400 font-medium">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
                   <span>Processing media...</span>
                 </div>
               ) : (
                 <>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-black/60 shrink-0 border border-zinc-800">
+                  <div className="w-10 h-10 rounded-lg overflow-hidden bg-black/60 shrink-0">
                     <img src={pendingMedia!.previewUrl} alt="Attached media" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex flex-col min-w-0 pr-1">
                     <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider truncate">
-                      {pendingMedia!.type === 'gif' ? 'GIF Attached' : 'Photo Attached'}
+                      {pendingMedia!.type === 'gif' ? 'GIF' : 'Photo'} attached
                     </span>
-                    <span className="text-[9px] sm:text-[10px] text-zinc-400">Ready to post</span>
+                    <span className="text-[10px] text-zinc-500">Ready to post</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setPendingMedia(null)}
-                    className="p-1 text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-full transition-colors ml-auto sm:ml-1 shrink-0"
+                    className="p-1 text-zinc-500 hover:text-white transition-colors ml-auto shrink-0"
                     title="Remove attachment"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -194,10 +194,9 @@ export function DiscussionCommentInput({
           )}
 
           {showToolbar && (
-            <div className="flex flex-wrap items-center justify-between pt-2 sm:pt-2.5 border-t border-zinc-800/60 gap-2 animate-in fade-in duration-200">
-              {/* Left Toolbar: Photo & GIF Picker + Spoiler Toggle Chip */}
-              <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
-                {/* Hidden File Input */}
+            <div className="flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-200">
+              {/* Left Toolbar */}
+              <div className="flex items-center gap-0.5">
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -206,66 +205,57 @@ export function DiscussionCommentInput({
                   onChange={handleFileChange}
                 />
 
-                {/* Attach Photo Button */}
+                {/* Attach Photo */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploadingMedia || isSubmitting || pendingMedia !== null}
-                  className="inline-flex items-center justify-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/70 bg-zinc-900/60 border border-zinc-800/80 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0"
-                  title="Upload photo (max 10MB)"
+                  className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  title="Upload photo"
                 >
-                  <ImageIcon className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="hidden sm:inline">Photo</span>
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Photo</span>
                 </button>
 
-                {/* Attach GIF Button */}
+                {/* Attach GIF */}
                 <button
                   type="button"
                   onClick={() => {
-                    if (document.activeElement instanceof HTMLElement) {
-                      document.activeElement.blur();
-                    }
+                    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                     setIsGifModalOpen(true);
                   }}
                   disabled={isUploadingMedia || isSubmitting || pendingMedia !== null}
-                  className="inline-flex items-center justify-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/70 bg-zinc-900/60 border border-zinc-800/80 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none shrink-0 cursor-pointer"
-                  title="Search and attach a GIF"
+                  className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 active:scale-95 transition-all disabled:opacity-30 disabled:pointer-events-none"
+                  title="Search GIF"
                 >
-                  <GifIcon className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="hidden sm:inline">GIF</span>
+                  <GifIcon className="w-3.5 h-3.5" />
+                  <span>GIF</span>
                 </button>
 
-                {/* Spoiler Toggle Chip */}
+                {/* Spoiler Toggle */}
                 <button
                   type="button"
                   onClick={() => setIsSpoiler(!isSpoiler)}
-                  className={`inline-flex items-center justify-center gap-1.5 h-8 px-2 sm:px-2.5 rounded-lg text-xs font-medium transition-all select-none border active:scale-95 shrink-0 ${
+                  className={`inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium transition-all select-none active:scale-95 ${
                     isSpoiler
-                      ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.15)] font-semibold'
-                      : 'bg-zinc-900/60 border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/70'
+                      ? 'text-amber-400 bg-amber-500/10'
+                      : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60'
                   }`}
-                  title={isSpoiler ? 'Marked as spoiler (click to unmark)' : 'Mark as spoiler'}
+                  title={isSpoiler ? 'Marked as spoiler' : 'Mark as spoiler'}
                 >
-                  <ShieldAlert className={`w-3.5 h-3.5 ${isSpoiler ? 'text-amber-400' : 'text-zinc-400'}`} />
+                  <ShieldAlert className="w-3.5 h-3.5" />
                   <span>Spoiler</span>
-                  {isSpoiler && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse ml-0.5" />
-                  )}
+                  {isSpoiler && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
                 </button>
               </div>
 
-              {/* Right: Char Count & Action Buttons */}
-              <div className="flex items-center gap-1.5 sm:gap-2 ml-auto shrink-0">
+              {/* Right: Char Count & Actions */}
+              <div className="flex items-center gap-2 ml-auto">
                 {content.length > 0 && (
-                  <span
-                    className={`text-[10px] sm:text-[11px] tabular-nums mr-0.5 transition-colors ${
-                      content.length > 1900
-                        ? 'text-rose-400 font-bold'
-                        : content.length > 1600
-                        ? 'text-amber-400 font-medium'
-                        : 'text-zinc-500'
-                    }`}
-                  >
+                  <span className={`text-[10px] tabular-nums transition-colors ${
+                    content.length > 1900 ? 'text-rose-400 font-bold' :
+                    content.length > 1600 ? 'text-amber-400' : 'text-zinc-600'
+                  }`}>
                     {content.length}/2000
                   </span>
                 )}
@@ -273,20 +263,16 @@ export function DiscussionCommentInput({
                   type="button"
                   onClick={handleCancel}
                   disabled={isSubmitting || isUploadingMedia}
-                  className="px-2 sm:px-3 py-1.5 rounded-full text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-800/60 transition-colors shrink-0"
+                  className="text-xs font-medium text-zinc-500 hover:text-zinc-300 transition-colors px-1"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!canSubmit}
-                  className="inline-flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-1.5 rounded-full bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all disabled:opacity-40 disabled:hover:bg-white active:scale-95 shadow-sm shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-all disabled:opacity-30 disabled:hover:bg-white active:scale-95"
                 >
-                  {isSubmitting ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Send className="w-3.5 h-3.5" />
-                  )}
+                  {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   <span>{isSubmitting ? 'Posting...' : 'Post'}</span>
                 </button>
               </div>

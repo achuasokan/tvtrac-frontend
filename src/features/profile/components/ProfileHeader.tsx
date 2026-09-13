@@ -491,6 +491,8 @@ export const ProfileHeader = () => {
                 <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">
                     {/* 3-Dot Toggle Button */}
                     <button 
+                        type="button"
+                        aria-label="Profile options"
                         onClick={(e) => {
                             e.stopPropagation();
                             if (isEditMode) {
@@ -499,16 +501,20 @@ export const ProfileHeader = () => {
                                 setIsCoverMenuOpen(!isCoverMenuOpen);
                             }
                         }}
-                        className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors border shadow-xl ${isCoverMenuOpen || isEditMode ? 'bg-[#222] border-zinc-700 text-white' : 'bg-[#111] border-zinc-800 text-zinc-400 hover:text-white hover:bg-[#222]'}`}
+                        className={`group w-10 h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm transition-all duration-200 border cursor-pointer active:scale-95 outline-none focus:outline-none focus:ring-0 backdrop-blur-md shadow-xl ${
+                            isCoverMenuOpen || isEditMode 
+                                ? 'bg-zinc-850/95 border-[#2dd4bf]/70 text-white shadow-[0_0_15px_rgba(45,212,191,0.25)] ring-1 ring-[#2dd4bf]/30' 
+                                : 'bg-zinc-900/90 border-zinc-800/90 text-zinc-400 hover:text-white hover:bg-zinc-850 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)]'
+                        }`}
                     >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                         </svg>
                     </button>
 
                     {/* Edit Option Dropdown */}
                     {isCoverMenuOpen && !isEditMode && (
-                        <div className="w-48 bg-[#111] border border-zinc-800 rounded-xl shadow-xl overflow-hidden flex flex-col py-1 animate-in fade-in slide-in-from-top-2 z-40">
+                        <div className="w-52 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_15px_40px_rgba(0,0,0,0.9),0_0_20px_rgba(45,212,191,0.08)] p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150 z-40">
                             <button 
                                 type="button"
                                 onClick={(e) => {
@@ -523,14 +529,16 @@ export const ProfileHeader = () => {
                                     setIsCoverMenuOpen(false);
                                     setIsEditMode(true);
                                 }}
-                                className="px-4 py-3 text-sm text-left hover:bg-zinc-800 transition-colors flex items-center gap-3 text-white"
+                                className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
                             >
-                                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                </svg>
-                                Edit Profile
+                                <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-zinc-900 border border-zinc-800 group-hover:border-[#2dd4bf]/40 flex items-center justify-center text-zinc-400 group-hover:text-[#2dd4bf] transition-colors shadow-sm shrink-0">
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </div>
+                                <span>Edit Profile</span>
                             </button>
-                            <div className="h-px bg-zinc-800 mx-3" />
+                            
                             <button 
                                 type="button"
                                 onClick={(e) => {
@@ -545,41 +553,45 @@ export const ProfileHeader = () => {
                                     setIsCoverMenuOpen(false);
                                     setShowAutoplayModal(true);
                                 }}
-                                className="px-4 py-3 text-sm text-left hover:bg-zinc-800 transition-colors flex items-center gap-3 text-white"
+                                className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
                             >
-                                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Data Saver
+                                <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-zinc-900 border border-zinc-800 group-hover:border-[#2dd4bf]/40 flex items-center justify-center text-zinc-400 group-hover:text-[#2dd4bf] transition-colors shadow-sm shrink-0">
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <span>Data Saver</span>
                             </button>
+
                             {isInstallable && (
-                                <>
-                                    <div className="h-px bg-zinc-800 mx-3" />
-                                    <button 
-                                        type="button"
-                                        onClick={async (e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setIsCoverMenuOpen(false);
-                                            await promptInstall();
-                                        }}
-                                        onTouchEnd={async (e) => {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            setIsCoverMenuOpen(false);
-                                            await promptInstall();
-                                        }}
-                                        className="px-4 py-3 text-sm text-left hover:bg-zinc-800 transition-colors flex items-center gap-3 text-white"
-                                    >
-                                        <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <button 
+                                    type="button"
+                                    onClick={async (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsCoverMenuOpen(false);
+                                        await promptInstall();
+                                    }}
+                                    onTouchEnd={async (e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsCoverMenuOpen(false);
+                                        await promptInstall();
+                                    }}
+                                    className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
+                                >
+                                    <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-zinc-900 border border-zinc-800 group-hover:border-[#2dd4bf]/40 flex items-center justify-center text-zinc-400 group-hover:text-[#2dd4bf] transition-colors shadow-sm shrink-0">
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                                         </svg>
-                                        Install App
-                                    </button>
-                                </>
+                                    </div>
+                                    <span>Install App</span>
+                                </button>
                             )}
-                            <div className="h-px bg-zinc-800 mx-3" />
+
+                            <div className="my-1 border-t border-zinc-800/80" />
+
                             <button 
                                 type="button"
                                 onClick={(e) => {
@@ -594,30 +606,32 @@ export const ProfileHeader = () => {
                                     setIsCoverMenuOpen(false);
                                     setShowLogoutConfirm(true);
                                 }}
-                                className="px-4 py-3 text-sm text-left hover:bg-red-950/40 transition-colors flex items-center gap-3 text-red-400 hover:text-red-300"
+                                className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
                             >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                </svg>
-                                Logout
+                                <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-red-500/10 border border-red-500/20 group-hover:border-red-500/40 flex items-center justify-center text-red-400 group-hover:text-red-300 transition-colors shadow-sm shrink-0">
+                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    </svg>
+                                </div>
+                                <span>Logout</span>
                             </button>
                         </div>
                     )}
 
                     {/* Edit Mode Action Buttons */}
                     {isEditMode && (
-                        <div className="flex flex-col items-center gap-3 animate-in slide-in-from-top-2 fade-in duration-200">
+                        <div className="flex flex-col items-center gap-2.5 animate-in slide-in-from-top-2 fade-in duration-200">
                             <button 
                                 type="button"
                                 onClick={() => coverInputRef.current?.click()}
                                 disabled={isUploadingCover}
-                                className="w-10 h-10 flex items-center justify-center bg-[#111] hover:bg-[#222] rounded-full text-white transition-colors border border-zinc-800 shadow-xl"
+                                className="group w-10 h-10 flex items-center justify-center bg-zinc-900/90 hover:bg-zinc-850 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-zinc-400 hover:text-white transition-all border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 shadow-xl outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
                                 title="Change Cover"
                             >
                                 {isUploadingCover ? (
                                     <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                                 ) : (
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
                                 )}
@@ -629,7 +643,7 @@ export const ProfileHeader = () => {
                                     onClick={(e) => {
                                         handleDeleteCover(e);
                                     }}
-                                    className="w-10 h-10 flex items-center justify-center bg-red-950/40 hover:bg-red-900/60 rounded-full text-red-500 transition-colors border border-red-900/50 shadow-xl"
+                                    className="w-10 h-10 flex items-center justify-center bg-red-950/40 hover:bg-red-900/60 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-red-400 hover:text-red-300 transition-all border border-red-900/50 shadow-xl active:scale-95 outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
                                     title="Delete Cover"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

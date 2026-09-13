@@ -66,8 +66,9 @@ export function BottomNav() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 w-full z-50 bg-gradient-to-t from-black via-black/60 to-transparent pt-8 pb-safe pointer-events-none">
-      <div className="max-w-md mx-auto flex items-center justify-around px-4 py-3 pointer-events-auto">
+    <div className="fixed -bottom-1 left-0 w-full z-50 pointer-events-none">
+      <div className="w-full bg-black/60 backdrop-blur-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.3)] pointer-events-auto pb-[calc(env(safe-area-inset-bottom)+4px)]">
+        <div className="max-w-md mx-auto flex items-center justify-around px-2 sm:px-4 py-1.5 sm:py-2">
         {navItems.map((item) => {
           const isActive = isItemActive(item.match, pathname);
           const Icon = item.icon;
@@ -76,7 +77,7 @@ export function BottomNav() {
             <Link
               key={item.name}
               href={item.href}
-              className="group relative flex flex-col items-center justify-center gap-1.5 cursor-pointer min-w-[52px]"
+              className="group relative flex flex-col items-center justify-center gap-0.5 cursor-pointer min-w-[44px]"
             >
               {/* Icon with hover: scale + brighten, active: scale + brand color */}
               <motion.div
@@ -89,7 +90,7 @@ export function BottomNav() {
                 className="relative flex items-center justify-center"
               >
                 <Icon
-                  size={22}
+                  size={20}
                   strokeWidth={isActive ? 0 : 1.8}
                   style={{
                     fill: isActive ? BRAND_COLOR : "none",
@@ -105,6 +106,7 @@ export function BottomNav() {
             </Link>
           );
         })}
+        </div>
       </div>
     </div>
   );

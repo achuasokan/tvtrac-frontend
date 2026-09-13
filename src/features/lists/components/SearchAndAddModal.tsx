@@ -229,7 +229,7 @@ export function SearchAndAddModal({ isOpen, onClose, listId }: SearchAndAddModal
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search movies or TV shows..."
-              className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-white/20 focus:ring-1 focus:ring-white/20 transition-colors"
+              className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#2dd4bf]/70 focus:shadow-[0_0_20px_rgba(45,212,191,0.25)] transition-all"
             />
           </div>
         </div>
