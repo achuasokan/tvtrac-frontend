@@ -13,15 +13,27 @@ import { useQuery } from '@tanstack/react-query';
 
 export default function ProfilePage() {
     const { user } = useAppSelector(state => state.auth);
-    const { data: history = [], isLoading: isLoadingHistory } = useQuery({
-        queryKey: ['profile', 'history'],
+    const { data: historyShowsData = [], isLoading: isLoadingHistoryShows } = useQuery({
+        queryKey: ['profile', 'history-preview', 'tv'],
         queryFn: async () => {
-            const data = await profileService.getWatchHistory();
+            const data = await profileService.getWatchHistory(1, 20, 'tv');
             return data?.items || [];
         },
         enabled: !!user,
         staleTime: 1000 * 60 * 5, // 5 minutes
     });
+
+    const { data: historyMoviesData = [], isLoading: isLoadingHistoryMovies } = useQuery({
+        queryKey: ['profile', 'history-preview', 'movie'],
+        queryFn: async () => {
+            const data = await profileService.getWatchHistory(1, 20, 'movie');
+            return data?.items || [];
+        },
+        enabled: !!user,
+        staleTime: 1000 * 60 * 5, // 5 minutes
+    });
+
+    const isLoadingHistory = isLoadingHistoryShows || isLoadingHistoryMovies;
 
     const { data: stats = null, isLoading: isLoadingStats } = useQuery({
         queryKey: ['profile', 'stats'],
@@ -39,12 +51,14 @@ export default function ProfilePage() {
     }, [user?.favoriteMovies]);
 
     const historyShows = useMemo(() => {
-        return history.filter((h: WatchHistoryItem) => h.mediaType === 'tv').map((item: WatchHistoryItem) => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
-    }, [history]);
+        if (!Array.isArray(historyShowsData)) return [];
+        return historyShowsData.map((item: WatchHistoryItem) => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
+    }, [historyShowsData]);
 
     const historyMovies = useMemo(() => {
-        return history.filter((h: WatchHistoryItem) => h.mediaType === 'movie').map((item: WatchHistoryItem) => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
-    }, [history]);
+        if (!Array.isArray(historyMoviesData)) return [];
+        return historyMoviesData.map((item: WatchHistoryItem) => ({ tmdbId: String(item.tmdbId), mediaType: item.mediaType, watchedAt: item.watchedAt }));
+    }, [historyMoviesData]);
 
     // Prevent flashing empty skeletons while logging out / transitioning
     if (!user) {

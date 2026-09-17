@@ -23,7 +23,7 @@ export default function HistoryPage({ params }: { params: Promise<{ mediaType: s
         isFetchingNextPage: isFetchingMore,
         isLoading
     } = useInfiniteQuery({
-        queryKey: ['profile', 'history', mediaType],
+        queryKey: ['profile', 'history-infinite', mediaType],
         queryFn: async ({ pageParam = 1 }) => {
             const res = await profileService.getWatchHistory(pageParam as number, 20, mediaType);
             return res;
@@ -37,7 +37,8 @@ export default function HistoryPage({ params }: { params: Promise<{ mediaType: s
     });
 
     const history = useMemo(() => {
-        return data ? data.pages.flatMap(page => page?.items || []) : [];
+        if (!data?.pages || !Array.isArray(data.pages)) return [];
+        return data.pages.flatMap(page => page?.items || []);
     }, [data]);
 
     useEffect(() => {

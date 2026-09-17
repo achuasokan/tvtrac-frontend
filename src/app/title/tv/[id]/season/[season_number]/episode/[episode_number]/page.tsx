@@ -208,15 +208,14 @@ export default function EpisodeDetailsPage() {
     if (!user) return router.push("/login");
 
     if (!isWatched && !ignorePrompt) {
-      // Find missing previous episodes
-      const missingEps = [];
+      // Find missing previous episodes that actually belong to this season
       const sNum = Number(season_number);
       const eNum = Number(episode_number);
-      for (let i = 1; i < eNum; i++) {
-        if (!watchedEpisodes.some(ep => ep.season === sNum && ep.episode === i)) {
-          missingEps.push(i);
-        }
-      }
+      const availableEps = seasonDetails?.episodes || [];
+      const missingEps = availableEps
+        .filter((ep: any) => ep.episode_number < eNum)
+        .map((ep: any) => ep.episode_number)
+        .filter((epNum: number) => !watchedEpisodes.some(ep => ep.season === sNum && ep.episode === epNum));
 
       if (missingEps.length > 0) {
         setMissingPreviousEps(missingEps);

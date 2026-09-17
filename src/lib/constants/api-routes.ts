@@ -15,5 +15,10 @@ export const API_ROUTES = {
     TRACKING: {
         HISTORY: '/tracking/history',
         STATS: '/tracking/stats',
+        IMPORT_BATCH: '/tracking/import/batch',
+        IMPORT_MOVIES_BATCH: '/tracking/import/movies/batch',
+    },
+    LISTS: {
+        IMPORT_BATCH: '/lists/import/batch',
     },
 } as const;
