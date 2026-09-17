@@ -20,6 +20,7 @@ export interface ImportListItemDTO {
   tvdbId?: string;
   imdbId?: string;
   title?: string;
+  year?: number;
   mediaType?: 'movie' | 'tv';
   position: number;
 }
@@ -646,11 +647,14 @@ function parseListsJson(content: string, filename: string): {
           const imdbId = cleanId(it.id?.imdb || it.imdb_id);
           const tvdbId = cleanId(it.id?.tvdb || it.tvdb_id);
           const title = it.title || it.name;
+          const rawYear = Number(it.year || it.release_year || it.release_date?.slice?.(0, 4) || it.first_air_date?.slice?.(0, 4));
+          const year = !isNaN(rawYear) && rawYear >= 1880 && rawYear <= 2100 ? rawYear : undefined;
 
           items.push({
             imdbId,
             tvdbId,
             title: title ? String(title).trim() : undefined,
+            year,
             mediaType,
             position: currentPosition++,
           });
@@ -662,11 +666,14 @@ function parseListsJson(content: string, filename: string): {
             const imdbId = cleanId(m.id?.imdb || m.imdb_id);
             const tvdbId = cleanId(m.id?.tvdb || m.tvdb_id);
             const title = m.title || m.name;
+            const rawYear = Number(m.year || m.release_year || m.release_date?.slice?.(0, 4));
+            const year = !isNaN(rawYear) && rawYear >= 1880 && rawYear <= 2100 ? rawYear : undefined;
 
             items.push({
               imdbId,
               tvdbId,
               title: title ? String(title).trim() : undefined,
+              year,
               mediaType: 'movie',
               position: currentPosition++,
             });
@@ -677,11 +684,14 @@ function parseListsJson(content: string, filename: string): {
             const imdbId = cleanId(s.id?.imdb || s.imdb_id);
             const tvdbId = cleanId(s.id?.tvdb || s.tvdb_id);
             const title = s.title || s.name;
+            const rawYear = Number(s.year || s.release_year || s.first_air_date?.slice?.(0, 4));
+            const year = !isNaN(rawYear) && rawYear >= 1880 && rawYear <= 2100 ? rawYear : undefined;
 
             items.push({
               imdbId,
               tvdbId,
               title: title ? String(title).trim() : undefined,
+              year,
               mediaType: 'tv',
               position: currentPosition++,
             });
@@ -717,6 +727,7 @@ function parseListCsv(content: string, filename: string): {
   const imdbIdx = findHeaderIndex(rows[0], ALIASES.imdbId);
   const tvdbIdx = findHeaderIndex(rows[0], [...ALIASES.tvdbId, 'movieid', 'movie_id']);
   const titleIdx = findHeaderIndex(rows[0], ALIASES.title);
+  const yearIdx = findHeaderIndex(rows[0], ALIASES.year);
   const typeIdx = findHeaderIndex(rows[0], [...ALIASES.mediaType, ...ALIASES.actionType]);
   const seasonIdx = findHeaderIndex(rows[0], ALIASES.season);
   const episodeIdx = findHeaderIndex(rows[0], ALIASES.episode);
@@ -730,6 +741,8 @@ function parseListCsv(content: string, filename: string): {
     const imdbIdRaw = imdbIdx !== -1 ? cleanId(row[imdbIdx]) : undefined;
     const tvdbIdRaw = tvdbIdx !== -1 ? cleanId(row[tvdbIdx]) : undefined;
     const title = titleIdx !== -1 ? row[titleIdx]?.trim() : undefined;
+    const rawYear = yearIdx !== -1 ? Number(row[yearIdx]) : undefined;
+    const year = rawYear && !isNaN(rawYear) && rawYear >= 1880 && rawYear <= 2100 ? rawYear : undefined;
 
     if (!imdbIdRaw && !tvdbIdRaw && !title) continue;
 
@@ -770,12 +783,13 @@ function parseListCsv(content: string, filename: string): {
     // Custom lists hold distinct movies and shows. If a file contains multiple episode rows
     // for the same show (e.g. 16 rows of "Tunnel"), collapse them to 1 show entry.
     const normTitle = (title || '').toLowerCase().trim();
-    const dedupKey = normTitle ? `${mediaType || 'unknown'}:${normTitle}` : `${imdbId || ''}:${tvdbId || ''}`;
+    const dedupKey = normTitle ? `${mediaType || 'unknown'}:${normTitle}:${year || ''}` : `${imdbId || ''}:${tvdbId || ''}`;
 
     if (dedupKey && seenItems.has(dedupKey)) {
       const existing = seenItems.get(dedupKey)!;
       if (!existing.imdbId && imdbId) existing.imdbId = imdbId;
       if (!existing.tvdbId && tvdbId) existing.tvdbId = tvdbId;
+      if (!existing.year && year) existing.year = year;
       continue;
     }
 
@@ -783,6 +797,7 @@ function parseListCsv(content: string, filename: string): {
       imdbId,
       tvdbId,
       title,
+      year,
       mediaType,
       position: currentPos++,
     };
