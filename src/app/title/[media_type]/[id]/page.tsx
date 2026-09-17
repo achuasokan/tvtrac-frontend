@@ -120,13 +120,11 @@ function SeasonItem({
     const isWatched = watchedEpisodes.some(ep => ep.season === seasonNum && ep.episode === episodeNumber);
     
     if (!isWatched && !ignorePrompt) {
-      // Find missing previous episodes in the current season
-      const missingEps = [];
-      for (let i = 1; i < episodeNumber; i++) {
-        if (!watchedEpisodes.some(ep => ep.season === seasonNum && ep.episode === i)) {
-          missingEps.push(i);
-        }
-      }
+      // Find missing previous episodes in the current season (only considering episodes that actually exist in this season)
+      const missingEps = episodes
+        .filter((ep: any) => ep.episode_number < episodeNumber)
+        .map((ep: any) => ep.episode_number)
+        .filter((epNum: number) => !watchedEpisodes.some(ep => ep.season === seasonNum && ep.episode === epNum));
       
       if (missingEps.length > 0) {
         setPendingToggleEp(episodeNumber);
@@ -318,35 +316,48 @@ function SeasonItem({
           <h3 className="text-sm sm:text-base md:text-lg font-bold text-white truncate">
             {season.name}
           </h3>
-          <p className="text-zinc-400 text-xs sm:text-sm truncate">
-            {user ? (
-              <span className={watchedEpisodes.filter(e => e.season === season.season_number).length === season.episode_count && season.episode_count > 0 ? "text-green-400 font-medium" : "text-white font-medium"}>
-                {watchedEpisodes.filter(e => e.season === season.season_number).length} / {season.episode_count}
-              </span>
-            ) : (
-              season.episode_count
-            )} Episodes • {season.air_date ? season.air_date.split('-')[0] : 'TBA'}
-          </p>
+          {(() => {
+            const rawSeasonCount = watchedEpisodes.filter(e => e.season === season.season_number).length;
+            const seasonWatchedCount = season.episode_count > 0 ? Math.min(rawSeasonCount, season.episode_count) : rawSeasonCount;
+            const isSeasonComplete = season.episode_count > 0 && seasonWatchedCount === season.episode_count;
+            return (
+              <p className="text-zinc-400 text-xs sm:text-sm truncate">
+                {user ? (
+                  <span className={isSeasonComplete ? "text-green-400 font-medium" : "text-white font-medium"}>
+                    {seasonWatchedCount} / {season.episode_count}
+                  </span>
+                ) : (
+                  season.episode_count
+                )} Episodes • {season.air_date ? season.air_date.split('-')[0] : 'TBA'}
+              </p>
+            );
+          })()}
         </div>
 
-        <button 
-          onClick={handleMarkSeasonWatched}
-          disabled={isTogglingSeason}
-          title={(watchedEpisodes.filter(e => e.season === season.season_number).length >= season.episode_count && season.episode_count > 0) ? "Unmark season as watched" : "Mark entire season as watched"}
-          className={`cursor-pointer mr-2 sm:mr-3 w-8 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-all active:scale-90 z-10 group border ${
-            (watchedEpisodes.filter(e => e.season === season.season_number).length >= season.episode_count && season.episode_count > 0)
-              ? 'bg-green-500 text-white border-green-500 hover:bg-green-600'
-              : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'
-          }`}
-        >
-          {isTogglingSeason ? (
-            <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          )}
-        </button>
+        {(() => {
+          const rawSeasonCount = watchedEpisodes.filter(e => e.season === season.season_number).length;
+          const isSeasonWatched = (season.episode_count > 0 && rawSeasonCount >= season.episode_count);
+          return (
+            <button 
+              onClick={handleMarkSeasonWatched}
+              disabled={isTogglingSeason}
+              title={isSeasonWatched ? "Unmark season as watched" : "Mark entire season as watched"}
+              className={`cursor-pointer mr-2 sm:mr-3 w-8 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center rounded-full transition-all active:scale-90 z-10 group border ${
+                isSeasonWatched
+                  ? 'bg-green-500 text-white border-green-500 hover:bg-green-600'
+                  : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:bg-zinc-700 hover:text-white'
+              }`}
+            >
+              {isTogglingSeason ? (
+                <div className="w-4 h-4 border border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+          );
+        })()}
 
         <div className="text-zinc-500 flex-shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 sm:h-6 sm:w-6 transform transition-transform ${expanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -355,11 +366,11 @@ function SeasonItem({
         </div>
 
         {user && season.episode_count > 0 && (() => {
-          const seasonWatchedCount = watchedEpisodes.filter(e => e.season === season.season_number).length;
+          const rawSeasonCount = watchedEpisodes.filter(e => e.season === season.season_number).length;
+          const seasonWatchedCount = Math.min(rawSeasonCount, season.episode_count);
           if (seasonWatchedCount === 0) return null;
           
           const progressPercentage = Math.min(Math.round((seasonWatchedCount / season.episode_count) * 100), 100);
-          const isComplete = progressPercentage === 100;
           return (
             <div className="absolute bottom-0 left-3 right-3 h-[2px] bg-white/5 rounded-full overflow-hidden">
               <div 
@@ -1284,9 +1295,11 @@ export default function TitleDetailsPage() {
             
             {/* TV Show Progress Bar (Sticky) */}
             {mediaType === 'tv' && user && details?.number_of_episodes > 0 && watchedEpisodes.length > 0 && (() => {
-              const percentage = (watchedEpisodes.length / details.number_of_episodes) * 100;
-              const isComplete = percentage === 100;
-              const barColor = isComplete ? '#22c55e' : '#ffffff';
+              const totalEpisodes = details.number_of_episodes;
+              const regularWatchedCount = Math.min(watchedEpisodes.filter(e => e.season > 0).length, totalEpisodes);
+              const percentage = totalEpisodes > 0 ? Math.min(100, (regularWatchedCount / totalEpisodes) * 100) : 0;
+              const isComplete = regularWatchedCount >= totalEpisodes && totalEpisodes > 0;
+              const barColor = isComplete ? '#22c55e' : (dominantColor || '#ffffff');
               return (
                 <div className="w-full h-[2px] bg-white/10 relative shrink-0">
                   <div 
@@ -1580,16 +1593,24 @@ export default function TitleDetailsPage() {
               <div className="animate-in fade-in duration-300 flex flex-col">
                 {user && details.number_of_episodes > 0 && (() => {
                   const totalEpisodes = details.number_of_episodes;
-                  const watchedCount = watchedEpisodes.length;
-                  const percentage = watchedCount === totalEpisodes ? 100 : Math.floor((watchedCount / totalEpisodes) * 100);
+                  const regularWatchedCount = Math.min(watchedEpisodes.filter(e => e.season > 0).length, totalEpisodes);
+                  const specialsWatchedCount = watchedEpisodes.filter(e => e.season === 0).length;
+                  const percentage = totalEpisodes > 0 ? Math.min(100, Math.floor((regularWatchedCount / totalEpisodes) * 100)) : 0;
                   
-                  const isComplete = watchedCount === totalEpisodes;
+                  const isComplete = regularWatchedCount >= totalEpisodes && totalEpisodes > 0;
                   
                   return (
                     <div className="mb-6 flex w-full justify-between items-center px-2">
                       <div className="flex flex-col">
                          <span className="text-zinc-200 font-bold tracking-widest uppercase text-[10px] sm:text-xs">Overall Progress</span>
-                         <span className="text-zinc-500 text-[10px] sm:text-xs mt-0.5 font-medium">{watchedCount} out of {totalEpisodes} episodes</span>
+                         <span className="text-zinc-500 text-[10px] sm:text-xs mt-0.5 font-medium">
+                           {regularWatchedCount} out of {totalEpisodes} episodes
+                           {specialsWatchedCount > 0 && (
+                             <span className="text-zinc-400 ml-1.5 font-normal">
+                               (+{specialsWatchedCount} {specialsWatchedCount === 1 ? 'special' : 'specials'})
+                             </span>
+                           )}
+                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                          <span 
@@ -1611,7 +1632,24 @@ export default function TitleDetailsPage() {
                   );
                 })()}
 
+                {/* Regular Seasons 1..N */}
                 {details.seasons?.filter((s: any) => s.season_number > 0).map((season: any) => (
+                  <SeasonItem 
+                    key={season.id} 
+                    tvId={id} 
+                    season={season} 
+                    watchedEpisodes={watchedEpisodes}
+                    setWatchedEpisodes={setWatchedEpisodes}
+                    ignorePrompt={ignorePrompt}
+                    setIgnorePrompt={setIgnorePrompt}
+                    user={user}
+                    router={router}
+                    episodeRuntime={details?.episode_run_time?.[0] || 0}
+                  />
+                ))}
+
+                {/* Specials (Season 0) */}
+                {details.seasons?.filter((s: any) => s.season_number === 0).map((season: any) => (
                   <SeasonItem 
                     key={season.id} 
                     tvId={id} 

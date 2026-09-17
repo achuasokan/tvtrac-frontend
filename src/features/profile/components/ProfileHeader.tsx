@@ -590,6 +590,30 @@ export const ProfileHeader = () => {
                                 </button>
                             )}
 
+                            <button 
+                                type="button"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsCoverMenuOpen(false);
+                                    router.push('/profile/import');
+                                }}
+                                onTouchEnd={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setIsCoverMenuOpen(false);
+                                    router.push('/profile/import');
+                                }}
+                                className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
+                            >
+                                <div className="w-6 h-6 rounded-md bg-gradient-to-b from-[#FFE144] to-[#FFD200] flex items-center justify-center shadow-[0_2px_8px_rgba(255,210,0,0.3)] shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
+                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#121212">
+                                        <path d="M4.8 4.8h14.4v4.8h-4.8v9.6H9.6V9.6H4.8Z" />
+                                    </svg>
+                                </div>
+                                <span className="group-hover:text-white transition-colors">Import from TV Time</span>
+                            </button>
+
                             <div className="my-1 border-t border-zinc-800/80" />
 
                             <button 

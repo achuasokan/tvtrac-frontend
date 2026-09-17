@@ -87,10 +87,15 @@ export default function Dashboard() {
                     You aren't tracking any shows yet. Skip the manual work and instantly import your entire history from TV Time.
                   </p>
                   
-                  <button className="px-6 py-3 rounded-full bg-white text-black font-bold text-sm sm:text-base hover:scale-105 hover:bg-zinc-200 transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.1)] mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                    </svg>
+                  <button 
+                    onClick={() => router.push('/profile/import')}
+                    className="px-6 py-3 rounded-full bg-white text-black font-bold text-sm sm:text-base hover:scale-105 hover:bg-zinc-200 transition-all duration-300 flex items-center justify-center gap-2.5 shadow-[0_0_30px_rgba(255,255,255,0.15)] mb-4 cursor-pointer"
+                  >
+                    <div className="w-5 h-5 rounded-md bg-[#FFD200] flex items-center justify-center shadow-sm shrink-0 overflow-hidden">
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#121212">
+                        <path d="M4.8 4.8h14.4v4.8h-4.8v9.6H9.6V9.6H4.8Z" />
+                      </svg>
+                    </div>
                     Import TV Time Data
                   </button>
 
