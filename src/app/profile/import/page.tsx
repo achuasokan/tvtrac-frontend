@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft,
   UploadCloud,
   CheckCircle2,
   AlertCircle,
@@ -891,13 +889,22 @@ export default function TvTimeImportPage() {
       {/* Sticky Navigation Header */}
       <div className="sticky top-0 z-40 bg-[#070707]/85 backdrop-blur-xl border-b border-white/5 py-3 mb-2 sm:mb-4">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <Link
-            href="/profile"
-            className="cursor-pointer px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] active:bg-white/[0.15] border border-white/10 hover:border-white/20 transition-all text-zinc-300 hover:text-white flex items-center gap-2 text-xs font-semibold"
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.history.length > 1 && document.referrer.includes(window.location.host)) {
+                router.back();
+              } else {
+                router.push('/profile');
+              }
+            }}
+            aria-label="Back to Profile"
+            className="group flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Back to Profile</span>
-          </Link>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
 
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-white/[0.04] text-zinc-200 border border-white/10 backdrop-blur-md">
