@@ -21,4 +21,11 @@ export const API_ROUTES = {
     LISTS: {
         IMPORT_BATCH: '/lists/import/batch',
     },
+    IMPORTS: {
+        TVTIME: '/imports/tvtime',
+        JOB: (id: string) => `/imports/tvtime/${id}`,
+        UNRESOLVED: (id: string) => `/imports/tvtime/${id}/unresolved`,
+        RESOLVE: (jobId: string, unresolvedId: string) => `/imports/tvtime/${jobId}/unresolved/${unresolvedId}/resolve`,
+        CANCEL: (id: string) => `/imports/tvtime/${id}/cancel`,
+    },
 } as const;

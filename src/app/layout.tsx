@@ -7,6 +7,7 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { RegisterPWA } from "@/components/pwa/RegisterPWA";
+import { ImportProgressDock } from "@/features/import/components/ImportProgressDock";
 import { siteConfig } from "@/lib/constants/site";
 
 const inter = Inter({
@@ -87,6 +88,8 @@ export default function RootLayout({
               <BottomNav />
               {/* PWA install prompt — appears after 3s if app is installable */}
               <InstallPrompt />
+              {/* Background TV Time Import Progress Dock */}
+              <ImportProgressDock />
             </QueryProvider>
           </ReduxProvider>
         </GoogleAuthProvider>
