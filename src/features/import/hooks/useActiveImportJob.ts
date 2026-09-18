@@ -50,7 +50,8 @@ export function useActiveImportJob() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
 
-  // Initialize and synchronize from localStorage across components & tabs
+  // Step 1: Read from localStorage first (fast, synchronous)
+  // Step 2: If nothing in localStorage, ask the backend if there's an active job (auto-reconnect)
   useEffect(() => {
     const syncJobId = () => {
       if (typeof window !== 'undefined') {
@@ -70,6 +71,32 @@ export function useActiveImportJob() {
       window.removeEventListener('tvtrac_active_import_changed', syncJobId);
     };
   }, []);
+
+  // Auto-reconnect: if localStorage has no jobId, ask the backend
+  // This handles the case where the user dismissed the dock widget (which no longer
+  // clears localStorage) or opened a new tab/device with the same session.
+  useEffect(() => {
+    if (!isReady) return;
+    // Only attempt reconnect if localStorage has nothing
+    if (jobId) return;
+
+    let cancelled = false;
+    api.get(API_ROUTES.IMPORTS.ACTIVE)
+      .then((res) => {
+        if (cancelled) return;
+        const activeJobId: string | null = res.data?.data?.jobId ?? null;
+        if (activeJobId) {
+          // Reconnect: persist to localStorage so polling kicks in
+          localStorage.setItem(STORAGE_KEY, activeJobId);
+          setJobId(activeJobId);
+        }
+      })
+      .catch(() => {
+        // Silently ignore — no active job or auth error
+      });
+
+    return () => { cancelled = true; };
+  }, [isReady]); // only runs once when hook is ready and localStorage has no jobId
 
   const setAndPersistJobId = useCallback((id: string | null) => {
     setJobId(id);
@@ -147,6 +174,7 @@ export function useActiveImportJob() {
     }
   };
 
+  // clearActiveJob: fully removes job tracking (used after confirmed completion/cancel)
   const clearActiveJob = useCallback(() => {
     if (jobId) {
       queryClient.removeQueries({ queryKey: ['tvtime-import-job', jobId] });

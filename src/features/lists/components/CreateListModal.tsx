@@ -119,7 +119,6 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
                   onChange={(e) => setName(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20 transition-all"
                   placeholder="e.g. Favorites, Anime to Watch"
-                  autoFocus
                 />
               </div>
               

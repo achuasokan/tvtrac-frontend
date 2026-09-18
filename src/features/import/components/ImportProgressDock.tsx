@@ -23,7 +23,10 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 export function ImportProgressDock() {
   const pathname = usePathname();
-  const { jobId, state, progress, isRunning, clearActiveJob } = useActiveImportJob();
+  const { jobId, state, progress, isRunning } = useActiveImportJob();
+  // Local-only flag: hides the widget without losing the jobId.
+  // Resets automatically when the job completes/fails so user sees the result.
+  const [dismissed, setDismissed] = React.useState(false);
 
   const total = progress.total || 0;
   const processed = progress.processed || 0;
@@ -61,8 +64,19 @@ export function ImportProgressDock() {
     }
   }, [isCompleted, isRunning, progress.imported, progress.unresolved]);
 
+  // Auto-show again when job completes/fails so user always sees the final result
+  const prevStateRef = React.useRef(state);
+  React.useEffect(() => {
+    if (prevStateRef.current !== state && (state === 'completed' || state === 'failed')) {
+      setDismissed(false);
+    }
+    prevStateRef.current = state;
+  }, [state]);
+
   if (pathname === '/profile/import') return null;
   if (!jobId || state === 'idle' || state === 'unknown') return null;
+  if (dismissed) return null;
+
 
   const glowColor = isCompleted
     ? 'rgba(52,211,153,0.28)'
@@ -80,11 +94,11 @@ export function ImportProgressDock() {
         animate-in slide-in-from-bottom-4 duration-300
       "
     >
-      {/* Dismiss button — outside the circle, top-right corner */}
+      {/* Dismiss button — hides widget locally only; job keeps running on server */}
       <button
         type="button"
-        onClick={clearActiveJob}
-        aria-label="Dismiss"
+        onClick={() => setDismissed(true)}
+        aria-label="Hide widget"
         className="
           absolute -top-2 -right-2 z-10
           w-5 h-5 rounded-full

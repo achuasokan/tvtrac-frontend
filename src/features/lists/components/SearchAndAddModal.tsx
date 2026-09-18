@@ -225,7 +225,6 @@ export function SearchAndAddModal({ isOpen, onClose, listId }: SearchAndAddModal
             </svg>
             <input
               type="text"
-              autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search movies or TV shows..."

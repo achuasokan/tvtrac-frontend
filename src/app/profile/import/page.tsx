@@ -393,6 +393,7 @@ export default function TvTimeImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>('');
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Counters
   const [processedEpisodes, setProcessedEpisodes] = useState(0);
@@ -770,11 +771,12 @@ export default function TvTimeImportPage() {
 
     setIsImporting(true);
     setCurrentStep('Uploading source files to Cloudinary...');
+    setImportError(null);
     try {
       await startImportJob(selectedFiles);
     } catch (err: any) {
       console.error('Failed to start background import:', err);
-      alert(err.response?.data?.error || err.message || 'Failed to start background import');
+      setImportError(err.response?.data?.error || err.message || 'Failed to start background import.');
       setIsImporting(false);
     }
   };
@@ -904,6 +906,26 @@ export default function TvTimeImportPage() {
           accept=".csv,.json,text/csv,application/json"
           className="hidden"
         />
+
+        {/* Import Error Banner — replaces native alert() */}
+        {importError && (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 animate-in fade-in slide-in-from-top-2 duration-200">
+            <svg className="w-4 h-4 mt-0.5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <p className="text-sm flex-1 leading-snug">{importError}</p>
+            <button
+              type="button"
+              onClick={() => setImportError(null)}
+              className="text-red-400/60 hover:text-red-300 transition-colors shrink-0 cursor-pointer"
+              aria-label="Dismiss error"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/* Hero Branding Header */}
         <div className="space-y-1">
@@ -1439,7 +1461,6 @@ export default function TvTimeImportPage() {
 
                 <input
                   type="text"
-                  autoFocus
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search movies or TV shows..."

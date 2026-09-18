@@ -147,7 +147,6 @@ export const GifPickerModal: React.FC<GifPickerModalProps> = ({ isOpen, onClose,
                   }
                 }}
                 placeholder="Search GIFs..."
-                autoFocus
                 className="w-full pl-9 sm:pl-10 pr-9 py-2 sm:py-2.5 bg-zinc-900/90 border border-zinc-800 focus:border-amber-500/60 rounded-xl text-base sm:text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-all shadow-inner"
               />
               {searchQuery && (

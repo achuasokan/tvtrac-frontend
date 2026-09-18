@@ -217,7 +217,6 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
                     placeholder="Enter list name..."
                     maxLength={50}
                     className="w-full bg-zinc-900/90 border border-zinc-700/90 focus:border-[#2dd4bf] focus:ring-1 focus:ring-[#2dd4bf]/40 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs px-3 py-2 text-xs sm:text-sm text-white placeholder-zinc-500 outline-none transition-all shadow-inner"
-                    autoFocus
                   />
                 </div>
                 <div className="flex items-center justify-end gap-2">
