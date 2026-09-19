@@ -11,7 +11,8 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getAutoplayPreference, setAutoplayPreference, AutoplayPreference } from '@/utils/autoplaySettings';
 import { extractDominantColor } from '@/utils/colorExtractor';
 import { useProfileTheme } from '@/features/profile/context/ProfileThemeContext';
-import { Settings, Download, Play, LogOut, X, ChevronRight, Check } from 'lucide-react';
+import { Settings, Download, Play, LogOut, X, ChevronRight, Check, MessageSquareHeart } from 'lucide-react';
+import { FeedbackModal } from './FeedbackModal';
 
 export const ProfileHeader = () => {
     const { user } = useAppSelector(state => state.auth);
@@ -25,6 +26,7 @@ export const ProfileHeader = () => {
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [showAutoplayModal, setShowAutoplayModal] = useState(false);
+    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [currentAutoplayPref, setCurrentAutoplayPref] = useState<AutoplayPreference>(() => getAutoplayPreference());
     const [isStandalone, setIsStandalone] = useState(false);
@@ -50,10 +52,10 @@ export const ProfileHeader = () => {
     const [usernameError, setUsernameError] = useState<string | null>(null);
 
     // Toast notification state
-    const [toastMessage, setToastMessage] = useState<string | null>(null);
-    const showToast = (message: string) => {
-        setToastMessage(message);
-        setTimeout(() => setToastMessage(null), 4000);
+    const [toastState, setToastState] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
+    const showToast = (message: string, type: 'error' | 'success' = 'error') => {
+        setToastState({ message, type });
+        setTimeout(() => setToastState(null), 3500);
     };
 
     const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
@@ -454,6 +456,14 @@ export const ProfileHeader = () => {
                 </div>
             )}
 
+            {/* ── In-App Feedback Modal ── */}
+            <FeedbackModal
+                isOpen={showFeedbackModal}
+                onClose={() => setShowFeedbackModal(false)}
+                onSuccess={(msg) => showToast(msg, 'success')}
+                onError={(msg) => showToast(msg, 'error')}
+            />
+
             {/* ── iOS Control Tray Bottom Sheet (Settings & Tools) ── */}
             {isSettingsOpen && (
                 <div 
@@ -501,7 +511,7 @@ export const ProfileHeader = () => {
                             </div>
 
                             {/* Circular Tactile Control Discs (Matching Reference Image) */}
-                            <div className={`grid ${showInstallOption ? 'grid-cols-4 gap-2' : 'grid-cols-3 gap-3 sm:gap-6'} justify-items-center mb-1`}>
+                            <div className={`grid ${showInstallOption ? 'grid-cols-4 sm:grid-cols-5 gap-2 sm:gap-3' : 'grid-cols-4 gap-2.5 sm:gap-4'} justify-items-center mb-1`}>
                                 {/* 1. Import from TV Time */}
                                 <button
                                     type="button"
@@ -548,6 +558,25 @@ export const ProfileHeader = () => {
                                         </span>
                                         <span className={`text-[7.5px] font-bold uppercase mt-0.5 ${currentAutoplayPref === 'never' ? 'text-amber-300' : 'text-zinc-500'}`}>
                                             {currentAutoplayPref === 'never' ? 'Saver On' : 'Active'}
+                                        </span>
+                                    </div>
+                                </button>
+
+                                {/* 3. Feedback */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsSettingsOpen(false);
+                                        setShowFeedbackModal(true);
+                                    }}
+                                    className="group flex flex-col items-center gap-1.5 cursor-pointer outline-none active:scale-95 transition-transform"
+                                >
+                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/[0.08] hover:bg-white/[0.16] active:bg-white/[0.22] border border-white/[0.15] hover:border-teal-400/40 text-white/85 group-hover:text-teal-300 flex items-center justify-center shadow-[0_2px_10px_rgba(0,0,0,0.25)] backdrop-blur-xl transition-all">
+                                        <MessageSquareHeart className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-teal-300 group-hover:scale-110 transition-transform" />
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[9px] sm:text-[10px] font-semibold tracking-wider text-zinc-300 group-hover:text-white uppercase transition-colors text-center leading-tight">
+                                            Feedback
                                         </span>
                                     </div>
                                 </button>
@@ -620,14 +649,21 @@ export const ProfileHeader = () => {
             )}
 
             {/* Custom Toast Notification */}
-            {toastMessage && (
-                <div className="fixed top-4 right-4 md:top-6 md:right-6 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-                    <div className="bg-[#111] text-zinc-200 px-4 pr-6 py-3 rounded-lg shadow-[0_8px_30px_rgb(0,0,0,0.5)] font-medium flex items-center gap-3 border border-zinc-800 relative overflow-hidden">
-                        <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500"></div>
-                        <svg className="w-4 h-4 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-[13px] leading-tight whitespace-nowrap">{toastMessage}</span>
+            {toastState && (
+                <div className="fixed top-14 sm:top-6 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-3 duration-200 pointer-events-none max-w-[85vw]">
+                    <div className="bg-zinc-950/95 backdrop-blur-xl text-zinc-100 px-3 py-1.5 rounded-full shadow-[0_8px_25px_rgba(0,0,0,0.85)] flex items-center gap-2 border border-white/10 ring-1 ring-white/5">
+                        {toastState.type === 'success' ? (
+                            <div className="w-3.5 h-3.5 rounded-full bg-teal-500/25 text-teal-400 flex items-center justify-center shrink-0">
+                                <Check className="w-2 h-2 stroke-[3]" />
+                            </div>
+                        ) : (
+                            <div className="w-3.5 h-3.5 rounded-full bg-red-500/25 text-red-400 flex items-center justify-center shrink-0">
+                                <svg className="w-2 h-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4m0 4h.01" />
+                                </svg>
+                            </div>
+                        )}
+                        <span className="text-[11px] sm:text-xs font-semibold tracking-wide truncate">{toastState.message}</span>
                     </div>
                 </div>
             )}
