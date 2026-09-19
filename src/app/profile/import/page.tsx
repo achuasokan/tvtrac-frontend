@@ -1,10 +1,8 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft,
   UploadCloud,
   CheckCircle2,
   AlertCircle,
@@ -37,6 +35,7 @@ import {
   ImportListItemDTO,
 } from '@/features/import/utils/tvTimeParser';
 import { useQueryClient } from '@tanstack/react-query';
+import { useActiveImportJob } from '@/features/import/hooks/useActiveImportJob';
 
 interface UnmatchedItem {
   category: 'tv' | 'movie' | 'list';
@@ -68,6 +67,7 @@ export interface UnresolvedCandidate {
 }
 
 export interface GroupedUnresolvedItem {
+  _id?: string;
   groupKey: string;
   listId?: string;
   listName?: string;
@@ -77,7 +77,7 @@ export interface GroupedUnresolvedItem {
   titleYear?: number;
   imdbId?: string;
   tvdbId?: string;
-  status: 'ambiguous' | 'unmatched' | 'rejected';
+  status: 'ambiguous' | 'unmatched' | 'rejected' | 'resolved' | 'pending';
   occurrences: number;
   positions?: number[];
   reason: string;
@@ -369,6 +369,20 @@ export default function TvTimeImportPage() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const {
+    jobId,
+    job,
+    state: jobState,
+    isRunning: isJobRunning,
+    isReady,
+    progress: jobProgress,
+    startImportJob,
+    cancelImportJob,
+    clearActiveJob,
+    fetchUnresolvedItems,
+    resolveItem,
+  } = useActiveImportJob();
+
   const [dragOver, setDragOver] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [parseResult, setParseResult] = useState<MultiFileParseResult | null>(null);
@@ -379,6 +393,7 @@ export default function TvTimeImportPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [currentStep, setCurrentStep] = useState<string>('');
+  const [importError, setImportError] = useState<string | null>(null);
 
   // Counters
   const [processedEpisodes, setProcessedEpisodes] = useState(0);
@@ -394,7 +409,7 @@ export default function TvTimeImportPage() {
 
   const [unmatchedList, setUnmatchedList] = useState<UnmatchedItem[]>([]);
   const [failedList, setFailedList] = useState<FailedItem[]>([]);
-  const [showUnmatchedDrawer, setShowUnmatchedDrawer] = useState(false);
+  const [showUnmatchedDrawer, setShowUnmatchedDrawer] = useState(true);
   const [groupedUnresolvedList, setGroupedUnresolvedList] = useState<GroupedUnresolvedItem[]>([]);
   const [selectedGroupForResolution, setSelectedGroupForResolution] = useState<GroupedUnresolvedItem | null>(null);
   const [isResolving, setIsResolving] = useState(false);
@@ -403,10 +418,127 @@ export default function TvTimeImportPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchingTmdb, setIsSearchingTmdb] = useState(false);
 
+  // Synchronize live BullMQ background job state into local view
+  React.useEffect(() => {
+    if (!job || !jobId) return;
+
+    const applyProgress = () => {
+      if (jobProgress.episodes || jobProgress.movies || jobProgress.lists) {
+        if (jobProgress.episodes) {
+          setProcessedEpisodes(jobProgress.episodes.processed || 0);
+          setImportedEpisodes(jobProgress.episodes.imported || 0);
+        }
+        if (jobProgress.movies) {
+          setProcessedMovies(jobProgress.movies.processed || 0);
+          setImportedMovies(jobProgress.movies.imported || 0);
+        }
+        if (jobProgress.lists) {
+          setProcessedListItems(jobProgress.lists.processed || 0);
+          setImportedListItems(jobProgress.lists.imported || 0);
+          setDuplicateListItems(jobProgress.lists.duplicates || 0);
+          setImportedListsCount(jobProgress.lists.listsCount || 0);
+        }
+      } else if (parseResult) {
+        if (parseResult.lists.totalItems > 0 && parseResult.episodes.totalCount === 0 && parseResult.movies.totalCount === 0) {
+          setProcessedListItems(jobProgress.processed || 0);
+          setImportedListItems(jobProgress.imported || 0);
+          setDuplicateListItems(jobProgress.duplicates || 0);
+          setImportedListsCount(parseResult.lists.totalLists || 1);
+        } else if (parseResult.movies.totalCount > 0 && parseResult.episodes.totalCount === 0) {
+          setProcessedMovies(jobProgress.processed || 0);
+          setImportedMovies(jobProgress.imported || 0);
+        } else {
+          setProcessedEpisodes(jobProgress.processed || 0);
+          setImportedEpisodes(jobProgress.imported || 0);
+          setDuplicateListItems(jobProgress.duplicates || 0);
+        }
+      } else {
+        setProcessedEpisodes(jobProgress.processed || 0);
+        setImportedEpisodes(jobProgress.imported || 0);
+        setDuplicateListItems(jobProgress.duplicates || 0);
+      }
+    };
+
+    if (jobState === 'active' || jobState === 'waiting' || jobState === 'delayed') {
+      setIsImporting(true);
+      setIsComplete(false);
+      setCurrentStep(jobProgress.currentStep || 'Importing in background...');
+      applyProgress();
+    } else if (jobState === 'completed') {
+      setIsImporting(false);
+      setIsComplete(true);
+      setCurrentStep('Completed');
+      applyProgress();
+
+      // Fetch user's unresolved items from MongoDB for manual match drawer
+      fetchUnresolvedItems().then((items) => {
+        if (Array.isArray(items) && items.length > 0) {
+          const mapped: GroupedUnresolvedItem[] = items.map((item: any) => ({
+            _id: item._id,
+            groupKey: item._id,
+            listId: item.targetListId,
+            listName: item.targetListName,
+            category: item.targetListId ? 'list' : (item.sourceMediaType === 'movie' ? 'movie' : 'tv'),
+            title: item.sourceTitle,
+            mediaType: item.sourceMediaType,
+            titleYear: item.sourceYear,
+            imdbId: item.sourceExternalIds?.imdbId,
+            tvdbId: item.sourceExternalIds?.tvdbId,
+            occurrences: item.occurrences || 1,
+            candidates: (item.candidates || []).map((c: any) => ({
+              id: c.tmdbId ?? c.id,
+              title: c.title,
+              mediaType: c.mediaType || item.sourceMediaType || 'tv',
+              year: c.releaseYear ?? c.year,
+              firstAirDate: c.firstAirDate,
+              releaseDate: c.releaseDate,
+              posterPath: c.posterPath,
+              voteAverage: c.voteAverage,
+              voteCount: c.voteCount,
+            })),
+            positions: item.positions || [],
+            reason: item.reason,
+            status: item.status === 'resolved' ? 'resolved' : 'ambiguous',
+            resolved: item.status === 'resolved',
+            resolvedCandidateTitle: item.resolvedTmdbId ? `TMDB #${item.resolvedTmdbId}` : undefined,
+          }));
+          setGroupedUnresolvedList(mapped);
+
+          const rawUnmatched: UnmatchedItem[] = [];
+          items.forEach((item: any) => {
+            const count = item.occurrences || 1;
+            for (let c = 0; c < count; c++) {
+              rawUnmatched.push({
+                category: item.targetListId ? 'list' : (item.sourceMediaType === 'movie' ? 'movie' : 'tv'),
+                title: item.sourceTitle,
+                reason: item.reason,
+              });
+            }
+          });
+          setUnmatchedList(rawUnmatched);
+        }
+      });
+    } else if (jobState === 'failed') {
+      setIsImporting(false);
+      setCurrentStep('Import failed');
+    }
+  }, [job, jobId, jobState, jobProgress, parseResult]);
+
   const handleOpenResolutionModal = (group: GroupedUnresolvedItem) => {
     setSelectedGroupForResolution(group);
     setSearchQuery(group.title || '');
-    setModalCandidates(group.candidates || []);
+    const mapped = (group.candidates || []).map((c: any) => ({
+      id: c.id ?? c.tmdbId,
+      title: c.title,
+      mediaType: c.mediaType || group.mediaType || 'tv',
+      year: c.year ?? c.releaseYear,
+      firstAirDate: c.firstAirDate,
+      releaseDate: c.releaseDate,
+      posterPath: c.posterPath,
+      voteAverage: c.voteAverage,
+      voteCount: c.voteCount,
+    }));
+    setModalCandidates(mapped);
   };
 
   const handleSearchTmdb = async (queryToSearch: string) => {
@@ -446,14 +578,36 @@ export default function TvTimeImportPage() {
     if (!selectedGroupForResolution) return;
     const trimmed = searchQuery.trim();
     if (!trimmed) {
-      setModalCandidates(selectedGroupForResolution.candidates || []);
+      const mapped = (selectedGroupForResolution.candidates || []).map((c: any) => ({
+        id: c.id ?? c.tmdbId,
+        title: c.title,
+        mediaType: c.mediaType || selectedGroupForResolution.mediaType || 'tv',
+        year: c.year ?? c.releaseYear,
+        firstAirDate: c.firstAirDate,
+        releaseDate: c.releaseDate,
+        posterPath: c.posterPath,
+        voteAverage: c.voteAverage,
+        voteCount: c.voteCount,
+      }));
+      setModalCandidates(mapped);
       return;
     }
     if (
       trimmed.toLowerCase() === selectedGroupForResolution.title.toLowerCase() &&
       (selectedGroupForResolution.candidates?.length || 0) > 0
     ) {
-      setModalCandidates(selectedGroupForResolution.candidates || []);
+      const mapped = (selectedGroupForResolution.candidates || []).map((c: any) => ({
+        id: c.id ?? c.tmdbId,
+        title: c.title,
+        mediaType: c.mediaType || selectedGroupForResolution.mediaType || 'tv',
+        year: c.year ?? c.releaseYear,
+        firstAirDate: c.firstAirDate,
+        releaseDate: c.releaseDate,
+        posterPath: c.posterPath,
+        voteAverage: c.voteAverage,
+        voteCount: c.voteCount,
+      }));
+      setModalCandidates(mapped);
       return;
     }
 
@@ -466,10 +620,13 @@ export default function TvTimeImportPage() {
 
   const handleFiles = (files: File[]) => {
     if (!files || files.length === 0) return;
+    clearActiveJob();
     setSelectedFiles(files);
     setIsParsing(true);
     setParseResult(null);
     setIsComplete(false);
+    setIsImporting(false);
+    setCurrentStep('');
     setUnmatchedList([]);
     setFailedList([]);
     setGroupedUnresolvedList([]);
@@ -529,6 +686,7 @@ export default function TvTimeImportPage() {
   };
 
   const handleReset = () => {
+    clearActiveJob();
     setSelectedFiles([]);
     setParseResult(null);
     setIsImporting(false);
@@ -551,296 +709,105 @@ export default function TvTimeImportPage() {
   };
 
   const handleResolveCandidate = async (group: GroupedUnresolvedItem, candidate: UnresolvedCandidate) => {
-    if (!group.listId) {
-      alert('Cannot resolve: list ID not found');
-      return;
-    }
     setIsResolving(true);
     try {
-      // Find all groups with the exact same title that are still unresolved
-      const matchingGroups = groupedUnresolvedList.filter(
-        (g) => !g.resolved && g.title.toLowerCase().trim() === group.title.toLowerCase().trim() && g.listId
-      );
-      const targets = matchingGroups.length > 0 ? matchingGroups : [group];
-
-      // Add to each respective list at its exact original position
-      for (const target of targets) {
-        try {
-          const position = target.positions && target.positions.length > 0 ? target.positions[0] : undefined;
-          await api.post(`/lists/${target.listId}/items`, {
-            tmdbId: String(candidate.id),
-            mediaType: candidate.mediaType || target.mediaType || 'tv',
-            position,
-          });
-        } catch (e) {
-          console.warn(`Failed to add candidate to list ${target.listId}:`, e);
-        }
+      const resolvedTmdbId = Number(candidate.id || (candidate as any).tmdbId);
+      if (!resolvedTmdbId || isNaN(resolvedTmdbId)) {
+        console.error('Missing TMDB ID on candidate:', candidate);
+        return;
       }
 
-      const targetKeys = new Set(targets.map((t) => t.groupKey));
+      const mediaType = candidate.mediaType || group.mediaType || 'tv';
 
-      // Update local state: mark all matching groups as resolved
+      if (group._id) {
+        // Resolve using BullMQ background endpoint
+        await resolveItem(group._id, {
+          tmdbId: resolvedTmdbId,
+          mediaType,
+          title: candidate.title,
+        });
+      } else if (group.listId) {
+        // Fallback for custom list item
+        const position = group.positions && group.positions.length > 0 ? group.positions[0] : undefined;
+        await api.post(`/lists/${group.listId}/items`, {
+          tmdbId: String(resolvedTmdbId),
+          mediaType,
+          position,
+        });
+      }
+
+      // Update local state: mark matching group as resolved
       setGroupedUnresolvedList((prev) =>
         prev.map((g) =>
-          targetKeys.has(g.groupKey)
+          g.groupKey === group.groupKey || (group._id && g._id === group._id)
             ? { ...g, resolved: true, resolvedCandidateTitle: candidate.title }
             : g
         )
       );
 
-      // Increment imported unique list items
-      setImportedListItems((prev) => prev + targets.length);
+      // Increment imported count
+      setImportedListItems((prev) => prev + (group.occurrences || 1));
 
-      // Invalidate queries so lists page displays the updated items
       queryClient.invalidateQueries({ queryKey: ['lists'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-
       setSelectedGroupForResolution(null);
     } catch (err: any) {
       console.error('Failed to resolve candidate:', err);
-      alert(err.response?.data?.message || err.message || 'Failed to resolve candidate');
     } finally {
       setIsResolving(false);
     }
   };
 
   const startImport = async () => {
-    if (!parseResult || isImporting) return;
+    if (selectedFiles.length === 0 || isImporting || isJobRunning) return;
+
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      try {
+        await Notification.requestPermission();
+      } catch (e) {
+        console.warn('Could not request notification permission', e);
+      }
+    }
 
     setIsImporting(true);
-    const accUnmatched: UnmatchedItem[] = [];
-    const accFailed: FailedItem[] = [];
-    const accGroupedMap = new Map<string, GroupedUnresolvedItem>();
-
-    // 1. Import TV Episodes
-    const epBatches = parseResult.episodes.batches;
-    if (epBatches.length > 0) {
-      setCurrentStep('Importing TV Shows & Episodes...');
-      let epProcessed = 0;
-      let epImported = 0;
-
-      for (let b = 0; b < epBatches.length; b++) {
-        const batch = epBatches[b];
-        try {
-          const res = await api.post(API_ROUTES.TRACKING.IMPORT_BATCH, { items: batch });
-          const data = res.data;
-          epProcessed += data.processed || batch.length;
-          epImported += data.importedEpisodes || 0;
-
-          if (Array.isArray(data.unmatched)) {
-            data.unmatched.forEach((u: any) =>
-              accUnmatched.push({
-                category: 'tv',
-                title: u.title || `TVDB ${u.tvdbId}`,
-                season: u.season,
-                episode: u.episode,
-                reason: u.reason,
-              })
-            );
-          }
-          if (Array.isArray(data.failed)) {
-            data.failed.forEach((f: any) =>
-              accFailed.push({
-                category: 'tv',
-                title: f.title || `TVDB ${f.tvdbId}`,
-                reason: f.reason,
-              })
-            );
-          }
-
-          setProcessedEpisodes(epProcessed);
-          setImportedEpisodes(epImported);
-          setUnmatchedList([...accUnmatched]);
-          setFailedList([...accFailed]);
-        } catch (err: any) {
-          epProcessed += batch.length;
-          setProcessedEpisodes(epProcessed);
-          accFailed.push({
-            category: 'tv',
-            title: `Batch ${b + 1}`,
-            reason: err.response?.data?.error || 'Failed to import episode batch',
-          });
-          setFailedList([...accFailed]);
-        }
-      }
+    setCurrentStep('Uploading source files to Cloudinary...');
+    setImportError(null);
+    try {
+      await startImportJob(selectedFiles);
+    } catch (err: any) {
+      console.error('Failed to start background import:', err);
+      setImportError(err.response?.data?.error || err.message || 'Failed to start background import.');
+      setIsImporting(false);
     }
-
-    // 2. Import Movies
-    const movieBatches = parseResult.movies.batches;
-    if (movieBatches.length > 0) {
-      setCurrentStep('Importing Watched Movies...');
-      let mProcessed = 0;
-      let mImported = 0;
-
-      for (let b = 0; b < movieBatches.length; b++) {
-        const batch = movieBatches[b];
-        try {
-          const res = await api.post(API_ROUTES.TRACKING.IMPORT_MOVIES_BATCH, { items: batch });
-          const data = res.data;
-          mProcessed += data.processed || batch.length;
-          mImported += data.importedMovies || 0;
-
-          if (Array.isArray(data.unmatched)) {
-            data.unmatched.forEach((u: any) =>
-              accUnmatched.push({
-                category: 'movie',
-                title: u.title || u.imdbId || u.tvdbId || 'Unknown Movie',
-                reason: u.reason,
-              })
-            );
-          }
-          if (Array.isArray(data.failed)) {
-            data.failed.forEach((f: any) =>
-              accFailed.push({
-                category: 'movie',
-                title: f.title || f.imdbId || f.tvdbId,
-                reason: f.reason,
-              })
-            );
-          }
-
-          setProcessedMovies(mProcessed);
-          setImportedMovies(mImported);
-          setUnmatchedList([...accUnmatched]);
-          setFailedList([...accFailed]);
-        } catch (err: any) {
-          mProcessed += batch.length;
-          setProcessedMovies(mProcessed);
-          accFailed.push({
-            category: 'movie',
-            title: `Batch ${b + 1}`,
-            reason: err.response?.data?.error || 'Failed to import movie batch',
-          });
-          setFailedList([...accFailed]);
-        }
-      }
-    }
-
-    // 3. Import Lists
-    const parsedLists = parseResult.lists.lists;
-    if (parsedLists.length > 0) {
-      setCurrentStep('Importing Custom Lists & Items...');
-      let totalItemsProc = 0;
-      let totalItemsImp = 0;
-      let totalItemsDup = 0;
-      let listsCount = 0;
-
-      for (const listPayload of parsedLists) {
-        listsCount++;
-        setImportedListsCount(listsCount);
-
-        // Process batches sequentially per list to maintain deterministic ordering
-        for (const batch of listPayload.batches) {
-          try {
-            const res = await api.post(API_ROUTES.LISTS.IMPORT_BATCH, batch);
-            const data = res.data?.data || res.data;
-            totalItemsProc += data.processed || batch.items.length;
-            totalItemsImp += data.importedItems || 0;
-            totalItemsDup += data.duplicatesCount || 0;
-
-            if (Array.isArray(data.unmatched)) {
-              data.unmatched.forEach((u: any) =>
-                accUnmatched.push({
-                  category: 'list',
-                  title: `${listPayload.name}: ${u.title || u.imdbId || u.tvdbId}`,
-                  reason: u.reason,
-                })
-              );
-            }
-            if (Array.isArray(data.failed)) {
-              data.failed.forEach((f: any) =>
-                accFailed.push({
-                  category: 'list',
-                  title: `${listPayload.name}: ${f.title || f.imdbId || f.tvdbId}`,
-                  reason: f.reason,
-                })
-              );
-            }
-
-            if (Array.isArray(data.unresolvedGroups)) {
-              for (const g of data.unresolvedGroups) {
-                const normTitle = (g.title || '').toLowerCase().trim();
-                const fullKey = `${listPayload.name}:${g.mediaType || 'unknown'}:${normTitle}:${g.titleYear || ''}`;
-                const existing = accGroupedMap.get(fullKey);
-                if (existing) {
-                  existing.occurrences += g.occurrences;
-                  if ((!existing.candidates || existing.candidates.length === 0) && g.candidates) {
-                    existing.candidates = g.candidates;
-                  }
-                  if (!existing.listId && data.listId) {
-                    existing.listId = data.listId;
-                  }
-                  if (Array.isArray(g.positions)) {
-                    if (!existing.positions) existing.positions = [];
-                    for (const pos of g.positions) {
-                      if (!existing.positions.includes(pos)) {
-                        existing.positions.push(pos);
-                      }
-                    }
-                    existing.positions.sort((a, b) => a - b);
-                  }
-                } else {
-                  accGroupedMap.set(fullKey, {
-                    groupKey: fullKey,
-                    listId: data.listId,
-                    listName: listPayload.name,
-                    category: 'list',
-                    title: g.title || 'Unknown Title',
-                    mediaType: g.mediaType,
-                    titleYear: g.titleYear,
-                    imdbId: g.imdbId,
-                    tvdbId: g.tvdbId,
-                    status: g.status,
-                    occurrences: g.occurrences,
-                    positions: Array.isArray(g.positions) ? [...g.positions] : [],
-                    reason: g.reason,
-                    candidates: g.candidates,
-                  });
-                }
-              }
-              setGroupedUnresolvedList(Array.from(accGroupedMap.values()));
-            }
-
-            setProcessedListItems(totalItemsProc);
-            setImportedListItems(totalItemsImp);
-            setDuplicateListItems(totalItemsDup);
-            setUnmatchedList([...accUnmatched]);
-            setFailedList([...accFailed]);
-          } catch (err: any) {
-            totalItemsProc += batch.items.length;
-            setProcessedListItems(totalItemsProc);
-            accFailed.push({
-              category: 'list',
-              title: `${listPayload.name} batch`,
-              reason: err.response?.data?.message || err.response?.data?.error || 'Failed to import list batch',
-            });
-            setFailedList([...accFailed]);
-          }
-        }
-      }
-    }
-
-    setIsImporting(false);
-    setIsComplete(true);
-    setCurrentStep('Import Completed');
-
-    // Invalidate queries to refresh lists and watch history
-    queryClient.invalidateQueries({ queryKey: ['profile'] });
-    queryClient.invalidateQueries({ queryKey: ['lists'] });
   };
 
-  const totalEpisodesInFile = parseResult?.episodes.totalCount || 0;
-  const epProgress = totalEpisodesInFile > 0 ? Math.min(100, Math.round((processedEpisodes / totalEpisodesInFile) * 100)) : 100;
+  const totalEpisodesInFile =
+    parseResult?.episodes.totalCount ||
+    jobProgress.episodes?.total ||
+    (jobProgress.total > 0 && !jobProgress.lists?.processed && !jobProgress.movies?.processed
+      ? jobProgress.total
+      : (jobProgress.episodes?.processed || 0));
+  const epProgress = totalEpisodesInFile > 0 ? Math.min(100, Math.round((processedEpisodes / totalEpisodesInFile) * 100)) : (isComplete ? 100 : 0);
 
-  const totalMoviesInFile = parseResult?.movies.totalCount || 0;
-  const movieProgress = totalMoviesInFile > 0 ? Math.min(100, Math.round((processedMovies / totalMoviesInFile) * 100)) : 100;
+  const totalMoviesInFile =
+    parseResult?.movies.totalCount ||
+    jobProgress.movies?.total ||
+    (jobProgress.total > 0 && !jobProgress.lists?.processed && !jobProgress.episodes?.processed
+      ? jobProgress.total
+      : (jobProgress.movies?.processed || 0));
+  const movieProgress = totalMoviesInFile > 0 ? Math.min(100, Math.round((processedMovies / totalMoviesInFile) * 100)) : (isComplete ? 100 : 0);
 
-  const totalListItemsInFile = parseResult?.lists.totalItems || 0;
-  const listProgress = totalListItemsInFile > 0 ? Math.min(100, Math.round((processedListItems / totalListItemsInFile) * 100)) : 100;
+  const totalListItemsInFile =
+    parseResult?.lists.totalItems ||
+    jobProgress.lists?.total ||
+    (jobProgress.total > 0 && !jobProgress.episodes?.processed && !jobProgress.movies?.processed
+      ? jobProgress.total
+      : (jobProgress.lists?.processed || 0));
+  const listProgress = totalListItemsInFile > 0 ? Math.min(100, Math.round((processedListItems / totalListItemsInFile) * 100)) : (isComplete ? 100 : 0);
 
-  const grandTotal = totalEpisodesInFile + totalMoviesInFile + totalListItemsInFile;
-  const grandProcessed = processedEpisodes + processedMovies + processedListItems;
-  const overallProgress = grandTotal > 0 ? Math.min(100, Math.round((grandProcessed / grandTotal) * 100)) : 0;
+  const grandTotal = totalEpisodesInFile + totalMoviesInFile + totalListItemsInFile || jobProgress.total || 0;
+  const grandProcessed = processedEpisodes + processedMovies + processedListItems || jobProgress.processed || 0;
+  const overallProgress = grandTotal > 0 ? Math.min(100, Math.round((grandProcessed / grandTotal) * 100)) : (jobProgress.total > 0 ? Math.min(100, Math.round((jobProgress.processed / jobProgress.total) * 100)) : 0);
 
   const isEpisodesActive = currentStep.includes('TV') || currentStep.includes('Episode') || currentStep.includes('Shows');
   const isMoviesActive = currentStep.includes('Movie');
@@ -873,6 +840,10 @@ export default function TvTimeImportPage() {
     (parseResult?.movies.totalCount || 0) > 0 ||
     (parseResult?.lists.totalItems || 0) > 0;
 
+  const isCompletedJob = jobState === 'completed' || isComplete;
+  const isRunningJob = isJobRunning || isImporting;
+  const isSessionLoading = !isReady || (!!jobId && !job && !parseResult);
+
   return (
     <div className="min-h-screen bg-[#070707] text-white selection:bg-[#FFD200]/30 selection:text-[#FFD200]">
       <style>{`
@@ -891,13 +862,22 @@ export default function TvTimeImportPage() {
       {/* Sticky Navigation Header */}
       <div className="sticky top-0 z-40 bg-[#070707]/85 backdrop-blur-xl border-b border-white/5 py-3 mb-2 sm:mb-4">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
-          <Link
-            href="/profile"
-            className="cursor-pointer px-3 py-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] active:bg-white/[0.15] border border-white/10 hover:border-white/20 transition-all text-zinc-300 hover:text-white flex items-center gap-2 text-xs font-semibold"
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.history.length > 1 && document.referrer.includes(window.location.host)) {
+                router.back();
+              } else {
+                router.push('/profile');
+              }
+            }}
+            aria-label="Back to Profile"
+            className="group flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 transition-all duration-200 cursor-pointer shrink-0 outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
           >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Back to Profile</span>
-          </Link>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:-translate-x-0.5 transition-transform duration-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          </button>
 
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-white/[0.04] text-zinc-200 border border-white/10 backdrop-blur-md">
@@ -927,6 +907,26 @@ export default function TvTimeImportPage() {
           className="hidden"
         />
 
+        {/* Import Error Banner — replaces native alert() */}
+        {importError && (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/25 text-red-300 animate-in fade-in slide-in-from-top-2 duration-200">
+            <svg className="w-4 h-4 mt-0.5 shrink-0 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <p className="text-sm flex-1 leading-snug">{importError}</p>
+            <button
+              type="button"
+              onClick={() => setImportError(null)}
+              className="text-red-400/60 hover:text-red-300 transition-colors shrink-0 cursor-pointer"
+              aria-label="Dismiss error"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Hero Branding Header */}
         <div className="space-y-1">
           <div className="flex items-center gap-2.5 sm:gap-3">
@@ -940,10 +940,406 @@ export default function TvTimeImportPage() {
           </div>
         </div>
 
-        {/* 1. INITIAL STATE: Prominent Centered Dropzone */}
-        {selectedFiles.length === 0 && (
+        {/* State 0: Loading / Restoring Session */}
+        {isSessionLoading && (
+          <div className="p-8 sm:p-12 rounded-2xl sm:rounded-3xl bg-white/[0.02] backdrop-blur-xl border border-white/10 text-center shadow-xl space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-[#FFD200]">
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            </div>
+            <h3 className="text-sm sm:text-base font-bold text-white">Connecting to Import Session</h3>
+            <p className="text-xs text-zinc-400 max-w-sm mx-auto">
+              Checking import status and retrieving unmatched records...
+            </p>
+          </div>
+        )}
+
+        {/* State 1: Active Job Progress Console */}
+        {!isSessionLoading && isRunningJob && (
+          <div className="space-y-3">
+            <CircularRadialSyncWidget
+              activeProgress={activeProgress}
+              overallProgress={overallProgress}
+              currentStep={currentStep}
+              activeLabel={activeLabel}
+              activeCurrent={activeCurrent}
+              activeTotal={activeTotal}
+              episodes={{
+                processed: processedEpisodes,
+                total: totalEpisodesInFile,
+                progress: epProgress,
+                active: isEpisodesActive,
+              }}
+              movies={{
+                processed: processedMovies,
+                total: totalMoviesInFile,
+                progress: movieProgress,
+                active: isMoviesActive,
+              }}
+              lists={{
+                processed: processedListItems,
+                total: totalListItemsInFile,
+                progress: listProgress,
+                active: isListsActive,
+              }}
+            />
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-xs">
+              <div className="flex items-center gap-2 text-zinc-300">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FFD200] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FFD200]"></span>
+                </span>
+                <span>Durable background job active. You can freely leave or close this page.</span>
+              </div>
+              {jobId && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (confirm('Are you sure you want to cancel this background import? Any items already imported will be safely preserved.')) {
+                      await cancelImportJob();
+                    }
+                  }}
+                  className="cursor-pointer text-xs text-rose-400 hover:text-rose-300 font-semibold px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-all shrink-0 active:scale-95"
+                >
+                  Cancel Import
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* State 2: Completed Job Dashboard & Match Drawer */}
+        {!isSessionLoading && !isRunningJob && isCompletedJob && (
+          <div className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white/[0.02] backdrop-blur-xl border border-white/15 shadow-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-white leading-tight">Import Complete!</h2>
+                  <p className="text-xs text-zinc-400 mt-0.5">All supported records have been migrated and reconciled safely.</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleReset}
+                className="cursor-pointer px-3.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-xs font-semibold text-zinc-200 hover:text-white transition-all active:scale-95 shrink-0 self-start sm:self-auto"
+              >
+                Import Another File
+              </button>
+            </div>
+
+            {/* 3 Stats Overview Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Episodes Ingested</span>
+                <p className="text-lg sm:text-xl font-extrabold text-white font-mono mt-0.5">{importedEpisodes.toLocaleString()}</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Movies Ingested</span>
+                <p className="text-lg sm:text-xl font-extrabold text-white font-mono mt-0.5">{importedMovies.toLocaleString()}</p>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5">
+                <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Lists / Items</span>
+                <p className="text-lg sm:text-xl font-extrabold text-white font-mono mt-0.5">
+                  {importedListsCount} <span className="text-xs text-zinc-400 font-normal">({importedListItems.toLocaleString()} items)</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Custom Lists Accounting Breakdown */}
+            {(totalListItemsInFile > 0 || importedListItems > 0 || duplicateListItems > 0 || (jobProgress.lists?.processed || 0) > 0) && (
+              <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/5 text-xs">
+                <span className="text-zinc-400 flex items-center gap-2">
+                  <ListOrdered className="w-3.5 h-3.5 text-[#FFD200]" />
+                  Lists Breakdown:
+                </span>
+                <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                    {importedListItems.toLocaleString()} unique items
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-white/10">
+                    {duplicateListItems.toLocaleString()} duplicates collapsed
+                  </span>
+                  {unmatchedList.filter((u) => u.category === 'list').length > 0 && (
+                    <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      {unmatchedList.filter((u) => u.category === 'list').length} unmatched titles
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Unmatched Titles Resolution Drawer */}
+            {(unmatchedList.length > 0 || failedList.length > 0 || groupedUnresolvedList.length > 0) && (
+              <div className="space-y-2 pt-2 border-t border-white/10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <span className="text-zinc-300 font-medium">
+                    {groupedUnresolvedList.length > 0
+                      ? `${groupedUnresolvedList.length} ${groupedUnresolvedList.length === 1 ? 'title needs' : 'titles need'} matching (${unmatchedList.length || groupedUnresolvedList.length} items).`
+                      : `${unmatchedList.length} items could not be matched automatically.`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowUnmatchedDrawer(!showUnmatchedDrawer)}
+                    className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-200 text-xs font-semibold transition-all cursor-pointer"
+                  >
+                    {showUnmatchedDrawer ? 'Hide Unmatched' : 'Review & Match Titles'}
+                  </button>
+                </div>
+
+                {showUnmatchedDrawer && (
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {unresolvedViewMode === 'grouped' ? (
+                      groupedUnresolvedList.length > 0 ? (
+                        groupedUnresolvedList.map((group) => (
+                          <div
+                            key={group.groupKey}
+                            className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs hover:border-white/20 transition-all"
+                          >
+                            <div className="space-y-0.5 min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-bold text-white text-xs truncate">{group.title}</span>
+                                {group.titleYear && (
+                                  <span className="text-zinc-500 font-mono text-[11px]">({group.titleYear})</span>
+                                )}
+                                {group.listName && (
+                                  <span className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#FFD200]/10 text-[#FFD200] border border-[#FFD200]/25 max-w-[150px]" title={`From list: ${group.listName}`}>
+                                    <ListOrdered className="w-2.5 h-2.5 shrink-0 text-[#FFD200]" />
+                                    <span className="truncate">{group.listName}</span>
+                                  </span>
+                                )}
+                                <span className="shrink-0 whitespace-nowrap inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white/5 text-zinc-300 border border-white/10">
+                                  {group.occurrences} {group.occurrences === 1 ? 'row' : 'rows'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-zinc-400 leading-tight truncate">{group.reason}</p>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-2">
+                              {group.resolved ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-semibold">
+                                  <Check className="w-3 h-3" />
+                                  Matched
+                                </span>
+                              ) : group.candidates && group.candidates.length > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenResolutionModal(group)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FFD200] text-black font-bold text-xs hover:bg-[#ffe043] transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  Match ({group.candidates.length})
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenResolutionModal(group)}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-zinc-200 font-semibold text-xs transition-all cursor-pointer border border-white/10 hover:border-white/20"
+                                >
+                                  <Search className="w-3 h-3 text-[#FFD200]" />
+                                  Find Match
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-3 text-center text-zinc-500 text-xs bg-white/[0.02] rounded-xl">
+                          No grouped records available.
+                        </div>
+                      )
+                    ) : (
+                      unmatchedList.map((item, i) => (
+                        <div
+                          key={i}
+                          className="p-2.5 rounded-lg bg-white/[0.03] border border-white/5 flex items-start justify-between gap-1 text-xs"
+                        >
+                          <div>
+                            <span className="font-semibold text-zinc-200 text-xs">
+                              [{item.category.toUpperCase()}] {item.title}
+                            </span>
+                            <p className="text-[10px] text-zinc-500">{item.reason}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Final Navigation Actions */}
+            <div className="flex items-center justify-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  handleReset();
+                  fileInputRef.current?.click();
+                }}
+                className="cursor-pointer flex items-center justify-center gap-1.5 px-4 py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs sm:text-sm font-bold bg-[#FFD200] hover:bg-[#ffe043] text-black shadow-[0_0_15px_rgba(255,210,0,0.25)] transition-all active:scale-95 whitespace-nowrap"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>Upload Another File</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* State 3: Parsing Files */}
+        {isParsing && (
+          <div className="p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white/[0.02] backdrop-blur-xl border border-white/10 text-center shadow-xl space-y-3">
+            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-[#FFD200] shadow-[0_0_20px_rgba(255,210,0,0.15)]">
+              <RefreshCw className="w-5 h-5 animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-white">Analyzing & Classifying Records</h3>
+              <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
+                Validating schemas, detecting movies vs series, and preparing reconciliation batches...
+              </p>
+            </div>
+            <div className="max-w-xs mx-auto h-2 rounded-full bg-white/[0.06] border border-white/10 overflow-hidden relative">
+              <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-[#FFD200] to-transparent animate-shimmer rounded-full" />
+            </div>
+          </div>
+        )}
+
+        {/* State 4: Pre-Import File Summary (Files selected, not yet importing or completed) */}
+        {!isSessionLoading && !isRunningJob && !isCompletedJob && parseResult && !isParsing && (
+          <div className="space-y-5">
+            <div className="rounded-2xl sm:rounded-3xl bg-white/[0.02] backdrop-blur-xl border border-white/10 shadow-xl overflow-hidden transition-all duration-300">
+              <div className="p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider shrink-0">
+                      Uploaded Files ({parseResult.detectedFiles.length})
+                    </span>
+                    <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-[200px] sm:max-w-md no-scrollbar">
+                      {parseResult.detectedFiles.map((f, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-zinc-300 shrink-0"
+                        >
+                          <span className="truncate max-w-[140px] font-semibold">{f.name}</span>
+                          <span className="text-zinc-400">({f.itemCount.toLocaleString()} rows)</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    id="reset-import"
+                    onClick={handleReset}
+                    className="text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                  >
+                    Change Files
+                  </button>
+                </div>
+
+                {/* 3 Rich Stat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Shows Card */}
+                  <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
+                    parseResult.episodes.totalCount > 0
+                      ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
+                      : 'bg-white/[0.02] border-white/5 opacity-70'
+                  }`}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
+                        <Tv className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">TV Shows</span>
+                        <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
+                          {parseResult.episodes.totalCount.toLocaleString()} <span className="text-xs font-normal text-zinc-500">episodes</span>
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-2 font-mono">
+                      {parseResult.episodes.showsCount > 0 ? `${parseResult.episodes.showsCount} unique series` : 'No show records found'}
+                    </p>
+                  </div>
+
+                  {/* Movies Card */}
+                  <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
+                    parseResult.movies.totalCount > 0
+                      ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
+                      : 'bg-white/[0.02] border-white/5 opacity-70'
+                  }`}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
+                        <Film className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Watched Movies</span>
+                        <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
+                          {parseResult.movies.totalCount.toLocaleString()} <span className="text-xs font-normal text-zinc-500">movies</span>
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-2 font-mono">
+                      {parseResult.movies.totalCount > 0 ? 'Star ratings & dates preserved' : 'No movie records found'}
+                    </p>
+                  </div>
+
+                  {/* Lists Card */}
+                  <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
+                    parseResult.lists.totalLists > 0
+                      ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
+                      : 'bg-white/[0.02] border-white/5 opacity-70'
+                  }`}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
+                        <ListOrdered className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Custom Lists</span>
+                        <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
+                          {parseResult.lists.totalLists} <span className="text-xs font-normal text-zinc-500">lists ({parseResult.lists.totalItems.toLocaleString()} items)</span>
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-zinc-400 mt-2 font-mono">
+                      {parseResult.lists.totalLists > 0 ? 'Order preserved · Ready to import' : 'No list records found'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Ready to Import Action Banner */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-white/10">
+                  <div className="flex items-center gap-2 text-center sm:text-left">
+                    <ShieldCheck className="w-4 h-4 text-[#FFD200] shrink-0" />
+                    <span className="text-xs text-zinc-300">
+                      {hasImportableData
+                        ? 'Ready to import safely into TVTrac.'
+                        : 'No compatible importable records found in uploaded files.'}
+                    </span>
+                  </div>
+
+                  {hasImportableData && (
+                    <button
+                      id="start-full-import"
+                      onClick={startImport}
+                      className="cursor-pointer shrink-0 whitespace-nowrap px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-[#FFD200] hover:bg-[#ffe043] text-black text-xs font-bold shadow-md hover:shadow-[0_0_15px_rgba(255,210,0,0.25)] transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Start Full Import</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* State 5: Initial Dropzone (No files selected, no job running, not completed) */}
+        {!isSessionLoading && !isRunningJob && !isCompletedJob && !parseResult && !isParsing && (
           <div className="w-full">
-            {/* Prominent Well-Proportioned Dropzone Card */}
             <div
               onDrop={handleDrop}
               onDragOver={handleDragOver}
@@ -955,7 +1351,6 @@ export default function TvTimeImportPage() {
                   : 'border-white/15 bg-white/[0.02] hover:border-[#FFD200]/50 hover:bg-white/[0.035] shadow-xl'
               }`}
             >
-              {/* Centerpiece Icon & Heading */}
               <div className="flex flex-col items-center justify-center mx-auto mb-3">
                 <TvTimeLogo size={50} className="group-hover:scale-105 transition-transform duration-200" />
               </div>
@@ -967,7 +1362,6 @@ export default function TvTimeImportPage() {
                 Select your TV Time export bundle files (<span className="text-zinc-200 font-mono text-xs">shows.json</span>, <span className="text-zinc-200 font-mono text-xs">movies.json</span>, <span className="text-zinc-200 font-mono text-xs">lists.json</span>, or list <span className="text-zinc-200 font-mono text-xs">CSV</span>s).
               </p>
 
-              {/* Supported File Tags */}
               <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mt-3 text-[11px] font-mono text-zinc-400">
                 <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-zinc-300">shows.json</span>
                 <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-zinc-300">movies.json</span>
@@ -989,472 +1383,6 @@ export default function TvTimeImportPage() {
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Parsing State Indicator */}
-        {isParsing && (
-          <div className="p-6 sm:p-8 rounded-2xl sm:rounded-3xl bg-white/[0.02] backdrop-blur-xl border border-white/10 text-center shadow-xl space-y-3">
-            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-[#FFD200] shadow-[0_0_20px_rgba(255,210,0,0.15)]">
-              <RefreshCw className="w-5 h-5 animate-spin" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-white">Analyzing & Classifying Records</h3>
-              <p className="text-xs text-zinc-400 mt-1 max-w-sm mx-auto">
-                Validating schemas, detecting movies vs series, and preparing reconciliation batches...
-              </p>
-            </div>
-            <div className="max-w-xs mx-auto h-2 rounded-full bg-white/[0.06] border border-white/10 overflow-hidden relative">
-              <div className="absolute inset-y-0 w-1/2 bg-gradient-to-r from-transparent via-[#FFD200] to-transparent animate-shimmer rounded-full" />
-            </div>
-          </div>
-        )}
-
-        {/* 2. PARSED FILES & READY DASHBOARD (Rich, Balanced & Clear) */}
-        {parseResult && !isParsing && (
-          <div className="space-y-5">
-            {/* Detected Files Card / Accordion */}
-            <div className="rounded-2xl sm:rounded-3xl bg-white/[0.02] backdrop-blur-xl border border-white/10 shadow-xl overflow-hidden transition-all duration-300">
-              {isImporting || isComplete ? (
-                /* Collapsed Accordion View during Import or after Completion */
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowUploadedFilesDetails((prev) => !prev)}
-                    className="w-full p-2.5 sm:p-4 flex items-center justify-between gap-3 text-left hover:bg-white/[0.02] transition-colors cursor-pointer group"
-                    aria-expanded={showUploadedFilesDetails}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 shrink-0">
-                        <FileText className="w-3.5 h-3.5" />
-                      </div>
-                      <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                        <span className="text-xs sm:text-sm font-bold text-white tracking-tight shrink-0">
-                          Uploaded Files ({parseResult.detectedFiles.length})
-                        </span>
-                        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
-                          {parseResult.detectedFiles.map((f, i) => (
-                            <span
-                              key={i}
-                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-zinc-300 shrink-0"
-                            >
-                              <span className="truncate max-w-[140px] font-semibold">{f.name}</span>
-                              <span className="text-zinc-500">({f.itemCount.toLocaleString()} rows)</span>
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 group-hover:text-zinc-200 shrink-0">
-                      <span className="text-[11px] font-medium hidden sm:inline">
-                        {showUploadedFilesDetails ? 'Hide Files' : 'Show Files'}
-                      </span>
-                      <ChevronDown
-                        className={`w-4 h-4 transition-transform duration-200 ${
-                          showUploadedFilesDetails ? 'rotate-180 text-[#FFD200]' : 'text-zinc-400'
-                        }`}
-                      />
-                    </div>
-                  </button>
-
-                  {/* Dropdown details: 3 Rich Stat Cards */}
-                  {showUploadedFilesDetails && (
-                    <div className="p-4 sm:p-5 pt-0 border-t border-white/10 space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3">
-                        {/* Shows Card */}
-                        <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
-                          parseResult.episodes.totalCount > 0
-                            ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
-                            : 'bg-white/[0.02] border-white/5 opacity-70'
-                        }`}>
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
-                              <Tv className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">TV Shows</span>
-                              <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
-                                {parseResult.episodes.totalCount.toLocaleString()} <span className="text-xs font-normal text-zinc-500">episodes</span>
-                              </p>
-                            </div>
-                          </div>
-                          <p className="text-[11px] text-zinc-400 mt-2 font-mono">
-                            {parseResult.episodes.showsCount > 0 ? `${parseResult.episodes.showsCount} unique series` : 'No show records found'}
-                          </p>
-                        </div>
-
-                        {/* Movies Card */}
-                        <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
-                          parseResult.movies.totalCount > 0
-                            ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
-                            : 'bg-white/[0.02] border-white/5 opacity-70'
-                        }`}>
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
-                              <Film className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Watched Movies</span>
-                              <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
-                                {parseResult.movies.totalCount.toLocaleString()} <span className="text-xs font-normal text-zinc-500">movies</span>
-                              </p>
-                            </div>
-                          </div>
-                          <p className="text-[11px] text-zinc-400 mt-2 font-mono">
-                            {parseResult.movies.totalCount > 0 ? 'Star ratings & dates preserved' : 'No movie records found'}
-                          </p>
-                        </div>
-
-                        {/* Lists Card */}
-                        <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
-                          parseResult.lists.totalLists > 0
-                            ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
-                            : 'bg-white/[0.02] border-white/5 opacity-70'
-                        }`}>
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
-                              <ListOrdered className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Custom Lists</span>
-                              <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
-                                {parseResult.lists.totalLists} <span className="text-xs font-normal text-zinc-500">lists ({parseResult.lists.totalItems.toLocaleString()} items)</span>
-                              </p>
-                            </div>
-                          </div>
-                          <p className="text-[11px] text-zinc-400 mt-2 font-mono">
-                            {parseResult.lists.totalLists > 0 ? 'Order preserved · Ready to import' : 'No list records found'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* Initial Parsed State: Fully expanded with Start Full Import button */
-                <div className="p-4 sm:p-5 space-y-4">
-                  <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
-                      <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider shrink-0">
-                        Uploaded Files ({parseResult.detectedFiles.length})
-                      </span>
-                      <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-[200px] sm:max-w-md no-scrollbar">
-                        {parseResult.detectedFiles.map((f, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs font-mono text-zinc-300 shrink-0"
-                          >
-                            <span className="truncate max-w-[140px] font-semibold">{f.name}</span>
-                            <span className="text-zinc-400">({f.itemCount.toLocaleString()} rows)</span>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <button
-                      id="reset-import"
-                      onClick={handleReset}
-                      className="text-xs font-medium text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
-                    >
-                      Change Files
-                    </button>
-                  </div>
-
-                  {/* 3 Rich Stat Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* Shows Card */}
-                    <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
-                      parseResult.episodes.totalCount > 0
-                        ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
-                        : 'bg-white/[0.02] border-white/5 opacity-70'
-                    }`}>
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
-                          <Tv className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">TV Shows</span>
-                          <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
-                            {parseResult.episodes.totalCount.toLocaleString()} <span className="text-xs font-normal text-zinc-500">episodes</span>
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-zinc-400 mt-2 font-mono">
-                        {parseResult.episodes.showsCount > 0 ? `${parseResult.episodes.showsCount} unique series` : 'No show records found'}
-                      </p>
-                    </div>
-
-                    {/* Movies Card */}
-                    <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
-                      parseResult.movies.totalCount > 0
-                        ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
-                        : 'bg-white/[0.02] border-white/5 opacity-70'
-                    }`}>
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
-                          <Film className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Watched Movies</span>
-                          <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
-                            {parseResult.movies.totalCount.toLocaleString()} <span className="text-xs font-normal text-zinc-500">movies</span>
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-zinc-400 mt-2 font-mono">
-                        {parseResult.movies.totalCount > 0 ? 'Star ratings & dates preserved' : 'No movie records found'}
-                      </p>
-                    </div>
-
-                    {/* Lists Card */}
-                    <div className={`p-3.5 sm:p-4 rounded-xl border transition-all ${
-                      parseResult.lists.totalLists > 0
-                        ? 'bg-[#FFD200]/[0.03] border-[#FFD200]/25'
-                        : 'bg-white/[0.02] border-white/5 opacity-70'
-                    }`}>
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[#FFD200] shrink-0">
-                          <ListOrdered className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Custom Lists</span>
-                          <p className="text-lg sm:text-xl font-extrabold text-white font-mono leading-tight">
-                            {parseResult.lists.totalLists} <span className="text-xs font-normal text-zinc-500">lists ({parseResult.lists.totalItems.toLocaleString()} items)</span>
-                          </p>
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-zinc-400 mt-2 font-mono">
-                        {parseResult.lists.totalLists > 0 ? 'Order preserved · Ready to import' : 'No list records found'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Ready to Import Action Banner */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-white/10">
-                    <div className="flex items-center gap-2 text-center sm:text-left">
-                      <ShieldCheck className="w-4 h-4 text-[#FFD200] shrink-0" />
-                      <span className="text-xs text-zinc-300">
-                        {hasImportableData
-                          ? 'Ready to import safely into TVTrac.'
-                          : 'No compatible importable records found in uploaded files.'}
-                      </span>
-                    </div>
-
-                    {hasImportableData && (
-                      <button
-                        id="start-full-import"
-                        onClick={startImport}
-                        className="cursor-pointer shrink-0 whitespace-nowrap px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-[#FFD200] hover:bg-[#ffe043] text-black text-xs font-bold shadow-md hover:shadow-[0_0_15px_rgba(255,210,0,0.25)] transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Start Full Import</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 3. CIRCULAR RADIAL SYNC RING PROGRESS CONSOLE */}
-            {isImporting && (
-              <CircularRadialSyncWidget
-                activeProgress={activeProgress}
-                overallProgress={overallProgress}
-                currentStep={currentStep}
-                activeLabel={activeLabel}
-                activeCurrent={activeCurrent}
-                activeTotal={activeTotal}
-                episodes={{
-                  processed: processedEpisodes,
-                  total: totalEpisodesInFile,
-                  progress: epProgress,
-                  active: isEpisodesActive,
-                }}
-                movies={{
-                  processed: processedMovies,
-                  total: totalMoviesInFile,
-                  progress: movieProgress,
-                  active: isMoviesActive,
-                }}
-                lists={{
-                  processed: processedListItems,
-                  total: totalListItemsInFile,
-                  progress: listProgress,
-                  active: isListsActive,
-                }}
-              />
-            )}
-
-            {/* 4. COMPLETE STATE DASHBOARD */}
-            {isComplete && (
-              <div className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white/[0.02] backdrop-blur-xl border border-white/15 shadow-2xl space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h2 className="text-base sm:text-lg font-bold text-white leading-tight">Import Complete!</h2>
-                    <p className="text-xs text-zinc-400 mt-0.5">All supported records have been migrated and reconciled safely.</p>
-                  </div>
-                </div>
-
-                {/* 3 Stats Overview Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Episodes Ingested</span>
-                    <p className="text-lg sm:text-xl font-extrabold text-white font-mono mt-0.5">{importedEpisodes.toLocaleString()}</p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Movies Ingested</span>
-                    <p className="text-lg sm:text-xl font-extrabold text-white font-mono mt-0.5">{importedMovies.toLocaleString()}</p>
-                  </div>
-
-                  <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/5">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400 block tracking-wider">Lists / Items</span>
-                    <p className="text-lg sm:text-xl font-extrabold text-white font-mono mt-0.5">
-                      {importedListsCount} <span className="text-xs text-zinc-400 font-normal">({importedListItems.toLocaleString()} items)</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Custom Lists Accounting Breakdown */}
-                {totalListItemsInFile > 0 && (
-                  <div className="flex flex-wrap items-center justify-between gap-2 p-3 rounded-xl bg-white/[0.03] border border-white/5 text-xs">
-                    <span className="text-zinc-400 flex items-center gap-2">
-                      <ListOrdered className="w-3.5 h-3.5 text-[#FFD200]" />
-                      Lists Breakdown:
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                        {importedListItems.toLocaleString()} unique items
-                      </span>
-                      <span className="px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-white/10">
-                        {duplicateListItems.toLocaleString()} duplicates collapsed
-                      </span>
-                      {unmatchedList.filter((u) => u.category === 'list').length > 0 && (
-                        <span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                          {unmatchedList.filter((u) => u.category === 'list').length} unmatched titles
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Unmatched Titles Resolution Drawer */}
-                {(unmatchedList.length > 0 || failedList.length > 0) && (
-                  <div className="space-y-2 pt-2 border-t border-white/10">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                      <span className="text-zinc-300 font-medium">
-                        {groupedUnresolvedList.length > 0
-                          ? `${groupedUnresolvedList.length} ${groupedUnresolvedList.length === 1 ? 'title needs' : 'titles need'} matching (${unmatchedList.length} ${unmatchedList.length === 1 ? 'item' : 'items'}).`
-                          : `${unmatchedList.length} items could not be matched automatically.`}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setShowUnmatchedDrawer(!showUnmatchedDrawer)}
-                        className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-200 text-xs font-semibold transition-all cursor-pointer"
-                      >
-                        {showUnmatchedDrawer ? 'Hide Unmatched' : 'Review & Match Titles'}
-                      </button>
-                    </div>
-
-                    {showUnmatchedDrawer && (
-                      <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                        {unresolvedViewMode === 'grouped' ? (
-                          groupedUnresolvedList.length > 0 ? (
-                            groupedUnresolvedList.map((group) => (
-                              <div
-                                key={group.groupKey}
-                                className="p-3 rounded-xl bg-white/[0.03] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs hover:border-white/20 transition-all"
-                              >
-                                <div className="space-y-0.5 min-w-0 flex-1">
-                                  <div className="flex flex-wrap items-center gap-1.5">
-                                    <span className="font-bold text-white text-xs truncate">{group.title}</span>
-                                    {group.titleYear && (
-                                      <span className="text-zinc-500 font-mono text-[11px]">({group.titleYear})</span>
-                                    )}
-                                    {group.listName && (
-                                      <span className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-[#FFD200]/10 text-[#FFD200] border border-[#FFD200]/25 max-w-[150px]" title={`From list: ${group.listName}`}>
-                                        <ListOrdered className="w-2.5 h-2.5 shrink-0 text-[#FFD200]" />
-                                        <span className="truncate">{group.listName}</span>
-                                      </span>
-                                    )}
-                                    <span className="shrink-0 whitespace-nowrap inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-white/5 text-zinc-300 border border-white/10">
-                                      {group.occurrences} {group.occurrences === 1 ? 'row' : 'rows'}
-                                    </span>
-                                  </div>
-                                  <p className="text-[11px] text-zinc-400 leading-tight truncate">{group.reason}</p>
-                                </div>
-
-                                <div className="shrink-0 flex items-center gap-2">
-                                  {group.resolved ? (
-                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 text-xs font-semibold">
-                                      <Check className="w-3 h-3" />
-                                      Matched
-                                    </span>
-                                  ) : group.candidates && group.candidates.length > 0 ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenResolutionModal(group)}
-                                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FFD200] text-black font-bold text-xs hover:bg-[#ffe043] transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98]"
-                                    >
-                                      <Sparkles className="w-3.5 h-3.5" />
-                                      Match ({group.candidates.length})
-                                    </button>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenResolutionModal(group)}
-                                      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-zinc-200 font-semibold text-xs transition-all cursor-pointer border border-white/10 hover:border-white/20"
-                                    >
-                                      <Search className="w-3 h-3 text-[#FFD200]" />
-                                      Find Match
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="p-3 text-center text-zinc-500 text-xs bg-white/[0.02] rounded-xl">
-                              No grouped records available.
-                            </div>
-                          )
-                        ) : (
-                          unmatchedList.map((item, i) => (
-                            <div
-                              key={i}
-                              className="p-2.5 rounded-lg bg-white/[0.03] border border-white/5 flex items-start justify-between gap-1 text-xs"
-                            >
-                              <div>
-                                <span className="font-semibold text-zinc-200 text-xs">
-                                  [{item.category.toUpperCase()}] {item.title}
-                                </span>
-                                <p className="text-[10px] text-zinc-500">{item.reason}</p>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Final Navigation Actions */}
-                <div className="flex items-center justify-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="cursor-pointer flex items-center justify-center gap-1.5 px-4 py-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs sm:text-sm font-bold bg-[#FFD200] hover:bg-[#ffe043] text-black shadow-[0_0_15px_rgba(255,210,0,0.25)] transition-all active:scale-95 whitespace-nowrap"
-                  >
-                    <UploadCloud className="w-3.5 h-3.5" />
-                    <span>Upload Another File</span>
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -1533,7 +1461,6 @@ export default function TvTimeImportPage() {
 
                 <input
                   type="text"
-                  autoFocus
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search movies or TV shows..."

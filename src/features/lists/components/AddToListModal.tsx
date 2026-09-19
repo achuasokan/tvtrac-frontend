@@ -91,28 +91,44 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
       className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 sm:pb-6"
       onClick={onClose}
     >
-      {/* Backdrop with frosted dark blur */}
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" />
+      {/* Subtle Translucent Backdrop (allows blurred background to show through) */}
+      <div className="absolute inset-0 bg-black/35 backdrop-blur-[3px] transition-opacity" />
 
       {/* Modal Container */}
       <div 
         className="relative w-full max-w-sm sm:max-w-md z-10 animate-in zoom-in-95 fade-in duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Cyber-cinema ticket-cut glass card */}
-        <div className="relative bg-[#0b0c0e]/95 border border-zinc-800/90 rounded-tl-2xl rounded-br-2xl rounded-tr-md rounded-bl-md shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),0_0_30px_rgba(45,212,191,0.08)] overflow-hidden flex flex-col max-h-[80vh] backdrop-blur-2xl">
-          {/* Top ambient Neon Teal glow accent line */}
-          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-[#2dd4bf]/45 to-transparent pointer-events-none" />
+        {/* Authentic Frosted Glass Card */}
+        <div className="relative bg-black/50 sm:bg-zinc-950/50 backdrop-blur-3xl border border-white/20 rounded-tl-[28px] sm:rounded-tl-[32px] rounded-br-[28px] sm:rounded-br-[32px] rounded-tr-sm rounded-bl-sm shadow-[0_20px_60px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col max-h-[80vh]">
+          {/* Brand Signature Fading Bottom Border Glow */}
+          <div 
+            className="absolute inset-0 z-0 pointer-events-none rounded-tl-[28px] sm:rounded-tl-[32px] rounded-br-[28px] sm:rounded-br-[32px] rounded-tr-sm rounded-bl-sm border-[1.5px] border-transparent"
+            style={{
+              background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
+              WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'destination-out',
+              maskComposite: 'exclude'
+            }}
+          />
+
+          {/* Specular Top Edge Highlight */}
+          <div 
+            className="absolute top-0 inset-x-0 h-[1px] pointer-events-none z-10"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%)'
+            }}
+          />
 
           {/* Header */}
-          <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-zinc-800/80 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs bg-[#2dd4bf]/10 border border-[#2dd4bf]/25 flex items-center justify-center text-[#2dd4bf] shadow-[0_0_10px_rgba(45,212,191,0.2)] shrink-0">
-                <BookmarkPlus className="w-4 h-4 text-[#2dd4bf]" />
+          <div className="relative z-10 px-4 py-3.5 sm:px-5 sm:py-4 border-b border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/[0.08] border border-white/15 flex items-center justify-center text-white shrink-0 backdrop-blur-md shadow-sm">
+                <BookmarkPlus className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h2 className="text-base font-black text-white tracking-tight leading-tight">Save to List</h2>
-                <p className="text-[11px] text-zinc-400 font-medium">Select custom lists for this title</p>
+                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight leading-tight">Save to List</h2>
+                <p className="text-xs text-white/50 mt-0.5">Select custom lists for this title</p>
               </div>
             </div>
 
@@ -120,18 +136,18 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
               type="button"
               onClick={onClose} 
               aria-label="Close modal"
-              className="group w-7 h-7 flex items-center justify-center rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs bg-zinc-900/90 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 hover:border-[#2dd4bf]/40 active:scale-95 transition-all duration-200 cursor-pointer shrink-0"
+              className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/10"
             >
-              <X className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-200" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
 
           {/* List Content */}
-          <div className="flex-1 overflow-y-auto p-2.5 sm:p-3 space-y-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-zinc-800 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-zinc-700 [&::-webkit-scrollbar-track]:bg-transparent">
+          <div className="relative z-10 flex-1 overflow-y-auto p-3 sm:p-4 space-y-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-white/15 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-white/25 [&::-webkit-scrollbar-track]:bg-transparent">
             {isLoading && lists.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2.5">
-                <span className="w-6 h-6 border-2 border-zinc-800 border-t-[#2dd4bf] rounded-full animate-spin"></span>
-                <span className="text-xs text-zinc-500 font-medium">Loading your lists...</span>
+                <span className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin"></span>
+                <span className="text-xs text-white/50 font-medium">Loading your lists...</span>
               </div>
             ) : lists.length > 0 ? (
               lists.map((list) => {
@@ -146,22 +162,22 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
                     type="button"
                     onClick={() => toggleListStatus(list.id, isInList)}
                     disabled={actionLoadingId !== null}
-                    className={`group relative w-full flex items-center gap-2.5 px-3 py-2 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-200 text-left cursor-pointer border active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`group relative w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl transition-all duration-200 text-left cursor-pointer border backdrop-blur-xl active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed ${
                       isInList 
-                        ? 'bg-gradient-to-r from-[#2dd4bf]/[0.10] via-teal-950/20 to-zinc-900/60 border-[#2dd4bf]/40 shadow-[0_0_12px_rgba(45,212,191,0.06)]' 
-                        : 'bg-zinc-900/40 hover:bg-zinc-850/80 border-zinc-800/80 hover:border-zinc-700/90'
+                        ? 'bg-white/[0.14] border-white/35 text-white shadow-[0_4px_20px_rgba(0,0,0,0.25)] ring-1 ring-white/20' 
+                        : 'bg-white/[0.04] hover:bg-white/[0.10] border-white/[0.10] hover:border-white/25 text-white/75'
                     }`}
                   >
-                    {/* Custom Compact Ticket-Cut Checkbox */}
-                    <div className={`w-4 h-4 rounded-tl-[5px] rounded-br-[5px] rounded-tr-[2px] rounded-bl-[2px] flex items-center justify-center transition-all duration-200 shrink-0 ${
+                    {/* Custom Compact Checkbox */}
+                    <div className={`w-4 h-4 rounded-md flex items-center justify-center transition-all duration-200 shrink-0 ${
                       isInList 
-                        ? 'bg-gradient-to-br from-[#2dd4bf] to-teal-500 border border-[#2dd4bf] text-zinc-950 shadow-[0_0_10px_rgba(45,212,191,0.45)]' 
-                        : 'border border-zinc-700/80 bg-zinc-950/70 group-hover:border-[#2dd4bf]/60 group-hover:bg-zinc-900'
+                        ? 'bg-white text-black shadow-sm' 
+                        : 'border border-white/25 bg-white/[0.06] group-hover:border-white/50'
                     }`}>
                       {isInList ? (
-                        <Check className="w-3 h-3 stroke-[3.5] text-zinc-950 animate-in zoom-in duration-150" />
+                        <Check className="w-3 h-3 stroke-[3.5] text-black animate-in zoom-in duration-150" />
                       ) : (
-                        <div className="w-1 h-1 rounded-full bg-zinc-700 opacity-0 group-hover:opacity-60 transition-opacity" />
+                        <div className="w-1 h-1 rounded-full bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                       )}
                     </div>
 
@@ -172,10 +188,10 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
                       }`}>
                         {list.name}
                       </span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium shrink-0 transition-colors ${
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium shrink-0 transition-colors ${
                         isInList 
-                          ? 'bg-[#2dd4bf]/15 text-[#2dd4bf] border border-[#2dd4bf]/25' 
-                          : 'bg-zinc-800/80 text-zinc-400 border border-zinc-700/40 group-hover:text-zinc-300'
+                          ? 'bg-white/20 text-white border border-white/30' 
+                          : 'bg-white/10 text-white/50 border border-white/10 group-hover:text-white/70'
                       }`}>
                         {list.items.length} {list.items.length === 1 ? 'item' : 'items'}
                       </span>
@@ -183,32 +199,32 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
 
                     {/* Loading status per list */}
                     {isProcessing && (
-                      <span className="w-3.5 h-3.5 border-2 border-zinc-700 border-t-[#2dd4bf] rounded-full animate-spin shrink-0"></span>
+                      <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin shrink-0"></span>
                     )}
                   </button>
                 );
               })
             ) : (
               <div className="text-center py-8 px-4">
-                <div className="w-10 h-10 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs bg-zinc-900/80 border border-zinc-800 flex items-center justify-center text-zinc-500 mx-auto mb-2.5 shadow-inner">
-                  <FolderPlus className="w-5 h-5 text-zinc-500" />
+                <div className="w-10 h-10 rounded-full bg-white/[0.08] border border-white/15 flex items-center justify-center text-white/50 mx-auto mb-2.5">
+                  <FolderPlus className="w-5 h-5 text-white/50" />
                 </div>
-                <p className="text-xs sm:text-sm font-bold text-zinc-300">No Lists Created Yet</p>
-                <p className="text-[11px] text-zinc-500 mt-0.5 max-w-xs mx-auto">Create your first custom collection below.</p>
+                <p className="text-xs sm:text-sm font-bold text-zinc-200">No Lists Created Yet</p>
+                <p className="text-[11px] text-white/50 mt-0.5 max-w-xs mx-auto">Create your first custom collection below.</p>
               </div>
             )}
           </div>
 
           {/* Footer / Create New List Action */}
-          <div className="p-3 sm:p-3.5 border-t border-zinc-800/80 bg-zinc-950/60 backdrop-blur-md">
+          <div className="relative z-10 p-3 sm:p-4 border-t border-white/10 bg-white/[0.02] backdrop-blur-md">
             {error && (
-              <div className="text-red-400 text-xs mb-2.5 text-center bg-red-500/10 border border-red-500/20 py-1.5 px-3 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs">
+              <div className="text-red-400 text-xs mb-2.5 text-center bg-red-500/10 border border-red-500/20 py-1.5 px-3 rounded-xl">
                 {error}
               </div>
             )}
             
             {isCreating ? (
-              <form onSubmit={handleCreateAndAdd} className="space-y-2">
+              <form onSubmit={handleCreateAndAdd} className="space-y-2.5">
                 <div>
                   <input
                     type="text"
@@ -216,8 +232,7 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
                     onChange={(e) => setNewListName(e.target.value)}
                     placeholder="Enter list name..."
                     maxLength={50}
-                    className="w-full bg-zinc-900/90 border border-zinc-700/90 focus:border-[#2dd4bf] focus:ring-1 focus:ring-[#2dd4bf]/40 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs px-3 py-2 text-xs sm:text-sm text-white placeholder-zinc-500 outline-none transition-all shadow-inner"
-                    autoFocus
+                    className="w-full bg-white/[0.05] border border-white/[0.12] focus:border-white/30 focus:ring-1 focus:ring-white/20 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white placeholder-zinc-500 outline-none backdrop-blur-xl transition-all"
                   />
                 </div>
                 <div className="flex items-center justify-end gap-2">
@@ -228,23 +243,23 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
                       setNewListName("");
                       setError("");
                     }}
-                    className="px-2.5 py-1.5 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-850 border border-transparent hover:border-zinc-700/80 transition-all cursor-pointer"
+                    className="cursor-pointer px-3.5 py-1.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-xs font-bold text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!newListName.trim() || actionLoadingId === 'new'}
-                    className="px-3 py-1.5 bg-gradient-to-r from-[#2dd4bf] to-emerald-400 hover:from-teal-300 hover:to-emerald-300 text-black text-xs font-black tracking-wide rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs shadow-[0_0_12px_rgba(45,212,191,0.25)] hover:shadow-[0_0_16px_rgba(45,212,191,0.4)] disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+                    className="cursor-pointer px-4 py-1.5 bg-white hover:bg-zinc-100 text-black text-xs font-bold rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-md transition-all active:scale-95 disabled:opacity-40 flex items-center gap-1.5"
                   >
                     {actionLoadingId === 'new' ? (
                       <>
-                        <span className="w-3 h-3 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin block"></span>
+                        <span className="w-3 h-3 border-2 border-black border-t-transparent rounded-full animate-spin block"></span>
                         <span>Creating...</span>
                       </>
                     ) : (
                       <>
-                        <Plus className="w-3 h-3 stroke-[2.5]" />
+                        <Plus className="w-3 h-3 stroke-[3]" />
                         <span>Create & Add</span>
                       </>
                     )}
@@ -255,9 +270,9 @@ export function AddToListModal({ isOpen, onClose, tmdbId, mediaType }: AddToList
               <button
                 type="button"
                 onClick={() => setIsCreating(true)}
-                className="group w-full flex items-center justify-center gap-2 py-2 px-3 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-bold text-xs uppercase tracking-wider bg-zinc-900/80 hover:bg-zinc-850 text-zinc-300 hover:text-white border border-dashed border-zinc-700/90 hover:border-[#2dd4bf]/60 hover:shadow-[0_0_15px_rgba(45,212,191,0.12)] active:scale-[0.99] transition-all duration-200 cursor-pointer"
+                className="group w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm font-bold text-xs uppercase tracking-wider bg-white/[0.06] hover:bg-white/[0.12] text-zinc-200 hover:text-white border border-dashed border-white/20 hover:border-white/40 active:scale-[0.99] transition-all backdrop-blur-xl cursor-pointer"
               >
-                <div className="w-4 h-4 rounded bg-[#2dd4bf]/15 border border-[#2dd4bf]/30 flex items-center justify-center text-[#2dd4bf] group-hover:scale-110 group-hover:rotate-90 transition-transform duration-200">
+                <div className="w-4 h-4 rounded bg-white/15 border border-white/30 flex items-center justify-center text-white group-hover:scale-110 group-hover:rotate-90 transition-transform duration-200">
                   <Plus className="h-3 w-3 stroke-[2.5]" />
                 </div>
                 <span>Create New List</span>
