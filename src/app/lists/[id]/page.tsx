@@ -590,11 +590,11 @@ export default function ListDetailsPage() {
         </button>
         
         {/* Title and Header Actions Row */}
-        <div className="flex items-center justify-between gap-3 sm:gap-4 mb-2 flex-wrap sm:flex-nowrap">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">{displayTitle}</h1>
+        <div className="flex items-center justify-between gap-3 sm:gap-4 mb-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight min-w-0 flex-1 break-words">{displayTitle}</h1>
 
           {!isCurated && (
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
               {isReordering ? (
                 <>
                   <button

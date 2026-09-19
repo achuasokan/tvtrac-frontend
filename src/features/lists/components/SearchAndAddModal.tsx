@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/store";
 import { addMovieToList, removeMovieFromList } from "@/features/lists/store/listSlice";
 import { api } from "@/lib/api";
+import { X } from "lucide-react";
 
 interface SearchAndAddModalProps {
   isOpen: boolean;
@@ -183,55 +184,72 @@ export function SearchAndAddModal({ isOpen, onClose, listId }: SearchAndAddModal
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative isolate bg-[#0a0a0a] border border-white/10 rounded-2xl w-full max-w-lg flex flex-col max-h-[75vh] shadow-2xl overflow-hidden">
-        {/* Sci-Fi Fading Border Glow */}
-        <div 
-          className="absolute inset-0 z-20 pointer-events-none rounded-2xl border-[1.5px] border-transparent"
-          style={{
-            background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
-            WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
-            WebkitMaskComposite: 'destination-out',
-            maskComposite: 'exclude'
-          }}
-        />
-        
-        {/* Header & Search */}
-        <div className="relative z-10 p-4 border-b border-white/5 shrink-0">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-white">Add to List</h3>
-            {hasInteracted ? (
-              <button 
-                onClick={onClose}
-                className="px-4 py-1.5 bg-white text-black text-sm font-bold rounded-lg hover:bg-zinc-200 transition-colors shadow-lg"
-              >
-                Done
-              </button>
-            ) : (
-              <button 
-                onClick={onClose}
-                className="text-zinc-500 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            )}
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-24 sm:pb-6" onClick={onClose}>
+      {/* Subtle Translucent Backdrop (allows blurred background to show through) */}
+      <div className="absolute inset-0 bg-black/35 backdrop-blur-[3px] transition-opacity" />
 
-          <div className="relative">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search movies or TV shows..."
-              className="w-full pl-10 pr-4 py-3 bg-black/50 border border-white/10 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#2dd4bf]/70 focus:shadow-[0_0_20px_rgba(45,212,191,0.25)] transition-all"
-            />
+      {/* Modal Container */}
+      <div 
+        className="relative w-full max-w-lg z-10 animate-in zoom-in-95 fade-in duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Authentic Frosted Glass Card */}
+        <div className="relative bg-black/50 sm:bg-zinc-950/50 backdrop-blur-3xl border border-white/20 rounded-tl-[28px] sm:rounded-tl-[32px] rounded-br-[28px] sm:rounded-br-[32px] rounded-tr-sm rounded-bl-sm shadow-[0_20px_60px_rgba(0,0,0,0.75)] overflow-hidden flex flex-col max-h-[78vh]">
+          {/* Brand Signature Fading Bottom Border Glow */}
+          <div 
+            className="absolute inset-0 z-0 pointer-events-none rounded-tl-[28px] sm:rounded-tl-[32px] rounded-br-[28px] sm:rounded-br-[32px] rounded-tr-sm rounded-bl-sm border-[1.5px] border-transparent"
+            style={{
+              background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
+              WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+              WebkitMaskComposite: 'destination-out',
+              maskComposite: 'exclude'
+            }}
+          />
+
+          {/* Specular Top Edge Highlight */}
+          <div 
+            className="absolute top-0 inset-x-0 h-[1px] pointer-events-none z-10"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%)'
+            }}
+          />
+          
+          {/* Header & Search */}
+          <div className="relative z-10 p-5 border-b border-white/10 shrink-0">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">Add to List</h3>
+              {hasInteracted ? (
+                <button 
+                  onClick={onClose}
+                  className="cursor-pointer px-4 py-1.5 bg-white hover:bg-zinc-100 text-black text-xs font-bold rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-md transition-all active:scale-95"
+                >
+                  Done
+                </button>
+              ) : (
+                <button 
+                  type="button"
+                  onClick={onClose}
+                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/10"
+                  aria-label="Close modal"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search movies or TV shows..."
+                className="w-full pl-10 pr-4 py-2.5 bg-white/[0.05] border border-white/[0.12] rounded-xl text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30 backdrop-blur-xl transition-all"
+              />
+            </div>
           </div>
-        </div>
 
         {/* Results */}
         <div className="relative z-10 flex-1 overflow-y-auto hide-scrollbar p-2 min-h-[350px] flex flex-col">
@@ -296,6 +314,7 @@ export function SearchAndAddModal({ isOpen, onClose, listId }: SearchAndAddModal
           )}
         </div>
       </div>
+    </div>
 
       {/* Full-screen Image Preview Overlay */}
       {previewImage && (

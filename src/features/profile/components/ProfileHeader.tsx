@@ -11,6 +11,7 @@ import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { getAutoplayPreference, setAutoplayPreference, AutoplayPreference } from '@/utils/autoplaySettings';
 import { extractDominantColor } from '@/utils/colorExtractor';
 import { useProfileTheme } from '@/features/profile/context/ProfileThemeContext';
+import { Settings, Download, Play, LogOut, X, ChevronRight, Check } from 'lucide-react';
 
 export const ProfileHeader = () => {
     const { user } = useAppSelector(state => state.auth);
@@ -24,7 +25,18 @@ export const ProfileHeader = () => {
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [showAutoplayModal, setShowAutoplayModal] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [currentAutoplayPref, setCurrentAutoplayPref] = useState<AutoplayPreference>(() => getAutoplayPreference());
+    const [isStandalone, setIsStandalone] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const isApp = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+            setIsStandalone(isApp);
+        }
+    }, []);
+
+    const showInstallOption = isInstallable && !isStandalone;
     const router = useRouter();
 
     // Optimistic preview: show local image immediately before Cloudinary upload finishes
@@ -275,19 +287,20 @@ export const ProfileHeader = () => {
                     className="fixed inset-0 z-[999] flex items-center justify-center p-4 pb-28 sm:pb-4"
                     onClick={() => setShowAutoplayModal(false)}
                 >
-                    {/* Backdrop */}
-                    <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+                    {/* Subtle Translucent Backdrop (allows blurred background to show through) */}
+                    <div className="absolute inset-0 bg-black/35 backdrop-blur-[3px] transition-opacity" />
 
-                    {/* Modal */}
+                    {/* Modal Container */}
                     <div 
                         className="relative w-full max-w-sm sm:max-w-md z-10 animate-in zoom-in-95 fade-in duration-200"
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {/* Glass card */}
-                        <div className="relative bg-zinc-950/90 border border-white/10 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden">
-                            {/* Sci-Fi Fading Border Glow */}
+                        {/* Authentic Frosted Glass Card */}
+                        <div className="relative bg-black/50 sm:bg-zinc-950/50 backdrop-blur-3xl border border-white/20 rounded-tl-[28px] sm:rounded-tl-[32px] rounded-br-[28px] sm:rounded-br-[32px] rounded-tr-sm rounded-bl-sm shadow-[0_20px_60px_rgba(0,0,0,0.75)] overflow-hidden">
+                            
+                            {/* Brand Signature Fading Bottom Border Glow */}
                             <div 
-                                className="absolute inset-0 z-0 pointer-events-none rounded-3xl border-[1.5px] border-transparent"
+                                className="absolute inset-0 z-0 pointer-events-none rounded-tl-[28px] sm:rounded-tl-[32px] rounded-br-[28px] sm:rounded-br-[32px] rounded-tr-sm rounded-bl-sm border-[1.5px] border-transparent"
                                 style={{
                                     background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
                                     WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
@@ -296,28 +309,37 @@ export const ProfileHeader = () => {
                                 }}
                             />
 
-                            <div className="relative z-10 p-6">
+                            {/* Specular Top Edge Highlight */}
+                            <div 
+                                className="absolute top-0 inset-x-0 h-[1px] pointer-events-none z-10"
+                                style={{
+                                    background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%)'
+                                }}
+                            />
+
+                            <div className="relative z-10 p-5 sm:p-6">
                                 {/* Header */}
                                 <div className="flex items-center justify-between mb-5">
                                     <div>
-                                        <h2 className="text-lg font-bold text-white">
+                                        <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
                                             Trailer Autoplay & Data Saver
                                         </h2>
-                                        <p className="text-xs text-zinc-500 mt-0.5">
+                                        <p className="text-xs text-white/50 mt-0.5">
                                             Control how video trailers play on title detail pages
                                         </p>
                                     </div>
                                     <button 
+                                        type="button"
                                         onClick={() => setShowAutoplayModal(false)}
-                                        className="cursor-pointer text-zinc-600 hover:text-zinc-300 transition-colors p-1 rounded-full hover:bg-white/5"
+                                        className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/10"
+                                        aria-label="Close modal"
                                     >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                                        </svg>
+                                        <X className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
 
-                                <div className="flex flex-col gap-3 mb-6">
+                                {/* Options List */}
+                                <div className="flex flex-col gap-2.5 mb-6">
                                     <button
                                         type="button"
                                         onClick={() => {
@@ -326,19 +348,23 @@ export const ProfileHeader = () => {
                                         }}
                                         className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer ${
                                             currentAutoplayPref === 'auto'
-                                                ? 'bg-white/10 border-white/30 text-white shadow-lg ring-1 ring-white/20'
-                                                : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                                ? 'bg-white/[0.14] border-white/35 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] ring-1 ring-white/25 backdrop-blur-xl'
+                                                : 'bg-white/[0.05] hover:bg-white/[0.10] border-white/[0.12] hover:border-white/25 text-white/75 backdrop-blur-xl'
                                         }`}
                                     >
-                                        <span className="text-lg mt-0.5">📱</span>
+                                        <div className="w-9 h-9 rounded-full bg-white/[0.08] border border-white/15 flex items-center justify-center text-base flex-shrink-0 backdrop-blur-md">
+                                            📱
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
                                                 <span className="font-bold text-xs sm:text-sm text-white">Smart (Recommended)</span>
                                                 {currentAutoplayPref === 'auto' && (
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 font-bold border border-green-500/30">Active</span>
+                                                    <span className="text-[9px] px-2.5 py-0.5 rounded-full bg-white/20 text-white font-bold border border-white/30 tracking-wider uppercase backdrop-blur-md">
+                                                        Active
+                                                    </span>
                                                 )}
                                             </div>
-                                            <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
+                                            <p className="text-[11px] text-white/55 mt-1 leading-snug">
                                                 Paused on mobile devices & data saver networks. Autoplays on desktop Wi-Fi.
                                             </p>
                                         </div>
@@ -352,19 +378,23 @@ export const ProfileHeader = () => {
                                         }}
                                         className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer ${
                                             currentAutoplayPref === 'always'
-                                                ? 'bg-white/10 border-white/30 text-white shadow-lg ring-1 ring-white/20'
-                                                : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                                ? 'bg-white/[0.14] border-white/35 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] ring-1 ring-white/25 backdrop-blur-xl'
+                                                : 'bg-white/[0.05] hover:bg-white/[0.10] border-white/[0.12] hover:border-white/25 text-white/75 backdrop-blur-xl'
                                         }`}
                                     >
-                                        <span className="text-lg mt-0.5">⚡</span>
+                                        <div className="w-9 h-9 rounded-full bg-white/[0.08] border border-white/15 flex items-center justify-center text-base flex-shrink-0 backdrop-blur-md">
+                                            ⚡
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
                                                 <span className="font-bold text-xs sm:text-sm text-white">Always Autoplay</span>
                                                 {currentAutoplayPref === 'always' && (
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 font-bold border border-green-500/30">Active</span>
+                                                    <span className="text-[9px] px-2.5 py-0.5 rounded-full bg-white/20 text-white font-bold border border-white/30 tracking-wider uppercase backdrop-blur-md">
+                                                        Active
+                                                    </span>
                                                 )}
                                             </div>
-                                            <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
+                                            <p className="text-[11px] text-white/55 mt-1 leading-snug">
                                                 Always autoplays trailers on all devices after 2.5 seconds.
                                             </p>
                                         </div>
@@ -378,19 +408,23 @@ export const ProfileHeader = () => {
                                         }}
                                         className={`w-full text-left p-3.5 rounded-2xl border transition-all flex items-start gap-3 cursor-pointer ${
                                             currentAutoplayPref === 'never'
-                                                ? 'bg-white/10 border-white/30 text-white shadow-lg ring-1 ring-white/20'
-                                                : 'bg-white/5 border-white/10 text-zinc-400 hover:bg-white/10 hover:text-zinc-200'
+                                                ? 'bg-white/[0.14] border-white/35 text-white shadow-[0_4px_20px_rgba(0,0,0,0.3)] ring-1 ring-white/25 backdrop-blur-xl'
+                                                : 'bg-white/[0.05] hover:bg-white/[0.10] border-white/[0.12] hover:border-white/25 text-white/75 backdrop-blur-xl'
                                         }`}
                                     >
-                                        <span className="text-lg mt-0.5">🚫</span>
+                                        <div className="w-9 h-9 rounded-full bg-white/[0.08] border border-white/15 flex items-center justify-center text-base flex-shrink-0 backdrop-blur-md">
+                                            🚫
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center justify-between">
                                                 <span className="font-bold text-xs sm:text-sm text-white">Never Autoplay (Data Saver)</span>
                                                 {currentAutoplayPref === 'never' && (
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 font-bold border border-green-500/30">Active</span>
+                                                    <span className="text-[9px] px-2.5 py-0.5 rounded-full bg-amber-400/25 text-amber-300 font-bold border border-amber-400/40 tracking-wider uppercase backdrop-blur-md">
+                                                        Active
+                                                    </span>
                                                 )}
                                             </div>
-                                            <p className="text-[11px] text-zinc-400 mt-1 leading-snug">
+                                            <p className="text-[11px] text-white/55 mt-1 leading-snug">
                                                 Saves maximum data. Trailers will only play when you tap "Play Trailer".
                                             </p>
                                         </div>
@@ -398,22 +432,170 @@ export const ProfileHeader = () => {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex items-center gap-3 pt-2">
+                                <div className="flex items-center gap-3 pt-1">
                                     <button
                                         type="button"
                                         onClick={() => setShowAutoplayModal(false)}
-                                        className="cursor-pointer flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all"
+                                        className="cursor-pointer flex-1 px-4 py-2.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-sm font-bold text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 transition-all active:scale-95"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setShowAutoplayModal(false)}
-                                        className="cursor-pointer flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-white hover:bg-zinc-100 text-black shadow-lg transition-all"
+                                        className="cursor-pointer flex-1 px-4 py-2.5 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-sm font-bold bg-white hover:bg-zinc-100 text-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
                                         Done
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── iOS Control Tray Bottom Sheet (Settings & Tools) ── */}
+            {isSettingsOpen && (
+                <div 
+                    className="fixed inset-0 z-[999] flex flex-col justify-end"
+                    onClick={() => setIsSettingsOpen(false)}
+                >
+                    {/* Subtle Translucent Backdrop (allows blurred background to show through) */}
+                    <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] transition-opacity" />
+
+                    {/* Sheet Container */}
+                    <div 
+                        className="relative w-full max-w-md mx-auto z-10 animate-in slide-in-from-bottom duration-300 ease-out"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Authentic Frosted Glass Tray */}
+                        <div className="relative bg-black/45 sm:bg-zinc-950/45 backdrop-blur-3xl border-t border-x border-white/20 rounded-t-[32px] sm:rounded-t-[36px] shadow-[0_-12px_45px_rgba(0,0,0,0.65)] px-4 pt-3 pb-[calc(env(safe-area-inset-bottom)+20px)] overflow-hidden">
+                            
+                            {/* Specular Edge Highlight */}
+                            <div 
+                                className="absolute top-0 inset-x-0 h-[1px] pointer-events-none"
+                                style={{
+                                    background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%)'
+                                }}
+                            />
+
+                            {/* Drag Handle Indicator Pill */}
+                            <div 
+                                className="w-9 h-1 bg-white/35 rounded-full mx-auto mb-3 hover:bg-white/60 transition-colors cursor-pointer" 
+                                onClick={() => setIsSettingsOpen(false)} 
+                            />
+
+                            {/* Header Row (Minimal iOS style) */}
+                            <div className="flex items-center justify-between px-2 mb-4">
+                                <span className="text-[11px] font-semibold tracking-wider text-white/60 uppercase">
+                                    Controls & Settings
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSettingsOpen(false)}
+                                    className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/10"
+                                    aria-label="Close tray"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+
+                            {/* Circular Tactile Control Discs (Matching Reference Image) */}
+                            <div className={`grid ${showInstallOption ? 'grid-cols-4 gap-2' : 'grid-cols-3 gap-3 sm:gap-6'} justify-items-center mb-1`}>
+                                {/* 1. Import from TV Time */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsSettingsOpen(false);
+                                        router.push('/profile/import');
+                                    }}
+                                    className="group flex flex-col items-center gap-1.5 cursor-pointer outline-none active:scale-95 transition-transform"
+                                >
+                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/[0.08] hover:bg-white/[0.16] active:bg-white/[0.22] border border-white/[0.15] hover:border-white/30 flex items-center justify-center shadow-[0_2px_10px_rgba(0,0,0,0.25)] backdrop-blur-xl transition-all">
+                                        <svg viewBox="0 0 24 24" className="w-4.5 h-4.5 sm:w-5 sm:h-5 fill-[#FFE144]">
+                                            <path d="M4.8 4.8h14.4v4.8h-4.8v9.6H9.6V9.6H4.8Z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[9px] sm:text-[10px] font-semibold tracking-wider text-zinc-300 group-hover:text-[#FFE144] uppercase transition-colors text-center leading-tight">
+                                            Import
+                                        </span>
+                                        <span className="text-[7.5px] font-bold text-amber-400/80 uppercase mt-0.5">
+                                            TV Time
+                                        </span>
+                                    </div>
+                                </button>
+
+                                {/* 2. Autoplay / Data Saver */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsSettingsOpen(false);
+                                        setShowAutoplayModal(true);
+                                    }}
+                                    className="group flex flex-col items-center gap-1.5 cursor-pointer outline-none active:scale-95 transition-transform"
+                                >
+                                    <div className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center backdrop-blur-xl transition-all shadow-[0_2px_10px_rgba(0,0,0,0.25)] border ${
+                                        currentAutoplayPref === 'never'
+                                            ? 'bg-amber-400/15 border-amber-400/40 text-amber-300'
+                                            : 'bg-white/[0.08] hover:bg-white/[0.16] active:bg-white/[0.22] border-white/[0.15] hover:border-white/30 text-white/90'
+                                    }`}>
+                                        <Play className="w-4 h-4 fill-current ml-0.5" />
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[9px] sm:text-[10px] font-semibold tracking-wider text-zinc-300 group-hover:text-white uppercase transition-colors text-center leading-tight">
+                                            Autoplay
+                                        </span>
+                                        <span className={`text-[7.5px] font-bold uppercase mt-0.5 ${currentAutoplayPref === 'never' ? 'text-amber-300' : 'text-zinc-500'}`}>
+                                            {currentAutoplayPref === 'never' ? 'Saver On' : 'Active'}
+                                        </span>
+                                    </div>
+                                </button>
+
+                                {/* 3. Install App (Only shown when installable and not already running as standalone PWA) */}
+                                {showInstallOption && (
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            if (isInstallable) {
+                                                setIsSettingsOpen(false);
+                                                await promptInstall();
+                                            } else {
+                                                showToast("TVTrac is already installed or your browser doesn't support install prompts.");
+                                            }
+                                        }}
+                                        className="group flex flex-col items-center gap-1.5 cursor-pointer outline-none active:scale-95 transition-transform"
+                                    >
+                                        <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center backdrop-blur-xl transition-all shadow-[0_2px_10px_rgba(0,0,0,0.25)] border bg-sky-400/15 border-sky-400/40 text-sky-300">
+                                            <Download className="w-4.5 h-4.5" />
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-[9px] sm:text-[10px] font-semibold tracking-wider text-zinc-300 group-hover:text-white uppercase transition-colors text-center leading-tight">
+                                                Install
+                                            </span>
+                                            <span className="text-[7.5px] font-bold text-zinc-500 uppercase mt-0.5">
+                                                Ready
+                                            </span>
+                                        </div>
+                                    </button>
+                                )}
+
+                                {/* 4. Logout */}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsSettingsOpen(false);
+                                        setShowLogoutConfirm(true);
+                                    }}
+                                    className="group flex flex-col items-center gap-1.5 cursor-pointer outline-none active:scale-95 transition-transform"
+                                >
+                                    <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/[0.08] hover:bg-red-500/15 active:bg-red-500/25 border border-white/[0.15] hover:border-red-500/30 text-white/80 group-hover:text-red-400 flex items-center justify-center shadow-[0_2px_10px_rgba(0,0,0,0.25)] backdrop-blur-xl transition-all">
+                                        <LogOut className="w-4 h-4 ml-0.5" />
+                                    </div>
+                                    <span className="text-[9px] sm:text-[10px] font-semibold tracking-wider text-zinc-300 group-hover:text-red-300 uppercase transition-colors text-center leading-tight">
+                                        Log Out
+                                    </span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -488,194 +670,118 @@ export const ProfileHeader = () => {
                 )}
 
                 {/* Cover Photo Top Right Actions */}
-                <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">
-                    {/* 3-Dot Toggle Button */}
-                    <button 
-                        type="button"
-                        aria-label="Profile options"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (isEditMode) {
-                                setIsEditMode(false);
-                            } else {
-                                setIsCoverMenuOpen(!isCoverMenuOpen);
-                            }
-                        }}
-                        className={`group w-10 h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm transition-all duration-200 border cursor-pointer active:scale-95 outline-none focus:outline-none focus:ring-0 backdrop-blur-md shadow-xl ${
-                            isCoverMenuOpen || isEditMode 
-                                ? 'bg-zinc-850/95 border-[#2dd4bf]/70 text-white shadow-[0_0_15px_rgba(45,212,191,0.25)] ring-1 ring-[#2dd4bf]/30' 
-                                : 'bg-zinc-900/90 border-zinc-800/90 text-zinc-400 hover:text-white hover:bg-zinc-850 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)]'
-                        }`}
-                    >
-                        <svg className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                        </svg>
-                    </button>
+                <div className="absolute top-5 right-3 sm:top-4 sm:right-4 z-50 flex flex-col items-end gap-2 sm:gap-2.5">
+                    {/* 1. Profile Edit (3-Dot) Button & Actions */}
+                    <div className="relative flex flex-col items-end gap-2">
+                        {/* 3-Dot Toggle Button */}
+                        <button 
+                            type="button"
+                            aria-label="Profile options"
+                            title={isEditMode ? "Exit Edit Mode" : "Edit Profile (Photos & Name)"}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (isEditMode) {
+                                    setIsEditMode(false);
+                                } else {
+                                    setIsCoverMenuOpen(!isCoverMenuOpen);
+                                }
+                            }}
+                            className={`group w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm transition-all duration-200 border cursor-pointer active:scale-95 outline-none focus:outline-none focus:ring-0 backdrop-blur-md shadow-xl ${
+                                isCoverMenuOpen || isEditMode 
+                                    ? 'bg-zinc-850/95 border-[#2dd4bf]/70 text-white shadow-[0_0_15px_rgba(45,212,191,0.25)] ring-1 ring-[#2dd4bf]/30' 
+                                    : 'bg-zinc-900/90 border-zinc-800/90 text-zinc-400 hover:text-white hover:bg-zinc-850 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)]'
+                            }`}
+                        >
+                            {isEditMode ? (
+                                <Check className="w-4 h-4 sm:w-5 sm:h-5 text-[#2dd4bf]" />
+                            ) : (
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                                </svg>
+                            )}
+                        </button>
 
-                    {/* Edit Option Dropdown */}
-                    {isCoverMenuOpen && !isEditMode && (
-                        <div className="w-52 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_15px_40px_rgba(0,0,0,0.9),0_0_20px_rgba(45,212,191,0.08)] p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150 z-40">
-                            <button 
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsCoverMenuOpen(false);
-                                    setIsEditMode(true);
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsCoverMenuOpen(false);
-                                    setIsEditMode(true);
-                                }}
-                                className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
-                            >
-                                <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-zinc-900 border border-zinc-800 group-hover:border-[#2dd4bf]/40 flex items-center justify-center text-zinc-400 group-hover:text-[#2dd4bf] transition-colors shadow-sm shrink-0">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                    </svg>
-                                </div>
-                                <span>Edit Profile</span>
-                            </button>
-                            
-                            <button 
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsCoverMenuOpen(false);
-                                    setShowAutoplayModal(true);
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsCoverMenuOpen(false);
-                                    setShowAutoplayModal(true);
-                                }}
-                                className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
-                            >
-                                <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-zinc-900 border border-zinc-800 group-hover:border-[#2dd4bf]/40 flex items-center justify-center text-zinc-400 group-hover:text-[#2dd4bf] transition-colors shadow-sm shrink-0">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                </div>
-                                <span>Data Saver</span>
-                            </button>
-
-                            {isInstallable && (
+                        {/* Profile Edit Dropdown (ONLY for Profile & Photos) */}
+                        {isCoverMenuOpen && !isEditMode && (
+                            <div className="absolute top-11 right-0 w-44 sm:w-48 bg-zinc-950/95 backdrop-blur-xl border border-zinc-800 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm shadow-[0_15px_40px_rgba(0,0,0,0.9),0_0_20px_rgba(45,212,191,0.08)] p-1.5 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-150 z-40">
                                 <button 
                                     type="button"
-                                    onClick={async (e) => {
+                                    onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         setIsCoverMenuOpen(false);
-                                        await promptInstall();
+                                        setIsEditMode(true);
                                     }}
-                                    onTouchEnd={async (e) => {
+                                    onTouchEnd={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
                                         setIsCoverMenuOpen(false);
-                                        await promptInstall();
+                                        setIsEditMode(true);
                                     }}
                                     className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
                                 >
                                     <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-zinc-900 border border-zinc-800 group-hover:border-[#2dd4bf]/40 flex items-center justify-center text-zinc-400 group-hover:text-[#2dd4bf] transition-colors shadow-sm shrink-0">
                                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                         </svg>
                                     </div>
-                                    <span>Install App</span>
+                                    <span>Edit Profile & Photos</span>
                                 </button>
-                            )}
+                            </div>
+                        )}
 
-                            <button 
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsCoverMenuOpen(false);
-                                    router.push('/profile/import');
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsCoverMenuOpen(false);
-                                    router.push('/profile/import');
-                                }}
-                                className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-900/90 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
-                            >
-                                <div className="w-6 h-6 rounded-md bg-gradient-to-b from-[#FFE144] to-[#FFD200] flex items-center justify-center shadow-[0_2px_8px_rgba(255,210,0,0.3)] shrink-0 overflow-hidden group-hover:scale-105 transition-transform">
-                                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="#121212">
-                                        <path d="M4.8 4.8h14.4v4.8h-4.8v9.6H9.6V9.6H4.8Z" />
-                                    </svg>
-                                </div>
-                                <span className="group-hover:text-white transition-colors">Import from TV Time</span>
-                            </button>
-
-                            <div className="my-1 border-t border-zinc-800/80" />
-
-                            <button 
-                                type="button"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsCoverMenuOpen(false);
-                                    setShowLogoutConfirm(true);
-                                }}
-                                onTouchEnd={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setIsCoverMenuOpen(false);
-                                    setShowLogoutConfirm(true);
-                                }}
-                                className="group w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs transition-all duration-150 cursor-pointer text-left active:scale-[0.98]"
-                            >
-                                <div className="w-6 h-6 rounded-tl-md rounded-br-md rounded-tr-xs rounded-bl-xs bg-red-500/10 border border-red-500/20 group-hover:border-red-500/40 flex items-center justify-center text-red-400 group-hover:text-red-300 transition-colors shadow-sm shrink-0">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                    </svg>
-                                </div>
-                                <span>Logout</span>
-                            </button>
-                        </div>
-                    )}
-
-                    {/* Edit Mode Action Buttons */}
-                    {isEditMode && (
-                        <div className="flex flex-col items-center gap-2.5 animate-in slide-in-from-top-2 fade-in duration-200">
-                            <button 
-                                type="button"
-                                onClick={() => coverInputRef.current?.click()}
-                                disabled={isUploadingCover}
-                                className="group w-10 h-10 flex items-center justify-center bg-zinc-900/90 hover:bg-zinc-850 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-zinc-400 hover:text-white transition-all border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 shadow-xl outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
-                                title="Change Cover"
-                            >
-                                {isUploadingCover ? (
-                                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <svg className="w-5 h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                )}
-                            </button>
-
-                            {user.coverPhoto && !isUploadingCover && (
-                                <button
+                        {/* Edit Mode Action Buttons */}
+                        {isEditMode && (
+                            <div className="flex flex-col items-center gap-2 animate-in slide-in-from-top-2 fade-in duration-200">
+                                <button 
                                     type="button"
-                                    onClick={(e) => {
-                                        handleDeleteCover(e);
-                                    }}
-                                    className="w-10 h-10 flex items-center justify-center bg-red-950/40 hover:bg-red-900/60 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-red-400 hover:text-red-300 transition-all border border-red-900/50 shadow-xl active:scale-95 outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
-                                    title="Delete Cover"
+                                    onClick={() => coverInputRef.current?.click()}
+                                    disabled={isUploadingCover}
+                                    className="group w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-zinc-900/90 hover:bg-zinc-850 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-zinc-400 hover:text-white transition-all border border-zinc-800/90 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)] active:scale-95 shadow-xl outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
+                                    title="Change Cover"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
+                                    {isUploadingCover ? (
+                                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
+                                    )}
                                 </button>
-                            )}
-                        </div>
+
+                                {user.coverPhoto && !isUploadingCover && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            handleDeleteCover(e);
+                                        }}
+                                        className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center bg-red-950/40 hover:bg-red-900/60 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm text-red-400 hover:text-red-300 transition-all border border-red-900/50 shadow-xl active:scale-95 outline-none focus:outline-none focus:ring-0 backdrop-blur-md"
+                                        title="Delete Cover"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 2. Settings (⚙️) Button — Placed Below the 3-Dot Option */}
+                    {!isEditMode && (
+                        <button 
+                            type="button"
+                            aria-label="Settings and tools"
+                            title="Settings & Tools"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsCoverMenuOpen(false);
+                                setIsSettingsOpen(true);
+                            }}
+                            className="group w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm transition-all duration-200 border cursor-pointer active:scale-95 outline-none focus:outline-none focus:ring-0 backdrop-blur-md shadow-xl bg-zinc-900/90 border-zinc-800/90 text-zinc-400 hover:text-white hover:bg-zinc-850 hover:border-[#2dd4bf]/50 hover:shadow-[0_0_15px_rgba(45,212,191,0.18)]"
+                        >
+                            <Settings className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400 group-hover:text-white group-hover:rotate-45 transition-all duration-300" />
+                        </button>
                     )}
                 </div>
 

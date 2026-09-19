@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppDispatch } from "@/store";
 import { createNewList, updateListDetails } from "../store/listSlice";
 import { IList } from "../types";
+import { X } from "lucide-react";
 
 interface CreateListModalProps {
   isOpen: boolean;
@@ -23,8 +24,13 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
 
   useEffect(() => {
     if (isOpen) {
-      setName(editList?.name || "");
-      setDescription(editList?.description || "");
+      if (editList) {
+        setName(editList.name);
+        setDescription(editList.description || "");
+      } else {
+        setName("");
+        setDescription("");
+      }
       setError("");
     }
   }, [isOpen, editList]);
@@ -37,23 +43,27 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
       setError("List name is required");
       return;
     }
-    
+
     setIsSubmitting(true);
     setError("");
-    
+
     try {
       if (editList) {
-        await dispatch(updateListDetails({ listId: editList.id, data: { name, description } })).unwrap();
+        await dispatch(updateListDetails({ 
+          listId: editList.id, 
+          data: { name: name.trim(), description: description.trim() } 
+        })).unwrap();
         onClose();
       } else {
-        const newList = await dispatch(createNewList({ name, description })).unwrap();
-        setName("");
-        setDescription("");
+        const result = await dispatch(createNewList({ 
+          name: name.trim(), 
+          description: description.trim() 
+        })).unwrap();
         onClose();
-        router.push(`/lists/${newList.id}`);
+        router.push(`/lists/${result.id}`);
       }
     } catch (err: any) {
-      setError(err || `Failed to ${editList ? 'update' : 'create'} list`);
+      setError(err || "Failed to save list");
     } finally {
       setIsSubmitting(false);
     }
@@ -64,19 +74,19 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
       className="fixed inset-0 z-50 flex items-center justify-center p-4 pb-28 sm:pb-4"
       onClick={onClose}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+      {/* Subtle Translucent Backdrop (allows blurred background to show through) */}
+      <div className="absolute inset-0 bg-black/35 backdrop-blur-[3px] transition-opacity" />
 
-      {/* Modal */}
+      {/* Modal Container */}
       <div 
-        className="relative w-full max-w-sm z-10 animate-in zoom-in-95 fade-in duration-200"
+        className="relative w-full max-w-sm sm:max-w-md z-10 animate-in zoom-in-95 fade-in duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Glass card */}
-        <div className="relative bg-zinc-950/90 border border-white/10 rounded-3xl shadow-2xl shadow-black/60 overflow-hidden">
-          {/* Sci-Fi Fading Border Glow */}
+        {/* Authentic Frosted Glass Card */}
+        <div className="relative bg-black/50 sm:bg-zinc-950/50 backdrop-blur-3xl border border-white/20 rounded-tl-[28px] sm:rounded-tl-[32px] rounded-br-[28px] sm:rounded-br-[32px] rounded-tr-sm rounded-bl-sm shadow-[0_20px_60px_rgba(0,0,0,0.75)] overflow-hidden">
+          {/* Brand Signature Fading Bottom Border Glow */}
           <div 
-            className="absolute inset-0 z-0 pointer-events-none rounded-3xl border-[1.5px] border-transparent"
+            className="absolute inset-0 z-0 pointer-events-none rounded-tl-[28px] sm:rounded-tl-[32px] rounded-br-[28px] sm:rounded-br-[32px] rounded-tr-sm rounded-bl-sm border-[1.5px] border-transparent"
             style={{
               background: 'linear-gradient(to top, rgba(217, 138, 89, 0.95) 0%, rgba(217, 138, 89, 0.3) 40%, transparent 75%) border-box',
               WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
@@ -85,31 +95,39 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
             }}
           />
 
-          <div className="relative z-10 p-6">
+          {/* Specular Top Edge Highlight */}
+          <div 
+            className="absolute top-0 inset-x-0 h-[1px] pointer-events-none z-10"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.45) 50%, transparent 100%)'
+            }}
+          />
+
+          <div className="relative z-10 p-5 sm:p-6">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-lg font-bold text-white">
+                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
                   {editList ? "Edit List" : "New List"}
                 </h2>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <p className="text-xs text-white/50 mt-0.5">
                   {editList ? "Update your list details" : "Create a new collection"}
                 </p>
               </div>
               <button 
+                type="button"
                 onClick={onClose}
-                className="cursor-pointer text-zinc-600 hover:text-zinc-300 transition-colors p-1 rounded-full hover:bg-white/5"
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white flex items-center justify-center transition-colors cursor-pointer border border-white/10"
+                aria-label="Close modal"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Name Field */}
               <div>
-                <label htmlFor="name" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+                <label htmlFor="name" className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
                   List Name
                 </label>
                 <input
@@ -117,21 +135,21 @@ export function CreateListModal({ isOpen, onClose, editList }: CreateListModalPr
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20 transition-all"
+                  className="w-full bg-white/[0.05] border border-white/[0.12] rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30 backdrop-blur-xl transition-all"
                   placeholder="e.g. Favorites, Anime to Watch"
                 />
               </div>
               
               {/* Description Field */}
               <div>
-                <label htmlFor="description" className="block text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-2">
-                  Description <span className="normal-case font-normal text-zinc-600">(optional)</span>
+                <label htmlFor="description" className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-2">
+                  Description <span className="normal-case font-normal text-zinc-500">(optional)</span>
                 </label>
                 <textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/20 transition-all resize-none h-20"
+                  className="w-full bg-white/[0.05] border border-white/[0.12] rounded-xl px-4 py-3 text-white text-sm placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-white/20 focus:border-white/30 backdrop-blur-xl transition-all resize-none h-20"
                   placeholder="What is this list about?"
                 />
               </div>
