@@ -67,6 +67,9 @@ const authSlice = createSlice({
     clearUser: (state) => {
       state.user = null;
       state.isLoading = false;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tvtrac_active_import_job_id');
+      }
     }
   },
   extraReducers: (builder) => {
@@ -92,11 +95,17 @@ const authSlice = createSlice({
     builder.addCase(logoutUser.fulfilled, (state) => {
       state.isLoading = false;
       state.user = null;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tvtrac_active_import_job_id');
+      }
     });
     builder.addCase(logoutUser.rejected, (state) => {
       state.isLoading = false;
       // even if logout fails, we can clear the user state locally
       state.user = null;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('tvtrac_active_import_job_id');
+      }
     });
   },
 });

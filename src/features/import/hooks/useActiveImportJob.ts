@@ -119,8 +119,9 @@ export function useActiveImportJob() {
         const res = await api.get(API_ROUTES.IMPORTS.JOB(jobId));
         return res.data?.data as ImportJobData;
       } catch (err: any) {
-        if (err.response?.status === 404 || err.response?.status === 400) {
-          // Stale job that expired or was removed from Redis
+        const status = err.response?.status;
+        if (status === 404 || status === 400 || status === 403 || status === 401) {
+          // Stale job or job belonging to a different user session
           setAndPersistJobId(null);
         }
         throw err;
@@ -129,8 +130,9 @@ export function useActiveImportJob() {
     enabled: !!jobId,
     retry: 1,
     refetchInterval: (query) => {
+      if (query.state.error) return false;
       const jobData = query.state.data;
-      if (!jobData) return 2000;
+      if (!jobData) return false;
       const isRunning = jobData.state === 'active' || jobData.state === 'waiting' || jobData.state === 'delayed';
       return isRunning ? 2000 : false;
     },

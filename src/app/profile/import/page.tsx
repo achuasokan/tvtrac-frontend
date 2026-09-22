@@ -375,6 +375,7 @@ export default function TvTimeImportPage() {
     state: jobState,
     isRunning: isJobRunning,
     isReady,
+    isError: isJobError,
     progress: jobProgress,
     startImportJob,
     cancelImportJob,
@@ -842,7 +843,7 @@ export default function TvTimeImportPage() {
 
   const isCompletedJob = jobState === 'completed' || isComplete;
   const isRunningJob = isJobRunning || isImporting;
-  const isSessionLoading = !isReady || (!!jobId && !job && !parseResult);
+  const isSessionLoading = !isReady || (!!jobId && !job && !parseResult && !isJobError);
 
   return (
     <div className="min-h-screen bg-[#070707] text-white selection:bg-[#FFD200]/30 selection:text-[#FFD200]">
@@ -950,6 +951,17 @@ export default function TvTimeImportPage() {
             <p className="text-xs text-zinc-400 max-w-sm mx-auto">
               Checking import status and retrieving unmatched records...
             </p>
+            {jobId && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="cursor-pointer text-xs text-zinc-400 hover:text-white underline underline-offset-4 transition-colors"
+                >
+                  Cancel or start a new import
+                </button>
+              </div>
+            )}
           </div>
         )}
 
