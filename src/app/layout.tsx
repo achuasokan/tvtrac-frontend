@@ -10,6 +10,7 @@ import { RegisterPWA } from "@/components/pwa/RegisterPWA";
 import { ImportProgressDock } from "@/features/import/components/ImportProgressDock";
 import { AutoFeedbackPrompt } from "@/components/feedback/AutoFeedbackPrompt";
 import { siteConfig } from "@/lib/constants/site";
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -96,6 +97,10 @@ export default function RootLayout({
             </QueryProvider>
           </ReduxProvider>
         </GoogleAuthProvider>
+
+             <GoogleAnalytics
+        gaId={process.env.NEXT_PUBLIC_GA_ID!}
+      />
       </body>
     </html>
   );
