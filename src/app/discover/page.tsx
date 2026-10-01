@@ -15,11 +15,40 @@ interface TmdbItem {
   id: number;
   title?: string;
   name?: string;
-  poster_path: string | null;
-  media_type: "movie" | "tv";
+  poster_path?: string | null;
+  profile_path?: string | null;
+  media_type: "movie" | "tv" | "person";
   vote_average?: number;
   release_date?: string;
   first_air_date?: string;
+  known_for_department?: string;
+  gender?: number;
+  known_for?: Array<{
+    id: number;
+    title?: string;
+    name?: string;
+    media_type?: string;
+  }>;
+}
+
+function getPersonRoleLabel(person: TmdbItem): string | null {
+  const dept = person.known_for_department?.trim();
+  if (!dept) return null;
+
+  const lower = dept.toLowerCase();
+  if (lower === "acting") {
+    return person.gender === 1 ? "Actress" : "Actor";
+  }
+  if (lower === "directing") return "Director";
+  if (lower === "writing") return "Writer";
+  if (lower === "production") return "Producer";
+  if (lower === "sound") return "Music & Sound";
+  if (lower === "camera") return "Cinematography";
+  if (lower === "editing") return "Editor";
+  if (lower === "creator") return "Creator";
+  if (lower === "crew") return "Crew";
+
+  return dept;
 }
 
 function Carousel({ title, children }: { title: React.ReactNode, children: React.ReactNode }) {
@@ -37,7 +66,7 @@ function Carousel({ title, children }: { title: React.ReactNode, children: React
   };
 
   return (
-    <div className="group relative">
+    <div className="relative">
       <div className="flex items-center justify-between mb-4">
         {title}
         <div className="flex items-center rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/80 bg-zinc-900/50 backdrop-blur-md overflow-hidden shadow-[0_0_15px_rgba(45,212,191,0.06)] group/nav">
@@ -52,7 +81,7 @@ function Carousel({ title, children }: { title: React.ReactNode, children: React
       </div>
       <div
         ref={scrollRef}
-        className="flex items-center gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pb-4"
+        className="flex items-center gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] pt-3 pb-4"
       >
         {children}
       </div>
@@ -261,7 +290,10 @@ export default function DiscoverPage() {
         try {
           setIsSearchLoading(true);
           const data = await tmdbService.search(urlQuery, 1, controller.signal);
-          const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
+          const filtered = data.results?.filter((item: any) =>
+            (item.media_type === "person" && (item.profile_path || (item.known_for && item.known_for.length > 0))) ||
+            (item.media_type !== "person" && item.poster_path)
+          ) || [];
           setSearchResults(filtered);
           setHasMore(data.page < data.total_pages);
           setPage(1);
@@ -287,8 +319,15 @@ export default function DiscoverPage() {
     setIsLoadingMore(true);
     try {
       const data = await tmdbService.search(urlQuery, nextPage);
-      const filtered = data.results?.filter((item: any) => item.media_type !== "person" && item.poster_path) || [];
-      setSearchResults(prev => [...prev, ...filtered]);
+      const filtered = data.results?.filter((item: any) =>
+        (item.media_type === "person" && (item.profile_path || (item.known_for && item.known_for.length > 0))) ||
+        (item.media_type !== "person" && item.poster_path)
+      ) || [];
+      setSearchResults(prev => {
+        const existingKeys = new Set(prev.map(i => `${i.media_type}-${i.id}`));
+        const newItems = filtered.filter((i: any) => !existingKeys.has(`${i.media_type}-${i.id}`));
+        return [...prev, ...newItems];
+      });
       setHasMore(data.page < data.total_pages);
       setPage(nextPage);
     } catch (error) {
@@ -416,7 +455,7 @@ export default function DiscoverPage() {
 
   const renderItemCard = (item: TmdbItem, idx: number = 0) => (
     <motion.div
-      key={item.id}
+      key={`${item.media_type}-${item.id}`}
       initial={{ opacity: 0, y: 18, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -534,7 +573,7 @@ export default function DiscoverPage() {
               </div>
               <input
                 type="text"
-                placeholder="Search TV shows and movies..."
+                placeholder="Search movies, TV shows, actors, directors..."
                 value={inputValue}
                 onFocus={() => setIsInputFocused(true)}
                 onChange={(e) => setInputValue(e.target.value)}
@@ -683,7 +722,7 @@ export default function DiscoverPage() {
 
             <div
               ref={platformsRef}
-              className="flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+              className="flex items-center overflow-x-auto gap-4 pt-3 pb-4 -mx-4 px-4 sm:mx-0 sm:px-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
             >
               {[
                 { id: 8, name: "Netflix", logoPath: "/pbpMk2JmcoNnQwx5JGpXngfoWtp.jpg" },
@@ -764,33 +803,118 @@ export default function DiscoverPage() {
         ) : (
           <div className="flex flex-col gap-10">
             {urlQuery.trim() ? (
-              // Unified Search Grid
-              <div>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
-                  {searchResults.map((item, idx) => renderItemCard(item, idx))}
+              // Search Results (People + Titles)
+              (() => {
+                const peopleResults = searchResults.filter(item => item.media_type === "person");
+                const mediaResults = searchResults.filter(item => item.media_type !== "person");
 
-                  {/* Inline Load More Card */}
-                  {hasMore && (
-                    <div
-                      onClick={handleLoadMore}
-                      className={`group cursor-pointer flex flex-col items-center justify-center gap-3 aspect-[2/3] w-full rounded-xl bg-zinc-900 border border-zinc-800/50 shadow-lg hover:bg-zinc-800 hover:border-zinc-500 transition-all duration-300 ${isLoadingMore ? 'pointer-events-none opacity-80' : ''}`}
-                    >
-                      {isLoadingMore ? (
-                        <div className="w-8 h-8 border-4 border-zinc-700 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <div className="w-12 h-12 rounded-full bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                return (
+                  <div className="flex flex-col gap-8">
+                    {/* People Section (Actors & Directors) */}
+                    {peopleResults.length > 0 && (
+                      <Carousel
+                        title={
+                          <h3 className="text-base sm:text-lg font-bold text-zinc-200 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-[#2dd4bf]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
+                            <span>People</span>
+                            <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 border border-zinc-700/50">
+                              {peopleResults.length}
+                            </span>
+                          </h3>
+                        }
+                      >
+                        {peopleResults.map((person) => (
+                          <div
+                            key={`person-${person.id}`}
+                            onClick={() => {
+                              if (urlQuery.trim()) {
+                                addRecentSearch(urlQuery.trim());
+                              }
+                              router.push(`/person/${person.id}`);
+                            }}
+                            className="shrink-0 w-24 sm:w-28 md:w-32 flex flex-col items-center text-center group/person cursor-pointer pt-2.5 pb-1 px-1 snap-start"
+                          >
+                            <div className="relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full overflow-hidden bg-zinc-900 border-2 border-zinc-800/80 group-hover/person:border-[#2dd4bf] group-hover/person:scale-105 shadow-xl group-hover/person:shadow-[0_0_20px_rgba(45,212,191,0.2)] transition-all duration-300 mb-2.5">
+                              {person.profile_path ? (
+                                <img
+                                  src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
+                                  alt={person.name}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-zinc-600 bg-zinc-900">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 sm:h-12 sm:w-12" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                            <p className="text-xs sm:text-sm font-bold text-zinc-200 truncate w-full group-hover/person:text-[#2dd4bf] transition-colors">
+                              {person.name}
+                            </p>
+                            {(() => {
+                              const role = getPersonRoleLabel(person);
+                              if (!role) return null;
+                              return (
+                                <span className="text-[11px] sm:text-xs text-zinc-400 font-medium truncate w-full mt-0.5">
+                                  {role}
+                                </span>
+                              );
+                            })()}
                           </div>
-                          <span className="text-xs sm:text-sm font-bold text-zinc-400 group-hover:text-white transition-colors">Load More</span>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
+                        ))}
+                      </Carousel>
+                    )}
+
+                    {/* Titles Grid (Movies & TV Shows) */}
+                    {mediaResults.length > 0 && (
+                      <div>
+                        {peopleResults.length > 0 && (
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-base sm:text-lg font-bold text-zinc-200 flex items-center gap-2">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+                              </svg>
+                              <span>Titles</span>
+                              <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-800/80 text-zinc-400 border border-zinc-700/50">
+                                {mediaResults.length}
+                              </span>
+                            </h3>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4 lg:gap-6">
+                          {mediaResults.map((item, idx) => renderItemCard(item, idx))}
+
+                          {/* Inline Load More Card */}
+                          {hasMore && (
+                            <div
+                              onClick={handleLoadMore}
+                              className={`group cursor-pointer flex flex-col items-center justify-center gap-3 aspect-[2/3] w-full rounded-xl bg-zinc-900 border border-zinc-800/50 shadow-lg hover:bg-zinc-800 hover:border-zinc-500 transition-all duration-300 ${isLoadingMore ? 'pointer-events-none opacity-80' : ''}`}
+                            >
+                              {isLoadingMore ? (
+                                <div className="w-8 h-8 border-4 border-zinc-700 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <>
+                                  <div className="w-12 h-12 rounded-full bg-zinc-800 group-hover:bg-zinc-700 flex items-center justify-center transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-zinc-400 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                                    </svg>
+                                  </div>
+                                  <span className="text-xs sm:text-sm font-bold text-zinc-400 group-hover:text-white transition-colors">Load More</span>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()
             ) : (
               // Dashboard View (Trending)
               <>
