@@ -58,6 +58,21 @@ export default function ShortsPage() {
   const [failedTrailers, setFailedTrailers] = useState<Record<number, boolean>>({});
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const isMutedRef = useRef(isMuted);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  const sendIframeCommand = useCallback((index: number, func: string, args: any = "") => {
+    const iframe = document.getElementById(`trailer-iframe-${index}`) as HTMLIFrameElement;
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.postMessage(
+        JSON.stringify({ event: "command", func, args }),
+        "*"
+      );
+    }
+  }, []);
 
   // Fetch Initial Trailers
   useEffect(() => {
@@ -130,31 +145,35 @@ export default function ShortsPage() {
     const newIndex = Math.round(scrollTop / clientHeight);
     if (newIndex !== activeIndex && newIndex >= 0 && newIndex < trailers.length) {
       // Pause previous video iframe
-      const prevIframe = document.getElementById(`trailer-iframe-${activeIndex}`) as HTMLIFrameElement;
-      if (prevIframe?.contentWindow) {
-        prevIframe.contentWindow.postMessage(
-          JSON.stringify({ event: "command", func: "pauseVideo", args: "" }),
-          "*"
-        );
-      }
+      sendIframeCommand(activeIndex, "pauseVideo");
       setActiveIndex(newIndex);
       setIsPlaying(true);
-      // If user unmuted, carry forward sound to next video without changing iframe src
-      if (!isMuted) {
-        setTimeout(() => {
-          const nextIframe = document.getElementById(`trailer-iframe-${newIndex}`) as HTMLIFrameElement;
-          nextIframe?.contentWindow?.postMessage(
-            JSON.stringify({ event: "command", func: "unMute", args: "" }),
-            "*"
-          );
-        }, 500);
-      }
       // Preload next batch when 3 items from the end
       if (newIndex >= trailers.length - 3) {
         fetchMore();
       }
     }
   };
+
+  // Automatically carry forward unmuted audio to newly active trailer
+  useEffect(() => {
+    if (isMutedRef.current) return;
+
+    // Retry unmuting across the iframe loading and API ready sequence
+    const delays = [150, 400, 750, 1200, 1800, 2500, 3500];
+    const timers = delays.map((delay) =>
+      setTimeout(() => {
+        if (!isMutedRef.current) {
+          sendIframeCommand(activeIndex, "unMute");
+          sendIframeCommand(activeIndex, "setVolume", [100]);
+        }
+      }, delay)
+    );
+
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, [activeIndex, sendIframeCommand]);
 
   // Intelligent Back navigation (bypasses YouTube iframe history stack)
   const handleBack = useCallback((e?: React.MouseEvent) => {
@@ -199,7 +218,7 @@ export default function ShortsPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeIndex, trailers.length, handleBack, scrollToIndex]);
 
-  // Listen for YouTube IFrame embed errors (geo-restriction 150/101, removed video 100, etc.)
+  // Listen for YouTube IFrame embed errors and ready events
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       try {
@@ -213,13 +232,25 @@ export default function ShortsPage() {
         ) {
           setFailedTrailers((prev) => ({ ...prev, [activeIndex]: true }));
         }
+
+        // When YouTube player reports ready or starts playing, apply unmuted audio if user enabled sound
+        if (
+          !isMutedRef.current &&
+          (data?.event === "onReady" ||
+            data?.event === "initialDelivery" ||
+            data?.info?.playerState === 1 ||
+            data?.info?.playerState === 3)
+        ) {
+          sendIframeCommand(activeIndex, "unMute");
+          sendIframeCommand(activeIndex, "setVolume", [100]);
+        }
       } catch {
         // Ignore non-JSON messages
       }
     };
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [activeIndex]);
+  }, [activeIndex, sendIframeCommand]);
 
   const currentItem = trailers[activeIndex];
 
@@ -243,17 +274,7 @@ export default function ShortsPage() {
     if (e) e.stopPropagation();
     setIsPlaying((prev) => {
       const next = !prev;
-      const iframe = document.getElementById(`trailer-iframe-${activeIndex}`) as HTMLIFrameElement;
-      if (iframe?.contentWindow) {
-        iframe.contentWindow.postMessage(
-          JSON.stringify({
-            event: "command",
-            func: next ? "playVideo" : "pauseVideo",
-            args: ""
-          }),
-          "*"
-        );
-      }
+      sendIframeCommand(activeIndex, next ? "playVideo" : "pauseVideo");
       return next;
     });
   };
@@ -263,16 +284,10 @@ export default function ShortsPage() {
     if (e) e.stopPropagation();
     const next = !isMuted;
     setIsMuted(next);
-    const iframe = document.getElementById(`trailer-iframe-${activeIndex}`) as HTMLIFrameElement;
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.postMessage(
-        JSON.stringify({
-          event: "command",
-          func: next ? "mute" : "unMute",
-          args: ""
-        }),
-        "*"
-      );
+    isMutedRef.current = next;
+    sendIframeCommand(activeIndex, next ? "mute" : "unMute");
+    if (!next) {
+      sendIframeCommand(activeIndex, "setVolume", [100]);
     }
   };
 
@@ -417,6 +432,12 @@ export default function ShortsPage() {
                             }
                           : {}
                       }
+                      onLoad={() => {
+                        if (!isMutedRef.current) {
+                          sendIframeCommand(index, "unMute");
+                          sendIframeCommand(index, "setVolume", [100]);
+                        }
+                      }}
                       className={`border-0 pointer-events-none transition-all duration-300 shrink-0 ${
                         isFillMode
                           ? "h-[calc(100%+140px)] -mt-[70px] max-w-none"
