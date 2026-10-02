@@ -8,6 +8,7 @@ import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { setUser } from "@/store/slices/authSlice";
 import { tmdbService } from "@/services/tmdb.service";
 import { motion } from "framer-motion";
+import { Flame } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -608,6 +609,14 @@ export default function DiscoverPage() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 stroke-[2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
+                </button>
+
+                <button
+                  onClick={() => router.push("/shorts")}
+                  className="cursor-pointer flex items-center justify-center p-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-[#2dd4bf] border border-zinc-700/80 hover:border-[#2dd4bf]/50 shadow-md active:scale-95 transition-all"
+                  title="Trailer Theater"
+                >
+                  <Flame className="h-4 w-4" />
                 </button>
               </div>
             </div>
