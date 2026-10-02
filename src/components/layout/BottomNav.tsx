@@ -54,7 +54,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
 
-  if (isLoading || !user) {
+  if (isLoading || !user || pathname === "/shorts") {
     return null;
   }
 

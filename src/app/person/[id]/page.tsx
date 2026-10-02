@@ -6,6 +6,21 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 
+function calculateAge(birthday: string, deathday?: string | null): number | null {
+  const birthDate = new Date(birthday);
+  if (isNaN(birthDate.getTime())) return null;
+
+  const endDate = deathday ? new Date(deathday) : new Date();
+  if (isNaN(endDate.getTime())) return null;
+
+  let age = endDate.getFullYear() - birthDate.getFullYear();
+  const monthDiff = endDate.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && endDate.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : null;
+}
+
 export default function PersonDetailsPage() {
   const router = useRouter();
   const params = useParams();
@@ -125,13 +140,45 @@ export default function PersonDetailsPage() {
               {person.known_for_department && (
                 <div className="mb-0 md:mb-4 w-[45%] md:w-full">
                   <h3 className="text-xs sm:text-sm text-zinc-400 font-bold uppercase tracking-wider">Known For</h3>
-                  <p className="text-zinc-200 text-sm sm:text-base">{person.known_for_department}</p>
+                  <p className="text-zinc-200 text-sm sm:text-base">
+                    {person.known_for_department.toLowerCase() === "acting"
+                      ? (person.gender === 1 ? "Actress" : "Actor")
+                      : person.known_for_department}
+                  </p>
                 </div>
               )}
               {person.birthday && (
                 <div className="mb-0 md:mb-4 w-[45%] md:w-full">
                   <h3 className="text-xs sm:text-sm text-zinc-400 font-bold uppercase tracking-wider">Birthday</h3>
-                  <p className="text-zinc-200 text-sm sm:text-base">{person.birthday}</p>
+                  <p className="text-zinc-200 text-sm sm:text-base">
+                    {person.birthday}
+                    {(() => {
+                      const age = calculateAge(person.birthday, person.deathday);
+                      if (age === null) return null;
+                      return (
+                        <span className="text-zinc-400 text-xs sm:text-sm ml-1.5 font-normal">
+                          {person.deathday ? `(aged ${age} at death)` : `(${age} years old)`}
+                        </span>
+                      );
+                    })()}
+                  </p>
+                </div>
+              )}
+              {person.deathday && (
+                <div className="mb-0 md:mb-4 w-[45%] md:w-full">
+                  <h3 className="text-xs sm:text-sm text-zinc-400 font-bold uppercase tracking-wider">Day of Death</h3>
+                  <p className="text-zinc-200 text-sm sm:text-base">
+                    {person.deathday}
+                    {(() => {
+                      const age = calculateAge(person.birthday, person.deathday);
+                      if (age === null) return null;
+                      return (
+                        <span className="text-zinc-400 text-xs sm:text-sm ml-1.5 font-normal">
+                          ({age} years old)
+                        </span>
+                      );
+                    })()}
+                  </p>
                 </div>
               )}
               {person.place_of_birth && (

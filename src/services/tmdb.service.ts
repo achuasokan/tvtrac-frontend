@@ -65,4 +65,9 @@ export const tmdbService = {
     const res = await api.get(`/tmdb/discover/keyword/${keywordId}?${queryParams}`);
     return res.data;
   },
+
+  getTrailers: async (page: number | string = 1) => {
+    const res = await api.get(`/tmdb/trailers?page=${page}`);
+    return res.data;
+  },
 };
