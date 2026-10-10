@@ -8,7 +8,6 @@ import { useToggleWatchlist } from "@/hooks/useToggleWatchlist";
 import { setUser } from "@/store/slices/authSlice";
 import { tmdbService } from "@/services/tmdb.service";
 import { motion } from "framer-motion";
-import { Flame } from "lucide-react";
 
 import { useQuery } from "@tanstack/react-query";
 
@@ -583,23 +582,24 @@ export default function DiscoverPage() {
                     handleSelectRecentSearch(inputValue.trim());
                   }
                 }}
-                className="w-full bg-transparent text-white py-3 sm:py-4 pl-11 sm:pl-14 pr-[95px] sm:pr-[135px] focus:outline-none text-sm sm:text-base placeholder:text-zinc-500 font-medium"
+                className="w-full bg-transparent text-white py-3 sm:py-4 pl-11 sm:pl-14 pr-14 sm:pr-20 focus:outline-none text-sm sm:text-base placeholder:text-zinc-500 font-medium"
               />
 
               <div className="absolute inset-y-0 right-2 sm:right-2.5 flex items-center gap-1 sm:gap-1.5">
                 {inputValue.length > 0 && (
-                  <button
-                    onClick={() => setInputValue("")}
-                    className="p-1.5 sm:p-2 text-zinc-500 hover:text-white rounded-lg hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
-                    title="Clear search"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setInputValue("")}
+                      className="p-1.5 sm:p-2 text-zinc-500 hover:text-white rounded-lg hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                      title="Clear search"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                    <div className="w-px h-5 sm:h-6 bg-zinc-800 mx-0.5"></div>
+                  </>
                 )}
-
-                <div className="w-px h-5 sm:h-6 bg-zinc-800 mx-0.5"></div>
 
                 <button
                   onClick={() => router.push("/discover/filter")}
@@ -609,14 +609,6 @@ export default function DiscoverPage() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 stroke-[2]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
-                </button>
-
-                <button
-                  onClick={() => router.push("/shorts")}
-                  className="cursor-pointer flex items-center justify-center p-2 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm bg-zinc-900/90 hover:bg-zinc-800 text-zinc-300 hover:text-[#2dd4bf] border border-zinc-700/80 hover:border-[#2dd4bf]/50 shadow-md active:scale-95 transition-all"
-                  title="Trailer Theater"
-                >
-                  <Flame className="h-4 w-4" />
                 </button>
               </div>
             </div>
