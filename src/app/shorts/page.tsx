@@ -74,6 +74,16 @@ export default function ShortsPage() {
     }
   }, []);
 
+  // In-memory Fisher-Yates shuffle (zero disk usage, 0ms CPU, leaves no storage footprint)
+  const shuffleTrailers = useCallback((items: TrailerItem[]): TrailerItem[] => {
+    const arr = [...items];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, []);
+
   // Fetch Initial Trailers
   useEffect(() => {
     let isMounted = true;
@@ -82,8 +92,10 @@ export default function ShortsPage() {
         setIsLoading(true);
         const data = await tmdbService.getTrailers(1);
         if (isMounted) {
-          setTrailers(data.results || []);
-          setHasMore((data.results || []).length > 0);
+          const rawItems: TrailerItem[] = data.results || [];
+          // Shuffle on session start so the user never starts on the exact same trailer
+          setTrailers(shuffleTrailers(rawItems));
+          setHasMore(rawItems.length > 0);
           setPage(1);
         }
       } catch (err) {
@@ -96,7 +108,7 @@ export default function ShortsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [shuffleTrailers]);
 
   // Fetch More Trailers on Infinite Scroll
   const fetchMore = useCallback(async () => {
@@ -109,9 +121,10 @@ export default function ShortsPage() {
       if (newItems.length === 0) {
         setHasMore(false);
       } else {
+        const shuffledNew = shuffleTrailers(newItems);
         setTrailers((prev) => {
           const existingIds = new Set(prev.map((t) => `${t.media_type}-${t.id}`));
-          const unique = newItems.filter((t) => !existingIds.has(`${t.media_type}-${t.id}`));
+          const unique = shuffledNew.filter((t) => !existingIds.has(`${t.media_type}-${t.id}`));
           return [...prev, ...unique];
         });
         setPage(nextPage);
@@ -121,7 +134,7 @@ export default function ShortsPage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [page, hasMore, isLoadingMore]);
+  }, [page, hasMore, isLoadingMore, shuffleTrailers]);
 
   // Scroll to index helper
   const scrollToIndex = useCallback(

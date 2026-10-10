@@ -4,8 +4,8 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { Tv, Film, Search, Bookmark, User } from "lucide-react";
+import { motion } from "framer-motion";
+import { Tv, Film, Flame, Search, Bookmark, User } from "lucide-react";
 
 const BRAND_COLOR = "#2dd4bf"; // Neon Teal (Green + Blue mix)
 
@@ -13,6 +13,7 @@ const navItems = [
   { name: "Shows", href: "/shows", icon: Tv, match: "/shows" },
   { name: "Movies", href: "/movies", icon: Film, match: "/movies" },
   { name: "Discover", href: "/discover", icon: Search, match: "/discover" },
+  { name: "Shorts", href: "/shorts", icon: Flame, match: "/shorts" },
   { name: "My List", href: "/lists", icon: Bookmark, match: "/lists" },
   { name: "Profile", href: "/profile", icon: User, match: "/profile" },
 ];
@@ -23,7 +24,7 @@ function TypewriterLabel({ text, isActive }: { text: string; isActive: boolean }
 
   if (!isActive) {
     return (
-      <span className="text-[10px] font-medium tracking-wide text-zinc-500 transition-colors duration-200 group-hover:text-zinc-200">
+      <span className="text-[10px] font-medium tracking-wide text-zinc-500 transition-colors duration-200 group-hover:text-zinc-200 whitespace-nowrap">
         {text}
       </span>
     );
@@ -32,7 +33,7 @@ function TypewriterLabel({ text, isActive }: { text: string; isActive: boolean }
   return (
     <motion.span
       key={`active-${text}`}
-      className="flex text-[10px] font-bold tracking-wide"
+      className="flex text-[10px] font-bold tracking-wide whitespace-nowrap"
       style={{ color: BRAND_COLOR }}
     >
       {letters.map((letter, i) => (
@@ -59,7 +60,7 @@ export function BottomNav() {
   }
 
   const isItemActive = (match: string, currentPath: string) => {
-    if (match === "/discover" || match === "/profile") {
+    if (match === "/discover" || match === "/profile" || match === "/shorts") {
       return currentPath === match;
     }
     return currentPath.startsWith(match);
@@ -67,45 +68,45 @@ export function BottomNav() {
 
   return (
     <div className="fixed -bottom-1 left-0 w-full z-50 pointer-events-none">
-      <div className="w-full bg-black/60 backdrop-blur-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.3)] pointer-events-auto pb-[calc(env(safe-area-inset-bottom)+4px)]">
+      <div className="w-full bg-black/60 backdrop-blur-2xl shadow-[0_-8px_30px_rgba(0,0,0,0.3)] pointer-events-auto pb-1 sm:pb-1.5">
         <div className="max-w-md mx-auto flex items-center justify-around px-2 sm:px-4 py-1.5 sm:py-2">
-        {navItems.map((item) => {
-          const isActive = isItemActive(item.match, pathname);
-          const Icon = item.icon;
+          {navItems.map((item) => {
+            const isActive = isItemActive(item.match, pathname);
+            const Icon = item.icon;
 
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className="group relative flex flex-col items-center justify-center gap-0.5 cursor-pointer min-w-[44px]"
-            >
-              {/* Icon with hover: scale + brighten, active: scale + brand color */}
-              <motion.div
-                whileHover={!isActive ? { scale: 1.15, color: "#e4e4e7" } : {}}
-                animate={{
-                  scale: isActive ? 1.15 : 1,
-                  color: isActive ? BRAND_COLOR : "#52525b",
-                }}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                className="relative flex items-center justify-center"
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="group relative flex flex-col items-center justify-center gap-0.5 cursor-pointer min-w-[44px]"
               >
-                <Icon
-                  size={20}
-                  strokeWidth={isActive ? 0 : 1.8}
-                  style={{
-                    fill: isActive ? BRAND_COLOR : "none",
-                    transition: "fill 0.25s ease",
+                {/* Icon with hover: scale + brighten, active: scale + brand color */}
+                <motion.div
+                  whileHover={!isActive ? { scale: 1.15, color: "#e4e4e7" } : {}}
+                  animate={{
+                    scale: isActive ? 1.15 : 1,
+                    color: isActive ? BRAND_COLOR : "#52525b",
                   }}
-                />
-              </motion.div>
+                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                  className="relative flex items-center justify-center"
+                >
+                  <Icon
+                    size={20}
+                    strokeWidth={isActive ? 0 : 1.8}
+                    style={{
+                      fill: isActive ? BRAND_COLOR : "none",
+                      transition: "fill 0.25s ease",
+                    }}
+                  />
+                </motion.div>
 
-              {/* Label — always visible */}
-              <div className="h-3.5 flex items-center justify-center">
-                <TypewriterLabel text={item.name} isActive={isActive} />
-              </div>
-            </Link>
-          );
-        })}
+                {/* Label — always visible */}
+                <div className="h-3.5 flex items-center justify-center">
+                  <TypewriterLabel text={item.name} isActive={isActive} />
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>
