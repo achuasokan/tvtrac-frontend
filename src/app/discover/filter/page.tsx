@@ -268,6 +268,25 @@ function FilterSliderDropdown({
   );
 }
 
+interface AnimeGenreDef {
+  id: string;
+  name: string;
+  genreId: string;
+}
+
+const ANIME_GENRES: AnimeGenreDef[] = [
+  { id: "shonen", name: "Shonen (Action)", genreId: "16,10759" },
+  { id: "seinen", name: "Seinen (Mature / Drama)", genreId: "16,18" },
+  { id: "fantasy", name: "Fantasy & Isekai", genreId: "16,10765" },
+  { id: "mecha", name: "Sci-Fi & Mecha", genreId: "16,10765" },
+  { id: "slice_of_life", name: "Slice of Life & Comedy", genreId: "16,35" },
+  { id: "romance", name: "Romance & Shojo", genreId: "16,18,35" },
+  { id: "psychological", name: "Psychological & Mystery", genreId: "16,9648" },
+  { id: "crime", name: "Crime & Thriller", genreId: "16,80" },
+  { id: "supernatural", name: "Supernatural & Action", genreId: "16,10765,10759" },
+  { id: "kids", name: "Kids & Family", genreId: "16,10762" }
+];
+
 export default function AdvancedFilterPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
@@ -280,7 +299,10 @@ export default function AdvancedFilterPage() {
     return defaultValue;
   };
 
-  const [type, setType] = useState<"tv" | "movie">(getParam("type", "tv") as "tv" | "movie");
+  const [type, setType] = useState<"tv" | "movie" | "anime">(() => {
+    const param = getParam("type", "tv");
+    return param === "movie" || param === "anime" ? param : "tv";
+  });
   
   const currentYear = new Date().getFullYear();
   const initialYearFrom = parseInt(getParam("yearFrom", "1900"));
@@ -301,6 +323,7 @@ export default function AdvancedFilterPage() {
   const [provider, setProvider] = useState<string>(getParam("provider"));
   const [status, setStatus] = useState<string>(getParam("status")); // Only for TV
   const [minRating, setMinRating] = useState<string>(getParam("minRating", "0")); // Default Any Rating
+  const [maturity, setMaturity] = useState<string>(getParam("maturity"));
   
   // UI State
   const [showFilters, setShowFilters] = useState(false);
@@ -334,7 +357,7 @@ export default function AdvancedFilterPage() {
     isError,
     refetch
   } = useInfiniteQuery({
-    queryKey: ['filter-results', type, debouncedYearRange[0], debouncedYearRange[1], genre, language, provider, status, minRating, debouncedQuery],
+    queryKey: ['filter-results', type, debouncedYearRange[0], debouncedYearRange[1], genre, language, provider, status, minRating, maturity, debouncedQuery],
     queryFn: async ({ pageParam = 1 }) => {
       let response;
       
@@ -342,7 +365,7 @@ export default function AdvancedFilterPage() {
         response = await tmdbService.search(debouncedQuery, pageParam.toString());
       } else {
         const params: Record<string, string> = {
-          type,
+          type: type === "movie" ? "movie" : "tv",
           page: pageParam.toString(),
           sort_by: "popularity.desc"
         };
@@ -353,29 +376,62 @@ export default function AdvancedFilterPage() {
         }
 
         if (debouncedYearRange[0] > 1900 || debouncedYearRange[1] < currentYear) {
-          if (type === "tv") {
-            params["first_air_date.gte"] = `${debouncedYearRange[0]}-01-01`;
-            params["first_air_date.lte"] = `${debouncedYearRange[1]}-12-31`;
-          } else {
+          if (type === "movie") {
             params["primary_release_date.gte"] = `${debouncedYearRange[0]}-01-01`;
             params["primary_release_date.lte"] = `${debouncedYearRange[1]}-12-31`;
-          }
-        }
-        if (genre) params["with_genres"] = genre;
-        if (language) params["with_original_language"] = language;
-        if (provider) {
-          params["with_watch_providers"] = provider;
-          
-          const indianProviders = ["122", "220", "232", "237", "309"];
-          const indianLangs = ["hi", "ml", "ta", "te", "bn", "kn"];
-          
-          if (indianProviders.includes(provider) || indianLangs.includes(language)) {
-            params["watch_region"] = "IN";
           } else {
-            params["watch_region"] = "US";
+            params["first_air_date.gte"] = `${debouncedYearRange[0]}-01-01`;
+            params["first_air_date.lte"] = `${debouncedYearRange[1]}-12-31`;
           }
         }
-        if (type === "tv" && status) params["with_status"] = status;
+
+        if (type === "anime") {
+          const selectedAnime = ANIME_GENRES.find(g => g.id === genre);
+          if (selectedAnime?.genreId) {
+            params["with_genres"] = selectedAnime.genreId;
+          } else if (genre) {
+            params["with_genres"] = `16,${genre}`;
+          } else {
+            params["with_genres"] = "16";
+          }
+          params["with_original_language"] = language || "ja";
+        } else {
+          if (genre) params["with_genres"] = genre;
+          if (language) params["with_original_language"] = language;
+        }
+
+        if (provider) {
+          if (provider === "vivamax") {
+            params["with_companies"] = "149142|8356";
+          } else if (provider === "iwanttfc") {
+            if (type === "tv") {
+              params["with_networks"] = "154";
+            } else {
+              params["with_companies"] = "210507|111387|288435|162722";
+            }
+          } else {
+            params["with_watch_providers"] = provider;
+            
+            const indianProviders = ["122", "220", "232", "237", "309", "532", "319", "559"];
+            const indianLangs = ["hi", "ml", "ta", "te", "kn", "bn", "mr", "pa", "ur", "gu"];
+            
+            const phProviders = ["158", "118", "430", "581", "159"];
+            const phLangs = ["tl"];
+
+            if (phProviders.includes(provider) || phLangs.includes(language)) {
+              params["watch_region"] = "PH";
+            } else if (indianProviders.includes(provider) || indianLangs.includes(language)) {
+              params["watch_region"] = "IN";
+            } else {
+              params["watch_region"] = "US";
+            }
+          }
+        }
+        if ((type === "tv" || type === "anime") && status) params["with_status"] = status;
+        if (maturity) {
+          params["certification_country"] = "US";
+          params["certification"] = maturity;
+        }
 
         response = await tmdbService.discoverAdvanced(params);
       }
@@ -383,9 +439,9 @@ export default function AdvancedFilterPage() {
       const filtered = response.results?.filter((item: any) => 
         item.poster_path && 
         item.media_type !== "person" &&
-        (debouncedQuery.trim() === "" || (item.media_type === type || !item.media_type))
+        (debouncedQuery.trim() === "" || (item.media_type === (type === "anime" ? "tv" : type) || !item.media_type))
       ) || [];
-      const mapped = filtered.map((item: any) => ({ ...item, media_type: item.media_type || type }));
+      const mapped = filtered.map((item: any) => ({ ...item, media_type: item.media_type || (type === "anime" ? "tv" : type) }));
       
       return {
         results: mapped,
@@ -446,14 +502,15 @@ export default function AdvancedFilterPage() {
     if (genre) params.set("genre", genre);
     if (language) params.set("language", language);
     if (provider) params.set("provider", provider);
-    if (status && type === "tv") params.set("status", status);
+    if (status && (type === "tv" || type === "anime")) params.set("status", status);
     if (minRating !== "0") params.set("minRating", minRating);
+    if (maturity) params.set("maturity", maturity);
     
     const queryString = params.toString() ? `?${params.toString()}` : "";
     if (window.location.search !== queryString) {
       window.history.replaceState(null, "", `${window.location.pathname}${queryString}`);
     }
-  }, [type, debouncedYearRange, genre, language, provider, status, minRating]);
+  }, [type, debouncedYearRange, genre, language, provider, status, minRating, maturity]);
 
   // Dropdown Options
   const platforms = [
@@ -468,10 +525,27 @@ export default function AdvancedFilterPage() {
     { id: "386", name: "Peacock" },
     { id: "531", name: "Paramount+" },
     { id: "283", name: "Crunchyroll" },
+    { id: "344", name: "Rakuten Viki" },
+    { id: "vivamax", name: "Vivamax" },
+    { id: "iwanttfc", name: "iWantTFC" },
+    { id: "158", name: "Viu" },
+    { id: "118", name: "HBO GO" },
+    { id: "430", name: "WeTV" },
+    { id: "11", name: "MUBI" },
+    { id: "99", name: "Shudder" },
+    { id: "526", name: "AMC+" },
+    { id: "43", name: "Starz" },
+    { id: "37", name: "Showtime" },
+    { id: "34", name: "MGM+" },
+    { id: "73", name: "Tubi TV" },
+    { id: "300", name: "Pluto TV" },
     { id: "220", name: "JioCinema" },
     { id: "232", name: "ZEE5" },
     { id: "237", name: "Sony Liv" },
-    { id: "309", name: "Sun Nxt" }
+    { id: "309", name: "Sun Nxt" },
+    { id: "532", name: "Aha" },
+    { id: "319", name: "Hoichoi" },
+    { id: "559", name: "Lionsgate Play" }
   ];
   const languages = [
     { code: "en", name: "English" },
@@ -479,13 +553,28 @@ export default function AdvancedFilterPage() {
     { code: "ml", name: "Malayalam" },
     { code: "ta", name: "Tamil" },
     { code: "te", name: "Telugu" },
+    { code: "kn", name: "Kannada" },
+    { code: "bn", name: "Bengali" },
+    { code: "mr", name: "Marathi" },
+    { code: "pa", name: "Punjabi" },
+    { code: "ur", name: "Urdu" },
+    { code: "gu", name: "Gujarati" },
     { code: "ko", name: "Korean" },
     { code: "ja", name: "Japanese" },
     { code: "es", name: "Spanish" },
     { code: "fr", name: "French" },
-    { code: "it", name: "Italian" },
     { code: "de", name: "German" },
-    { code: "zh", name: "Chinese" }
+    { code: "it", name: "Italian" },
+    { code: "pt", name: "Portuguese" },
+    { code: "tr", name: "Turkish" },
+    { code: "zh", name: "Chinese" },
+    { code: "ru", name: "Russian" },
+    { code: "th", name: "Thai" },
+    { code: "id", name: "Indonesian" },
+    { code: "tl", name: "Tagalog (Filipino)" },
+    { code: "ar", name: "Arabic" },
+    { code: "sv", name: "Swedish" },
+    { code: "da", name: "Danish" }
   ];
   const tvStatuses = [
     { id: "0", name: "Returning Series" },
@@ -497,7 +586,9 @@ export default function AdvancedFilterPage() {
   ];
   
   // Genres change based on type
-  const genres = type === "tv" ? [
+  const genres = type === "anime"
+    ? ANIME_GENRES
+    : type === "tv" ? [
     { id: "10759", name: "Action & Adventure" },
     { id: "16", name: "Animation" },
     { id: "35", name: "Comedy" },
@@ -507,8 +598,10 @@ export default function AdvancedFilterPage() {
     { id: "10751", name: "Family" },
     { id: "10762", name: "Kids" },
     { id: "9648", name: "Mystery" },
+    { id: "10763", name: "News" },
     { id: "10764", name: "Reality" },
     { id: "10765", name: "Sci-Fi & Fantasy" },
+    { id: "10766", name: "Soap" },
     { id: "10767", name: "Talk" },
     { id: "10768", name: "War & Politics" },
     { id: "37", name: "Western" }
@@ -540,14 +633,14 @@ export default function AdvancedFilterPage() {
   ], [platforms]);
 
   const languageOptions = useMemo(() => [
-    { value: "", label: "Any Language" },
+    { value: "", label: type === "anime" ? "Japanese (Default)" : "Any Language" },
     ...languages.map(l => ({ value: l.code, label: l.name }))
-  ], [languages]);
+  ], [languages, type]);
 
   const genreOptions = useMemo(() => [
-    { value: "", label: "Any Genre" },
+    { value: "", label: type === "anime" ? "All Anime Genres" : "Any Genre" },
     ...genres.map(g => ({ value: g.id, label: g.name }))
-  ], [genres]);
+  ], [genres, type]);
 
   const statusOptions = useMemo(() => [
     { value: "", label: "Any Status" },
@@ -563,6 +656,27 @@ export default function AdvancedFilterPage() {
     { value: "9", label: "9+ Stars" }
   ], []);
 
+  const maturityOptions = useMemo(() => {
+    if (type === "tv" || type === "anime") {
+      return [
+        { value: "", label: "Any Maturity" },
+        { value: "TV-Y", label: "TV-Y (All Children)" },
+        { value: "TV-G", label: "TV-G (General Audience)" },
+        { value: "TV-PG", label: "TV-PG (Parental Guidance)" },
+        { value: "TV-14", label: "TV-14 (Teens 14+)" },
+        { value: "TV-MA", label: "TV-MA (Mature 17+ / Adults)" }
+      ];
+    }
+    return [
+      { value: "", label: "Any Maturity" },
+      { value: "G", label: "G (General Audience)" },
+      { value: "PG", label: "PG (Parental Guidance)" },
+      { value: "PG-13", label: "PG-13 (Teens 13+)" },
+      { value: "R", label: "R (Mature 17+)" },
+      { value: "NC-17", label: "NC-17 (Adults Only 18+)" }
+    ];
+  }, [type]);
+
   if (isAuthLoading || !user) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
@@ -573,7 +687,7 @@ export default function AdvancedFilterPage() {
 
   const activeFilterCount = [
     (debouncedYearRange[0] > 1900 || debouncedYearRange[1] < currentYear) ? "year" : "",
-    genre, language, provider, status, minRating !== "0" ? minRating : ""
+    genre, language, provider, status, minRating !== "0" ? minRating : "", maturity
   ].filter(Boolean).length;
 
   return (
@@ -616,25 +730,36 @@ export default function AdvancedFilterPage() {
               <div className="flex bg-zinc-950/90 p-1 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/90 shadow-inner backdrop-blur-md">
                 <button 
                   type="button"
-                  className={`cursor-pointer px-3.5 py-1.5 sm:px-4 sm:py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                  className={`cursor-pointer px-3 sm:px-3.5 py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
                     type === 'tv' 
                       ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
                       : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
                   }`}
-                  onClick={() => { setType('tv'); setGenre(''); setStatus(''); }}
+                  onClick={() => { setType('tv'); setGenre(''); setStatus(''); setMaturity(''); }}
                 >
                   TV Shows
                 </button>
                 <button 
                   type="button"
-                  className={`cursor-pointer px-3.5 py-1.5 sm:px-4 sm:py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                  className={`cursor-pointer px-3 sm:px-3.5 py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
                     type === 'movie' 
                       ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
                       : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
                   }`}
-                  onClick={() => { setType('movie'); setGenre(''); setStatus(''); }}
+                  onClick={() => { setType('movie'); setGenre(''); setStatus(''); setMaturity(''); }}
                 >
                   Movies
+                </button>
+                <button 
+                  type="button"
+                  className={`cursor-pointer px-3 sm:px-3.5 py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                    type === 'anime' 
+                      ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
+                      : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
+                  }`}
+                  onClick={() => { setType('anime'); setGenre(''); setStatus(''); setMaturity(''); }}
+                >
+                  Anime
                 </button>
               </div>
 
@@ -680,7 +805,7 @@ export default function AdvancedFilterPage() {
                   </div>
                   <input
                     type="text"
-                    placeholder={`Search ${type === 'tv' ? 'TV shows' : 'movies'}...`}
+                    placeholder={`Search ${type === 'tv' ? 'TV shows' : type === 'movie' ? 'movies' : 'anime'}...`}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     className="w-full bg-transparent text-white py-1.5 sm:py-2 pl-8 sm:pl-9 pr-8 focus:outline-none text-xs sm:text-sm placeholder:text-zinc-500 font-medium"
@@ -701,7 +826,7 @@ export default function AdvancedFilterPage() {
                 </div>
               </div>
 
-              <div className={`grid grid-cols-2 sm:grid-cols-3 ${type === 'tv' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-2.5 sm:gap-3`}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 sm:gap-3">
                 
                 {/* Platform Filter */}
                 <FilterDropdown
@@ -767,8 +892,8 @@ export default function AdvancedFilterPage() {
                   </div>
                 </FilterSliderDropdown>
 
-                {/* Status Filter (TV only) */}
-                {type === "tv" && (
+                {/* Status Filter (TV and Anime) */}
+                {(type === "tv" || type === "anime") && (
                   <FilterDropdown
                     value={status}
                     onChange={setStatus}
@@ -794,9 +919,21 @@ export default function AdvancedFilterPage() {
                   }
                 />
 
+                {/* Maturity / Age Rating Filter */}
+                <FilterDropdown
+                  value={maturity}
+                  onChange={setMaturity}
+                  options={maturityOptions}
+                  icon={
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                  }
+                />
+
                 {/* Active Filters Summary & Clear All */}
                 {activeFilterCount > 0 && (
-                  <div className={`col-span-2 sm:col-span-3 ${type === 'tv' ? 'lg:col-span-6' : 'lg:col-span-5'} flex items-center justify-between pt-2.5 border-t border-zinc-800/60 mt-1`}>
+                  <div className="col-span-2 sm:col-span-3 md:col-span-3 lg:col-span-6 xl:col-span-7 flex items-center justify-between pt-2.5 border-t border-zinc-800/60 mt-1">
                     <div className="flex items-center gap-2 text-xs text-zinc-400">
                       <span className="w-2 h-2 rounded-full bg-[#2dd4bf] shadow-[0_0_8px_#2dd4bf]" />
                       <span>
@@ -804,7 +941,7 @@ export default function AdvancedFilterPage() {
                       </span>
                     </div>
                     <button 
-                      onClick={() => { setYearRange([1900, currentYear]); setGenre(''); setLanguage(''); setProvider(''); setStatus(''); setMinRating('0'); }}
+                      onClick={() => { setYearRange([1900, currentYear]); setGenre(''); setLanguage(''); setProvider(''); setStatus(''); setMinRating('0'); setMaturity(''); }}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-300 py-1.5 px-3 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 hover:border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.12)] active:scale-95 transition-all cursor-pointer"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
