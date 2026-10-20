@@ -268,6 +268,25 @@ function FilterSliderDropdown({
   );
 }
 
+interface AnimeGenreDef {
+  id: string;
+  name: string;
+  genreId: string;
+}
+
+const ANIME_GENRES: AnimeGenreDef[] = [
+  { id: "shonen", name: "Shonen (Action)", genreId: "16,10759" },
+  { id: "seinen", name: "Seinen (Mature / Drama)", genreId: "16,18" },
+  { id: "fantasy", name: "Fantasy & Isekai", genreId: "16,10765" },
+  { id: "mecha", name: "Sci-Fi & Mecha", genreId: "16,10765" },
+  { id: "slice_of_life", name: "Slice of Life & Comedy", genreId: "16,35" },
+  { id: "romance", name: "Romance & Shojo", genreId: "16,18,35" },
+  { id: "psychological", name: "Psychological & Mystery", genreId: "16,9648" },
+  { id: "crime", name: "Crime & Thriller", genreId: "16,80" },
+  { id: "supernatural", name: "Supernatural & Action", genreId: "16,10765,10759" },
+  { id: "kids", name: "Kids & Family", genreId: "16,10762" }
+];
+
 export default function AdvancedFilterPage() {
   const { user, isLoading: isAuthLoading } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
@@ -280,7 +299,10 @@ export default function AdvancedFilterPage() {
     return defaultValue;
   };
 
-  const [type, setType] = useState<"tv" | "movie">(getParam("type", "tv") as "tv" | "movie");
+  const [type, setType] = useState<"tv" | "movie" | "anime">(() => {
+    const param = getParam("type", "tv");
+    return param === "movie" || param === "anime" ? param : "tv";
+  });
   
   const currentYear = new Date().getFullYear();
   const initialYearFrom = parseInt(getParam("yearFrom", "1900"));
@@ -343,7 +365,7 @@ export default function AdvancedFilterPage() {
         response = await tmdbService.search(debouncedQuery, pageParam.toString());
       } else {
         const params: Record<string, string> = {
-          type,
+          type: type === "movie" ? "movie" : "tv",
           page: pageParam.toString(),
           sort_by: "popularity.desc"
         };
@@ -354,16 +376,30 @@ export default function AdvancedFilterPage() {
         }
 
         if (debouncedYearRange[0] > 1900 || debouncedYearRange[1] < currentYear) {
-          if (type === "tv") {
-            params["first_air_date.gte"] = `${debouncedYearRange[0]}-01-01`;
-            params["first_air_date.lte"] = `${debouncedYearRange[1]}-12-31`;
-          } else {
+          if (type === "movie") {
             params["primary_release_date.gte"] = `${debouncedYearRange[0]}-01-01`;
             params["primary_release_date.lte"] = `${debouncedYearRange[1]}-12-31`;
+          } else {
+            params["first_air_date.gte"] = `${debouncedYearRange[0]}-01-01`;
+            params["first_air_date.lte"] = `${debouncedYearRange[1]}-12-31`;
           }
         }
-        if (genre) params["with_genres"] = genre;
-        if (language) params["with_original_language"] = language;
+
+        if (type === "anime") {
+          const selectedAnime = ANIME_GENRES.find(g => g.id === genre);
+          if (selectedAnime?.genreId) {
+            params["with_genres"] = selectedAnime.genreId;
+          } else if (genre) {
+            params["with_genres"] = `16,${genre}`;
+          } else {
+            params["with_genres"] = "16";
+          }
+          params["with_original_language"] = language || "ja";
+        } else {
+          if (genre) params["with_genres"] = genre;
+          if (language) params["with_original_language"] = language;
+        }
+
         if (provider) {
           params["with_watch_providers"] = provider;
           
@@ -376,7 +412,7 @@ export default function AdvancedFilterPage() {
             params["watch_region"] = "US";
           }
         }
-        if (type === "tv" && status) params["with_status"] = status;
+        if ((type === "tv" || type === "anime") && status) params["with_status"] = status;
         if (maturity) {
           params["certification_country"] = "US";
           params["certification"] = maturity;
@@ -388,9 +424,9 @@ export default function AdvancedFilterPage() {
       const filtered = response.results?.filter((item: any) => 
         item.poster_path && 
         item.media_type !== "person" &&
-        (debouncedQuery.trim() === "" || (item.media_type === type || !item.media_type))
+        (debouncedQuery.trim() === "" || (item.media_type === (type === "anime" ? "tv" : type) || !item.media_type))
       ) || [];
-      const mapped = filtered.map((item: any) => ({ ...item, media_type: item.media_type || type }));
+      const mapped = filtered.map((item: any) => ({ ...item, media_type: item.media_type || (type === "anime" ? "tv" : type) }));
       
       return {
         results: mapped,
@@ -451,7 +487,7 @@ export default function AdvancedFilterPage() {
     if (genre) params.set("genre", genre);
     if (language) params.set("language", language);
     if (provider) params.set("provider", provider);
-    if (status && type === "tv") params.set("status", status);
+    if (status && (type === "tv" || type === "anime")) params.set("status", status);
     if (minRating !== "0") params.set("minRating", minRating);
     if (maturity) params.set("maturity", maturity);
     
@@ -503,7 +539,9 @@ export default function AdvancedFilterPage() {
   ];
   
   // Genres change based on type
-  const genres = type === "tv" ? [
+  const genres = type === "anime"
+    ? ANIME_GENRES
+    : type === "tv" ? [
     { id: "10759", name: "Action & Adventure" },
     { id: "16", name: "Animation" },
     { id: "35", name: "Comedy" },
@@ -548,14 +586,14 @@ export default function AdvancedFilterPage() {
   ], [platforms]);
 
   const languageOptions = useMemo(() => [
-    { value: "", label: "Any Language" },
+    { value: "", label: type === "anime" ? "Japanese (Default)" : "Any Language" },
     ...languages.map(l => ({ value: l.code, label: l.name }))
-  ], [languages]);
+  ], [languages, type]);
 
   const genreOptions = useMemo(() => [
-    { value: "", label: "Any Genre" },
+    { value: "", label: type === "anime" ? "All Anime Genres" : "Any Genre" },
     ...genres.map(g => ({ value: g.id, label: g.name }))
-  ], [genres]);
+  ], [genres, type]);
 
   const statusOptions = useMemo(() => [
     { value: "", label: "Any Status" },
@@ -572,7 +610,7 @@ export default function AdvancedFilterPage() {
   ], []);
 
   const maturityOptions = useMemo(() => {
-    if (type === "tv") {
+    if (type === "tv" || type === "anime") {
       return [
         { value: "", label: "Any Maturity" },
         { value: "TV-Y", label: "TV-Y (All Children)" },
@@ -645,7 +683,7 @@ export default function AdvancedFilterPage() {
               <div className="flex bg-zinc-950/90 p-1 rounded-tl-xl rounded-br-xl rounded-tr-sm rounded-bl-sm border border-zinc-800/90 shadow-inner backdrop-blur-md">
                 <button 
                   type="button"
-                  className={`cursor-pointer px-3.5 py-1.5 sm:px-4 sm:py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                  className={`cursor-pointer px-3 sm:px-3.5 py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
                     type === 'tv' 
                       ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
                       : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
@@ -656,7 +694,7 @@ export default function AdvancedFilterPage() {
                 </button>
                 <button 
                   type="button"
-                  className={`cursor-pointer px-3.5 py-1.5 sm:px-4 sm:py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                  className={`cursor-pointer px-3 sm:px-3.5 py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
                     type === 'movie' 
                       ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
                       : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
@@ -664,6 +702,17 @@ export default function AdvancedFilterPage() {
                   onClick={() => { setType('movie'); setGenre(''); setStatus(''); setMaturity(''); }}
                 >
                   Movies
+                </button>
+                <button 
+                  type="button"
+                  className={`cursor-pointer px-3 sm:px-3.5 py-1.5 text-xs font-bold transition-colors duration-150 outline-none focus:outline-none focus:ring-0 ${
+                    type === 'anime' 
+                      ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
+                      : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
+                  }`}
+                  onClick={() => { setType('anime'); setGenre(''); setStatus(''); setMaturity(''); }}
+                >
+                  Anime
                 </button>
               </div>
 
@@ -709,7 +758,7 @@ export default function AdvancedFilterPage() {
                   </div>
                   <input
                     type="text"
-                    placeholder={`Search ${type === 'tv' ? 'TV shows' : 'movies'}...`}
+                    placeholder={`Search ${type === 'tv' ? 'TV shows' : type === 'movie' ? 'movies' : 'anime'}...`}
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     className="w-full bg-transparent text-white py-1.5 sm:py-2 pl-8 sm:pl-9 pr-8 focus:outline-none text-xs sm:text-sm placeholder:text-zinc-500 font-medium"
@@ -796,8 +845,8 @@ export default function AdvancedFilterPage() {
                   </div>
                 </FilterSliderDropdown>
 
-                {/* Status Filter (TV only) */}
-                {type === "tv" && (
+                {/* Status Filter (TV and Anime) */}
+                {(type === "tv" || type === "anime") && (
                   <FilterDropdown
                     value={status}
                     onChange={setStatus}
