@@ -401,15 +401,30 @@ export default function AdvancedFilterPage() {
         }
 
         if (provider) {
-          params["with_watch_providers"] = provider;
-          
-          const indianProviders = ["122", "220", "232", "237", "309"];
-          const indianLangs = ["hi", "ml", "ta", "te", "bn", "kn"];
-          
-          if (indianProviders.includes(provider) || indianLangs.includes(language)) {
-            params["watch_region"] = "IN";
+          if (provider === "vivamax") {
+            params["with_companies"] = "149142|8356";
+          } else if (provider === "iwanttfc") {
+            if (type === "tv") {
+              params["with_networks"] = "154";
+            } else {
+              params["with_companies"] = "210507|111387|288435|162722";
+            }
           } else {
-            params["watch_region"] = "US";
+            params["with_watch_providers"] = provider;
+            
+            const indianProviders = ["122", "220", "232", "237", "309", "532", "319", "559"];
+            const indianLangs = ["hi", "ml", "ta", "te", "kn", "bn", "mr", "pa", "ur", "gu"];
+            
+            const phProviders = ["158", "118", "430", "581", "159"];
+            const phLangs = ["tl"];
+
+            if (phProviders.includes(provider) || phLangs.includes(language)) {
+              params["watch_region"] = "PH";
+            } else if (indianProviders.includes(provider) || indianLangs.includes(language)) {
+              params["watch_region"] = "IN";
+            } else {
+              params["watch_region"] = "US";
+            }
           }
         }
         if ((type === "tv" || type === "anime") && status) params["with_status"] = status;
@@ -495,7 +510,7 @@ export default function AdvancedFilterPage() {
     if (window.location.search !== queryString) {
       window.history.replaceState(null, "", `${window.location.pathname}${queryString}`);
     }
-  }, [type, debouncedYearRange, genre, language, provider, status, minRating]);
+  }, [type, debouncedYearRange, genre, language, provider, status, minRating, maturity]);
 
   // Dropdown Options
   const platforms = [
@@ -510,10 +525,27 @@ export default function AdvancedFilterPage() {
     { id: "386", name: "Peacock" },
     { id: "531", name: "Paramount+" },
     { id: "283", name: "Crunchyroll" },
+    { id: "344", name: "Rakuten Viki" },
+    { id: "vivamax", name: "Vivamax" },
+    { id: "iwanttfc", name: "iWantTFC" },
+    { id: "158", name: "Viu" },
+    { id: "118", name: "HBO GO" },
+    { id: "430", name: "WeTV" },
+    { id: "11", name: "MUBI" },
+    { id: "99", name: "Shudder" },
+    { id: "526", name: "AMC+" },
+    { id: "43", name: "Starz" },
+    { id: "37", name: "Showtime" },
+    { id: "34", name: "MGM+" },
+    { id: "73", name: "Tubi TV" },
+    { id: "300", name: "Pluto TV" },
     { id: "220", name: "JioCinema" },
     { id: "232", name: "ZEE5" },
     { id: "237", name: "Sony Liv" },
-    { id: "309", name: "Sun Nxt" }
+    { id: "309", name: "Sun Nxt" },
+    { id: "532", name: "Aha" },
+    { id: "319", name: "Hoichoi" },
+    { id: "559", name: "Lionsgate Play" }
   ];
   const languages = [
     { code: "en", name: "English" },
@@ -521,13 +553,28 @@ export default function AdvancedFilterPage() {
     { code: "ml", name: "Malayalam" },
     { code: "ta", name: "Tamil" },
     { code: "te", name: "Telugu" },
+    { code: "kn", name: "Kannada" },
+    { code: "bn", name: "Bengali" },
+    { code: "mr", name: "Marathi" },
+    { code: "pa", name: "Punjabi" },
+    { code: "ur", name: "Urdu" },
+    { code: "gu", name: "Gujarati" },
     { code: "ko", name: "Korean" },
     { code: "ja", name: "Japanese" },
     { code: "es", name: "Spanish" },
     { code: "fr", name: "French" },
-    { code: "it", name: "Italian" },
     { code: "de", name: "German" },
-    { code: "zh", name: "Chinese" }
+    { code: "it", name: "Italian" },
+    { code: "pt", name: "Portuguese" },
+    { code: "tr", name: "Turkish" },
+    { code: "zh", name: "Chinese" },
+    { code: "ru", name: "Russian" },
+    { code: "th", name: "Thai" },
+    { code: "id", name: "Indonesian" },
+    { code: "tl", name: "Tagalog (Filipino)" },
+    { code: "ar", name: "Arabic" },
+    { code: "sv", name: "Swedish" },
+    { code: "da", name: "Danish" }
   ];
   const tvStatuses = [
     { id: "0", name: "Returning Series" },
