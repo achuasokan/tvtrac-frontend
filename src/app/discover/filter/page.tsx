@@ -301,6 +301,7 @@ export default function AdvancedFilterPage() {
   const [provider, setProvider] = useState<string>(getParam("provider"));
   const [status, setStatus] = useState<string>(getParam("status")); // Only for TV
   const [minRating, setMinRating] = useState<string>(getParam("minRating", "0")); // Default Any Rating
+  const [maturity, setMaturity] = useState<string>(getParam("maturity"));
   
   // UI State
   const [showFilters, setShowFilters] = useState(false);
@@ -334,7 +335,7 @@ export default function AdvancedFilterPage() {
     isError,
     refetch
   } = useInfiniteQuery({
-    queryKey: ['filter-results', type, debouncedYearRange[0], debouncedYearRange[1], genre, language, provider, status, minRating, debouncedQuery],
+    queryKey: ['filter-results', type, debouncedYearRange[0], debouncedYearRange[1], genre, language, provider, status, minRating, maturity, debouncedQuery],
     queryFn: async ({ pageParam = 1 }) => {
       let response;
       
@@ -376,6 +377,10 @@ export default function AdvancedFilterPage() {
           }
         }
         if (type === "tv" && status) params["with_status"] = status;
+        if (maturity) {
+          params["certification_country"] = "US";
+          params["certification"] = maturity;
+        }
 
         response = await tmdbService.discoverAdvanced(params);
       }
@@ -448,6 +453,7 @@ export default function AdvancedFilterPage() {
     if (provider) params.set("provider", provider);
     if (status && type === "tv") params.set("status", status);
     if (minRating !== "0") params.set("minRating", minRating);
+    if (maturity) params.set("maturity", maturity);
     
     const queryString = params.toString() ? `?${params.toString()}` : "";
     if (window.location.search !== queryString) {
@@ -507,8 +513,10 @@ export default function AdvancedFilterPage() {
     { id: "10751", name: "Family" },
     { id: "10762", name: "Kids" },
     { id: "9648", name: "Mystery" },
+    { id: "10763", name: "News" },
     { id: "10764", name: "Reality" },
     { id: "10765", name: "Sci-Fi & Fantasy" },
+    { id: "10766", name: "Soap" },
     { id: "10767", name: "Talk" },
     { id: "10768", name: "War & Politics" },
     { id: "37", name: "Western" }
@@ -563,6 +571,27 @@ export default function AdvancedFilterPage() {
     { value: "9", label: "9+ Stars" }
   ], []);
 
+  const maturityOptions = useMemo(() => {
+    if (type === "tv") {
+      return [
+        { value: "", label: "Any Maturity" },
+        { value: "TV-Y", label: "TV-Y (All Children)" },
+        { value: "TV-G", label: "TV-G (General Audience)" },
+        { value: "TV-PG", label: "TV-PG (Parental Guidance)" },
+        { value: "TV-14", label: "TV-14 (Teens 14+)" },
+        { value: "TV-MA", label: "TV-MA (Mature 17+ / Adults)" }
+      ];
+    }
+    return [
+      { value: "", label: "Any Maturity" },
+      { value: "G", label: "G (General Audience)" },
+      { value: "PG", label: "PG (Parental Guidance)" },
+      { value: "PG-13", label: "PG-13 (Teens 13+)" },
+      { value: "R", label: "R (Mature 17+)" },
+      { value: "NC-17", label: "NC-17 (Adults Only 18+)" }
+    ];
+  }, [type]);
+
   if (isAuthLoading || !user) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
@@ -573,7 +602,7 @@ export default function AdvancedFilterPage() {
 
   const activeFilterCount = [
     (debouncedYearRange[0] > 1900 || debouncedYearRange[1] < currentYear) ? "year" : "",
-    genre, language, provider, status, minRating !== "0" ? minRating : ""
+    genre, language, provider, status, minRating !== "0" ? minRating : "", maturity
   ].filter(Boolean).length;
 
   return (
@@ -621,7 +650,7 @@ export default function AdvancedFilterPage() {
                       ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
                       : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
                   }`}
-                  onClick={() => { setType('tv'); setGenre(''); setStatus(''); }}
+                  onClick={() => { setType('tv'); setGenre(''); setStatus(''); setMaturity(''); }}
                 >
                   TV Shows
                 </button>
@@ -632,7 +661,7 @@ export default function AdvancedFilterPage() {
                       ? 'bg-zinc-850 text-white shadow-[0_0_12px_rgba(45,212,191,0.2)] border border-[#2dd4bf]/50 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-black' 
                       : 'border border-transparent text-zinc-400 hover:text-zinc-200 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs font-semibold'
                   }`}
-                  onClick={() => { setType('movie'); setGenre(''); setStatus(''); }}
+                  onClick={() => { setType('movie'); setGenre(''); setStatus(''); setMaturity(''); }}
                 >
                   Movies
                 </button>
@@ -701,7 +730,7 @@ export default function AdvancedFilterPage() {
                 </div>
               </div>
 
-              <div className={`grid grid-cols-2 sm:grid-cols-3 ${type === 'tv' ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-2.5 sm:gap-3`}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-6 xl:grid-cols-7 gap-2.5 sm:gap-3">
                 
                 {/* Platform Filter */}
                 <FilterDropdown
@@ -794,9 +823,21 @@ export default function AdvancedFilterPage() {
                   }
                 />
 
+                {/* Maturity / Age Rating Filter */}
+                <FilterDropdown
+                  value={maturity}
+                  onChange={setMaturity}
+                  options={maturityOptions}
+                  icon={
+                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                  }
+                />
+
                 {/* Active Filters Summary & Clear All */}
                 {activeFilterCount > 0 && (
-                  <div className={`col-span-2 sm:col-span-3 ${type === 'tv' ? 'lg:col-span-6' : 'lg:col-span-5'} flex items-center justify-between pt-2.5 border-t border-zinc-800/60 mt-1`}>
+                  <div className="col-span-2 sm:col-span-3 md:col-span-3 lg:col-span-6 xl:col-span-7 flex items-center justify-between pt-2.5 border-t border-zinc-800/60 mt-1">
                     <div className="flex items-center gap-2 text-xs text-zinc-400">
                       <span className="w-2 h-2 rounded-full bg-[#2dd4bf] shadow-[0_0_8px_#2dd4bf]" />
                       <span>
@@ -804,7 +845,7 @@ export default function AdvancedFilterPage() {
                       </span>
                     </div>
                     <button 
-                      onClick={() => { setYearRange([1900, currentYear]); setGenre(''); setLanguage(''); setProvider(''); setStatus(''); setMinRating('0'); }}
+                      onClick={() => { setYearRange([1900, currentYear]); setGenre(''); setLanguage(''); setProvider(''); setStatus(''); setMinRating('0'); setMaturity(''); }}
                       className="inline-flex items-center gap-1.5 text-xs font-bold text-red-400 hover:text-red-300 py-1.5 px-3 rounded-tl-lg rounded-br-lg rounded-tr-xs rounded-bl-xs bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 hover:border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.12)] active:scale-95 transition-all cursor-pointer"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
